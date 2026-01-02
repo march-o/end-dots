@@ -11,6 +11,8 @@ depends=(
   cmake
   curl
   wget
+  fzf
+  zoxide
   ripgrep
   jq
   xdg-user-dirs

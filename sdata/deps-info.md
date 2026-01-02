@@ -44,6 +44,10 @@ Tips:
   - Used in Quickshell config.
 - `wget`
   - Used in Quickshell config.
+- `fzf`
+  - Used in Fish config for keybindings and completions.
+- `zoxide`
+  - Used in Fish config for smarter directory jumping.
 - `ripgrep`
   - Not sure where been used.
 - `jq`
