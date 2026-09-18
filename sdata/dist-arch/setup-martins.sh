@@ -39,6 +39,12 @@ install_app_launchers() {
   command -v update-desktop-database >/dev/null && update-desktop-database "$applications_dir"
 }
 
+install_user_skills() {
+  local skill_dir="$HOME/.agents/skills/desktop-control"
+  mkdir -p "$skill_dir"
+  rsync -a --delete "$repo_root/sdata/dist-arch/skills/desktop-control/" "$skill_dir/"
+}
+
 configure_quickshell_shell() {
   local config="$HOME/.config/illogical-impulse/config.json"
   [[ -f "$config" ]] || return 0
@@ -114,6 +120,7 @@ enable_services() {
 install_zsh_plugins
 install_user_config
 install_app_launchers
+install_user_skills
 configure_quickshell_shell
 configure_codex
 install_zram
