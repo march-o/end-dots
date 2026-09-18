@@ -1,0 +1,21 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chrome Work
+GenericName=Web Browser
+Comment=Browse with the work Chrome profile
+Exec=/usr/bin/google-chrome-stable --profile-directory=Default %U
+Icon=google-chrome
+Terminal=false
+StartupNotify=true
+StartupWMClass=google-chrome
+Categories=Network;WebBrowser;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Work Window
+Exec=/usr/bin/google-chrome-stable --profile-directory=Default
+
+[Desktop Action new-private-window]
+Name=New Work Incognito Window
+Exec=/usr/bin/google-chrome-stable --profile-directory=Default --incognito

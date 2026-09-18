@@ -29,6 +29,15 @@ install_user_config() {
   rsync -a --delete "$repo_root/dots/.config/zshrc.d/" "$HOME/.config/zshrc.d/"
 }
 
+install_app_launchers() {
+  local applications_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  install -Dm644 "$repo_root/dots/.local/share/applications/google-chrome.desktop" \
+    "$applications_dir/google-chrome.desktop"
+  install -Dm644 "$repo_root/dots/.local/share/applications/google-chrome-work.desktop" \
+    "$applications_dir/google-chrome-work.desktop"
+  command -v update-desktop-database >/dev/null && update-desktop-database "$applications_dir"
+}
+
 configure_quickshell_shell() {
   local config="$HOME/.config/illogical-impulse/config.json"
   [[ -f "$config" ]] || return 0
@@ -100,6 +109,7 @@ enable_services() {
 
 install_zsh_plugins
 install_user_config
+install_app_launchers
 configure_quickshell_shell
 configure_codex
 install_zram
