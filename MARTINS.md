@@ -12,6 +12,8 @@ Fedora and Nix configurations are intentionally left unchanged.
 - An 8 GiB zstd zram swap device at priority 100.
 - The `ii-material-sddm` login theme, including access to end-4's generated
   Material colors and wallpaper.
+- Static IPv4 `192.168.8.33/24` on `Wired connection 1`, with gateway and DNS
+  at `192.168.8.1`.
 
 ## Apply the personal system profile
 
@@ -25,6 +27,18 @@ yay -S --needed ii-material-sddm-git
 
 The script is idempotent. It updates shell plugins, installs the tracked shell
 files, configures zram and SDDM, and sets Zsh as the login shell.
+
+Apply the machine-specific static address separately:
+
+```bash
+./sdata/dist-arch/setup-static-ip.sh
+```
+
+Return the connection to DHCP if the network changes:
+
+```bash
+./sdata/dist-arch/setup-static-ip.sh dhcp
+```
 
 ## Update from upstream
 
