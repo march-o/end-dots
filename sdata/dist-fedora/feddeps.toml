@@ -1,9 +1,8 @@
 # COPR repositories list
-# "solopasha/hyprland" is not up to date to the current Hyprland version, replaced with the fork "sdegler/hyprland"
 [copr]
 repos = [
   "ririko66z/dots-hyprland",
-  "sdegler/hyprland",
+  "solopasha/hyprland",
   "deltacopy/darkly",
   "alternateved/eza",
   "atim/starship"
@@ -68,6 +67,7 @@ packages = [
   "fish",
   "fontconfig",
   "kitty",
+  "matugen",
   "florian-karsten-space-grotesk-fonts",
   "starship",
   "jetbrains-mono-nerd-fonts",
@@ -83,8 +83,7 @@ packages = [
 [groups.hyprland]
 packages = [
   "hyprland",
-  "hyprland-guiutils",
-  "hyprland-qt-support",
+  "hyprland-qtutils",
   "hyprsunset",
   "wl-clipboard"
 ]
@@ -134,6 +133,7 @@ packages = [
 ]
 install_opts = ["--setopt=install_weak_deps=False"]
 
+# Quickshell-git
 [groups.quickshell]
 packages = [
   "qt6-qtdeclarative",
@@ -148,7 +148,6 @@ packages = [
   "libdrm",
   "breakpad",
   "kf6-kirigami",
-  "libunwind-devel",
   # NOTE: Below are custom dependencies of illogical-impulse
   "qt6-qt5compat",
   "qt6-qtimageformats",
@@ -160,12 +159,6 @@ packages = [
   "qt6-qtvirtualkeyboard",
   "kdialog",
   "kf6-syntax-highlighting"
-]
-
-[groups.illogical-impulse]
-packages = [
-    "quickshell-git",
-    "matugen"
 ]
 
 # Screencapture
@@ -211,3 +204,4 @@ packages = [
   "unzip"
 ]
 install_opts = ["--setopt=install_weak_deps=False"]
+
