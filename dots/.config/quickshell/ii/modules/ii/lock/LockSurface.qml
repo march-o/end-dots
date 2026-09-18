@@ -131,7 +131,9 @@ MouseArea {
         ToolbarTextField {
             id: passwordBox
             Layout.rightMargin: -Layout.leftMargin
-            placeholderText: GlobalStates.screenUnlockFailed ? Translation.tr("Incorrect password") : Translation.tr("Enter password")
+            placeholderText: Config.options.lock.security.passwordless
+                ? Translation.tr("Press Enter to unlock")
+                : (GlobalStates.screenUnlockFailed ? Translation.tr("Incorrect password") : Translation.tr("Enter password"))
 
             // Style
             clip: true
@@ -141,8 +143,8 @@ MouseArea {
 
             // Password
             enabled: !root.context.unlockInProgress
-            echoMode: TextInput.Password
-            inputMethodHints: Qt.ImhSensitiveData
+            echoMode: Config.options.lock.security.passwordless ? TextInput.Normal : TextInput.Password
+            inputMethodHints: Config.options.lock.security.passwordless ? Qt.ImhNone : Qt.ImhSensitiveData
 
             // Synchronizing (across monitors) and unlocking
             onTextChanged: root.context.currentText = this.text

@@ -61,6 +61,10 @@ Scope {
 
     function tryUnlock(alsoInhibitIdle = false) {
         root.alsoInhibitIdle = alsoInhibitIdle;
+        if (Config.options.lock.security.passwordless) {
+            root.unlocked(root.targetAction);
+            return;
+        }
         root.unlockInProgress = true;
         pam.start();
     }

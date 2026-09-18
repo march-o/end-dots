@@ -273,8 +273,8 @@ LockScreen {
                         Layout.fillHeight: true
                         Layout.fillWidth: true
                         verticalAlignment: TextInput.AlignVCenter
-                        inputMethodHints: Qt.ImhSensitiveData
-                        echoMode: passwordVisibilityButton.pressed ? TextInput.Normal : TextInput.Password
+                        inputMethodHints: Config.options.lock.security.passwordless ? Qt.ImhNone : Qt.ImhSensitiveData
+                        echoMode: Config.options.lock.security.passwordless || passwordVisibilityButton.pressed ? TextInput.Normal : TextInput.Password
                         color: Looks.darkColors.fg
 
                         font.pixelSize: 12
@@ -282,7 +282,7 @@ LockScreen {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                             visible: passwordInput.text.length === 0
-                            text: Translation.tr("Password")
+                            text: Config.options.lock.security.passwordless ? Translation.tr("Press Enter to unlock") : Translation.tr("Password")
                             font.pixelSize: Looks.font.pixelSize.large
                             color: Looks.darkColors.fg
                             opacity: 0.8
@@ -319,7 +319,7 @@ LockScreen {
                     PasswordBoxButton {
                         id: passwordVisibilityButton
                         property bool passwordVisible: false
-                        visible: passwordInput.text.length > 0
+                        visible: !Config.options.lock.security.passwordless && passwordInput.text.length > 0
                         onPressed: passwordVisible = true
                         onReleased: passwordVisible = false
                         icon.name: passwordVisible ? "eye-off" : "eye"

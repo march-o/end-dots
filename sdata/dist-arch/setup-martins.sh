@@ -26,6 +26,9 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.zshrc" "$HOME/.zshrc"
   install -Dm644 "$repo_root/dots/.p10k.zsh" "$HOME/.p10k.zsh"
   install -Dm755 "$repo_root/dots/.local/bin/deskctl" "$HOME/.local/bin/deskctl"
+  install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
+  install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
   mkdir -p "$HOME/.config/zshrc.d"
   rsync -a --delete "$repo_root/dots/.config/zshrc.d/" "$HOME/.config/zshrc.d/"
 }
@@ -48,10 +51,23 @@ install_user_skills() {
 configure_quickshell_shell() {
   local config="$HOME/.config/illogical-impulse/config.json"
   [[ -f "$config" ]] || return 0
+  local quickshell="$HOME/.config/quickshell/ii"
+  if [[ -d "$quickshell" ]]; then
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/Config.qml" \
+      "$quickshell/modules/common/Config.qml"
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/panels/lock/LockContext.qml" \
+      "$quickshell/modules/common/panels/lock/LockContext.qml"
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/lock/LockSurface.qml" \
+      "$quickshell/modules/ii/lock/LockSurface.qml"
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/waffle/lock/WaffleLock.qml" \
+      "$quickshell/modules/waffle/lock/WaffleLock.qml"
+  fi
   local updated
   updated=$(mktemp)
   jq '.apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
-      .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''"' \
+      .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''" |
+      .lock.security.passwordless = true |
+      .lock.security.unlockKeyring = false' \
     "$config" > "$updated"
   install -m600 "$updated" "$config"
   rm -f "$updated"

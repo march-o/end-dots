@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+wallpaper_dir="${WALLPAPER_DIR:-$HOME/Wallpapers}"
+shell_config="${XDG_CONFIG_HOME:-$HOME/.config}/illogical-impulse/config.json"
+switcher="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/ii/scripts/colors/switchwall.sh"
+
+if [[ ! -d "$wallpaper_dir" ]]; then
+  printf 'Wallpaper directory does not exist: %s\n' "$wallpaper_dir" >&2
+  exit 1
+fi
+if [[ ! -x "$switcher" ]]; then
+  printf 'end-4 wallpaper switcher is unavailable: %s\n' "$switcher" >&2
+  exit 1
+fi
+
+mapfile -d '' wallpapers < <(
+  find "$wallpaper_dir" -type f \
+    \( -iname '*.avif' -o -iname '*.bmp' -o -iname '*.gif' -o \
+       -iname '*.jpeg' -o -iname '*.jpg' -o -iname '*.png' -o \
+       -iname '*.svg' -o -iname '*.webp' \) -print0 | sort -z
+)
+
+if (( ${#wallpapers[@]} == 0 )); then
+  printf 'No supported wallpapers found in %s\n' "$wallpaper_dir" >&2
+  exit 1
+fi
+
+current=""
+if [[ -f "$shell_config" ]]; then
+  current=$(jq -r '.background.wallpaperPath // empty' "$shell_config")
+fi
+
+next_index=0
+for index in "${!wallpapers[@]}"; do
+  if [[ "${wallpapers[$index]}" == "$current" ]]; then
+    next_index=$(( (index + 1) % ${#wallpapers[@]} ))
+    break
+  fi
+done
+next_wallpaper="${wallpapers[$next_index]}"
+
+if [[ "${1:-}" == "--dry-run" ]]; then
+  printf '%s\n' "$next_wallpaper"
+  exit 0
+fi
+
+exec "$switcher" --image "$next_wallpaper"

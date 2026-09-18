@@ -17,6 +17,11 @@ Fedora and Nix configurations are intentionally left unchanged.
 - OpenSSH server enabled at boot on the standard SSH port.
 - Codex always uses the alternate-screen TUI so its input composer stays
   docked while scrolling through the conversation.
+- Wallpapers cycle through `~/Wallpapers` at each Hyprland login and with
+  `Ctrl+Super+Alt+T`.
+- The end-4 lock screen is passwordless (`Enter` unlocks it), while SDDM login
+  and `sudo` still require normal authentication. Idle displays turn off after
+  10 minutes and the machine suspends after 15 minutes.
 
 ## Apply the personal system profile
 
