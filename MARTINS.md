@@ -15,6 +15,8 @@ Fedora and Nix configurations are intentionally left unchanged.
 - Static IPv4 `192.168.8.33/24` on `Wired connection 1`, with gateway and DNS
   at `192.168.8.1`.
 - OpenSSH server enabled at boot on the standard SSH port.
+- Codex always uses the alternate-screen TUI so its input composer stays
+  docked while scrolling through the conversation.
 
 ## Apply the personal system profile
 

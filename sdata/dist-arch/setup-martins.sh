@@ -41,6 +41,17 @@ configure_quickshell_shell() {
   rm -f "$updated"
 }
 
+configure_codex() {
+  local codex_home="${CODEX_HOME:-$HOME/.codex}"
+  local config="$codex_home/config.toml"
+  mkdir -p "$codex_home"
+  if [[ -f "$config" ]]; then
+    yq -p=toml -o=toml -i '.tui.alternate_screen = "always"' "$config"
+  else
+    install -m600 "$repo_root/sdata/dist-arch/config/codex.toml" "$config"
+  fi
+}
+
 install_zram() {
   sudo install -Dm644 "$repo_root/sdata/dist-arch/config/zram-generator.conf" \
     /etc/systemd/zram-generator.conf
@@ -90,6 +101,7 @@ enable_services() {
 install_zsh_plugins
 install_user_config
 configure_quickshell_shell
+configure_codex
 install_zram
 install_sddm_config
 enable_services
