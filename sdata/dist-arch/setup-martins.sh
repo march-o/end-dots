@@ -55,7 +55,9 @@ configure_codex() {
   local config="$codex_home/config.toml"
   mkdir -p "$codex_home"
   if [[ -f "$config" ]]; then
-    yq -p=toml -o=toml -i '.tui.alternate_screen = "always"' "$config"
+    yq -p=toml -o=toml -i \
+      '.tui.alternate_screen = "always" |
+       .tui.keymap.global.open_transcript = ["ctrl-t", "page-up"]' "$config"
   else
     install -m600 "$repo_root/sdata/dist-arch/config/codex.toml" "$config"
   fi

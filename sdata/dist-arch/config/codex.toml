@@ -1,2 +1,5 @@
 [tui]
 alternate_screen = "always"
+
+[tui.keymap.global]
+open_transcript = ["ctrl-t", "page-up"]
