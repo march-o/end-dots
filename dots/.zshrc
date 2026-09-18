@@ -47,3 +47,4 @@ alias find=fd
 
 # Explicitly requested unsafe shortcut: run Codex without approvals or sandboxing.
 alias cod='codex --dangerously-bypass-approvals-and-sandbox'
+alias codr='codex resume --last --dangerously-bypass-approvals-and-sandbox'
