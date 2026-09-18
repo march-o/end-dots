@@ -124,6 +124,10 @@ install-dinit-service-packages(){
 showfun install-dinit-service-packages
 v install-dinit-service-packages
 
+# Personal Arch profile: Zsh, zram, and the end-4-inspired SDDM theme.
+x yay -S --needed --noconfirm ii-material-sddm-git
+v bash "$REPO_ROOT/sdata/dist-arch/setup-martins.sh"
+
 ## Optional dependencies
 if pacman -Qs ^plasma-browser-integration$ ;then SKIP_PLASMAINTG=true;fi
 case $SKIP_PLASMAINTG in

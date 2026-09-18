@@ -34,6 +34,12 @@ case "${SKIP_FISH}" in
     ;;
 esac
 
+# This fork uses Zsh as its interactive shell. Keep these outside the generic
+# misc sync so upstream config updates cannot omit the shell entry point.
+install_file__auto_backup dots/.zshrc "$HOME/.zshrc"
+install_file__auto_backup dots/.p10k.zsh "$HOME/.p10k.zsh"
+install_dir__sync dots/.config/zshrc.d "$XDG_CONFIG_HOME/zshrc.d"
+
 case "${SKIP_FONTCONFIG}" in
   true) true;;
   *)
