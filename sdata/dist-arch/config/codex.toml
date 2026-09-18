@@ -1,5 +1,7 @@
 [tui]
 alternate_screen = "always"
+status_line = ["model-with-reasoning", "context-remaining", "five-hour-limit", "weekly-limit", "git-branch", "task-progress"]
+status_line_use_colors = true
 
 [tui.keymap.global]
 open_transcript = ["ctrl-t", "page-up"]

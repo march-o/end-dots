@@ -65,6 +65,8 @@ configure_codex() {
   if [[ -f "$config" ]]; then
     yq -p=toml -o=toml -i \
       '.tui.alternate_screen = "always" |
+       .tui.status_line = ["model-with-reasoning", "context-remaining", "five-hour-limit", "weekly-limit", "git-branch", "task-progress"] |
+       .tui.status_line_use_colors = true |
        .tui.keymap.global.open_transcript = ["ctrl-t", "page-up"]' "$config"
   else
     install -m600 "$repo_root/sdata/dist-arch/config/codex.toml" "$config"
