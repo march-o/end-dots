@@ -25,6 +25,7 @@ install_zsh_plugins() {
 install_user_config() {
   install -Dm644 "$repo_root/dots/.zshrc" "$HOME/.zshrc"
   install -Dm644 "$repo_root/dots/.p10k.zsh" "$HOME/.p10k.zsh"
+  install -Dm755 "$repo_root/dots/.local/bin/deskctl" "$HOME/.local/bin/deskctl"
   mkdir -p "$HOME/.config/zshrc.d"
   rsync -a --delete "$repo_root/dots/.config/zshrc.d/" "$HOME/.config/zshrc.d/"
 }
@@ -54,6 +55,7 @@ configure_codex() {
   local codex_home="${CODEX_HOME:-$HOME/.codex}"
   local config="$codex_home/config.toml"
   mkdir -p "$codex_home"
+  install -Dm644 "$repo_root/sdata/dist-arch/config/codex-AGENTS.md" "$codex_home/AGENTS.md"
   if [[ -f "$config" ]]; then
     yq -p=toml -o=toml -i \
       '.tui.alternate_screen = "always" |

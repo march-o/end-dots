@@ -1,0 +1,435 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+version="1.0.0"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/deskctl"
+chrome_state="$state_dir/chrome-windows.json"
+chrome_local_state="${XDG_CONFIG_HOME:-$HOME/.config}/google-chrome/Local State"
+
+usage() {
+  cat <<'EOF'
+deskctl - deterministic desktop control for local agents
+
+Usage:
+  deskctl capabilities
+  deskctl windows [APP]
+  deskctl active
+  deskctl open APP [OPTIONS]
+  deskctl focus APP [OPTIONS]
+  deskctl chrome [OPTIONS]                 Alias for: open chrome
+
+Apps:
+  chrome        Google Chrome (profile-aware)
+  files         Dolphin file manager
+  terminal      Kitty terminal
+
+Chrome options:
+  --profile auto|personal|work|recent      Default: auto
+  --url URL                                Open URL in the selected profile
+
+Behavior:
+  open reuses or launches without changing the active window.
+  focus explicitly activates an existing matching window and never launches one.
+  Chrome auto mode prefers a known personal window, then the latest Chrome window.
+  If no Chrome window exists, auto launches the personal profile.
+  Explicit profiles route URLs to that profile. Chrome may create a profile window
+  only when that profile has no existing window.
+
+All successful commands except help/version print one JSON object to stdout.
+Errors print one JSON object to stderr and return a non-zero exit status.
+EOF
+}
+
+fail() {
+  local message=$1
+  local code=${2:-1}
+  jq -cn --arg error "$message" '{ok:false,error:$error}' >&2
+  exit "$code"
+}
+
+require_runtime() {
+  command -v jq >/dev/null || fail "jq is required" 69
+  command -v hyprctl >/dev/null || fail "hyprctl is required" 69
+  [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || fail "no active Hyprland session" 69
+}
+
+clients() {
+  hyprctl clients -j
+}
+
+normalize_app() {
+  case "$1" in
+    chrome|google-chrome|google-chrome-stable) printf 'chrome\n' ;;
+    files|file-manager|dolphin) printf 'files\n' ;;
+    terminal|term|kitty) printf 'terminal\n' ;;
+    *) fail "unsupported app: $1" 64 ;;
+  esac
+}
+
+app_filter() {
+  case "$1" in
+    chrome) printf 'google-chrome\n' ;;
+    files) printf '^(org\\.kde\\.)?dolphin$\n' ;;
+    terminal) printf '^kitty$\n' ;;
+  esac
+}
+
+app_command() {
+  case "$1" in
+    files) printf '/usr/bin/dolphin\n' ;;
+    terminal) printf '/usr/bin/kitty\n' ;;
+  esac
+}
+
+windows_for() {
+  local app=$1 filter
+  filter=$(app_filter "$app")
+  clients | jq --arg app "$app" --arg filter "$filter" '
+    [.[]
+      | select(.mapped == true and .hidden == false)
+      | select((.class | ascii_downcase) | test($filter; "i"))
+      | {
+          app: $app,
+          address,
+          class,
+          title,
+          pid,
+          workspace: .workspace.id,
+          focused_order: .focusHistoryID
+        }
+    ] | sort_by(.focused_order)'
+}
+
+focus_address() {
+  local address=$1
+  [[ "$address" =~ ^0x[0-9a-fA-F]+$ ]] || fail "invalid Hyprland window address" 65
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$address\" })" >/dev/null
+}
+
+active_address() {
+  hyprctl activewindow -j | jq -r '.address // empty'
+}
+
+restore_focus() {
+  local address=$1
+  [[ -n "$address" ]] || return 0
+  if clients | jq -e --arg address "$address" 'any(.address == $address)' >/dev/null; then
+    focus_address "$address"
+  fi
+}
+
+wait_for_app() {
+  local app=$1 attempts=${2:-50} address
+  while (( attempts-- > 0 )); do
+    address=$(windows_for "$app" | jq -r '.[0].address // empty')
+    if [[ -n "$address" ]]; then
+      printf '%s\n' "$address"
+      return 0
+    fi
+    sleep 0.1
+  done
+  return 1
+}
+
+launch_detached() {
+  if command -v setsid >/dev/null; then
+    setsid -f "$@" >/dev/null 2>&1
+  else
+    nohup "$@" >/dev/null 2>&1 &
+  fi
+}
+
+profile_directory() {
+  case "$1" in
+    personal) printf 'Profile 1\n' ;;
+    work) printf 'Default\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+profile_name_for_directory() {
+  case "$1" in
+    'Profile 1') printf 'personal\n' ;;
+    Default) printf 'work\n' ;;
+    *) printf 'unknown\n' ;;
+  esac
+}
+
+recent_chrome_profile() {
+  local directory='Profile 1'
+  if [[ -r "$chrome_local_state" ]]; then
+    directory=$(jq -r '.profile.last_used // "Profile 1"' "$chrome_local_state" 2>/dev/null || printf 'Profile 1')
+  fi
+  profile_name_for_directory "$directory"
+}
+
+ensure_chrome_state() {
+  mkdir -p "$state_dir"
+  if [[ ! -s "$chrome_state" ]] || ! jq -e 'type == "object" and (.windows | type == "object")' "$chrome_state" >/dev/null 2>&1; then
+    printf '{"windows":{}}\n' >"$chrome_state"
+  fi
+}
+
+prune_chrome_state() {
+  local addresses tmp
+  ensure_chrome_state
+  addresses=$(windows_for chrome | jq '[.[].address]')
+  tmp=$(mktemp "$state_dir/chrome-windows.XXXXXX")
+  jq --argjson addresses "$addresses" '
+    .windows |= with_entries(select(.key as $key | $addresses | index($key)))
+  ' "$chrome_state" >"$tmp"
+  mv "$tmp" "$chrome_state"
+}
+
+remember_chrome_window() {
+  local address=$1 profile=$2 tmp now
+  [[ "$address" =~ ^0x[0-9a-fA-F]+$ ]] || return 0
+  [[ "$profile" == personal || "$profile" == work ]] || return 0
+  ensure_chrome_state
+  now=$(date +%s)
+  tmp=$(mktemp "$state_dir/chrome-windows.XXXXXX")
+  jq --arg address "$address" --arg profile "$profile" --argjson now "$now" '
+    .windows[$address] = {profile:$profile,seen_at:$now}
+  ' "$chrome_state" >"$tmp"
+  mv "$tmp" "$chrome_state"
+}
+
+known_chrome_address() {
+  local profile=$1 windows
+  prune_chrome_state
+  windows=$(windows_for chrome)
+  jq -r --arg profile "$profile" --slurpfile state "$chrome_state" '
+    map(select(($state[0].windows[.address].profile // "") == $profile))
+    | sort_by(.focused_order)
+    | .[0].address // empty
+  ' <<<"$windows"
+}
+
+latest_chrome_address() {
+  windows_for chrome | jq -r '.[0].address // empty'
+}
+
+active_chrome_address() {
+  hyprctl activewindow -j | jq -r '
+    select((.class // "" | ascii_downcase) == "google-chrome") | .address // empty'
+}
+
+emit_result() {
+  local action=$1 app=$2 address=${3:-} profile=${4:-} url=${5:-}
+  jq -cn \
+    --arg action "$action" \
+    --arg app "$app" \
+    --arg address "$address" \
+    --arg profile "$profile" \
+    --arg url "$url" '
+      {ok:true,action:$action,app:$app}
+      + (if $address == "" then {} else {address:$address} end)
+      + (if $profile == "" then {} else {profile:$profile} end)
+      + (if $url == "" then {} else {url:$url} end)'
+}
+
+open_generic() {
+  local app=$1 allow_launch=$2 should_focus=$3 address command previous
+  address=$(windows_for "$app" | jq -r '.[0].address // empty')
+  if [[ -n "$address" ]]; then
+    if [[ "$should_focus" == true ]]; then
+      focus_address "$address"
+      emit_result focused "$app" "$address"
+    else
+      emit_result already-open "$app" "$address"
+    fi
+    return
+  fi
+  [[ "$allow_launch" == true ]] || fail "$app has no open window" 3
+  command=$(app_command "$app")
+  [[ -x "$command" ]] || fail "$command is not installed" 69
+  previous=$(active_address)
+  launch_detached "$command"
+  address=$(wait_for_app "$app") || fail "$app did not open within 5 seconds" 70
+  if [[ "$should_focus" == true ]]; then
+    focus_address "$address"
+  else
+    restore_focus "$previous"
+  fi
+  emit_result launched "$app" "$address"
+}
+
+open_chrome() {
+  local allow_launch=$1 should_focus=$2
+  shift 2
+  local requested=auto url='' profile address directory action previous active
+
+  while (($#)); do
+    case "$1" in
+      --profile)
+        (($# >= 2)) || fail "--profile requires a value" 64
+        requested=$2
+        shift 2
+        ;;
+      --url)
+        (($# >= 2)) || fail "--url requires a value" 64
+        url=$2
+        shift 2
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      http://*|https://*|file://*)
+        [[ -z "$url" ]] || fail "only one URL may be supplied" 64
+        url=$1
+        shift
+        ;;
+      *) fail "unknown Chrome option: $1" 64 ;;
+    esac
+  done
+
+  case "$requested" in
+    auto|personal|work|recent) ;;
+    *) fail "profile must be auto, personal, work, or recent" 64 ;;
+  esac
+
+  profile=$requested
+  [[ "$profile" == recent ]] && profile=$(recent_chrome_profile)
+
+  if [[ "$profile" == auto ]]; then
+    address=$(known_chrome_address personal)
+    if [[ -n "$address" ]]; then
+      profile=personal
+    else
+      address=$(latest_chrome_address)
+      if [[ -n "$address" ]]; then
+        profile=$(recent_chrome_profile)
+      else
+        profile=personal
+      fi
+    fi
+  else
+    address=$(known_chrome_address "$profile")
+    [[ -n "$address" ]] || address=$(latest_chrome_address)
+  fi
+
+  if [[ -z "$url" && -n "$address" ]]; then
+    remember_chrome_window "$address" "$profile"
+    if [[ "$should_focus" == true ]]; then
+      focus_address "$address"
+      emit_result focused chrome "$address" "$profile"
+    else
+      emit_result already-open chrome "$address" "$profile"
+    fi
+    return
+  fi
+
+  [[ "$allow_launch" == true ]] || fail "no matching Chrome window is open" 3
+  command -v google-chrome-stable >/dev/null || fail "google-chrome-stable is not installed" 69
+  directory=$(profile_directory "$profile") || fail "cannot launch unknown Chrome profile" 65
+  previous=$(active_address)
+
+  if [[ -n "$url" ]]; then
+    launch_detached google-chrome-stable "--profile-directory=$directory" "$url"
+    action=opened-url
+  else
+    launch_detached google-chrome-stable "--profile-directory=$directory"
+    action=launched
+  fi
+
+  # Chrome usually activates the window that accepted the request. Capture it before
+  # restoring focus, but retain the selected existing window when Chrome stays quiet.
+  sleep 0.5
+  active=$(active_chrome_address)
+  [[ -n "$active" ]] && address=$active
+  [[ -n "$address" ]] || address=$(wait_for_app chrome) || fail "Chrome did not open within 5 seconds" 70
+  remember_chrome_window "$address" "$profile"
+  if [[ "$should_focus" == true ]]; then
+    focus_address "$address"
+  else
+    restore_focus "$previous"
+  fi
+  emit_result "$action" chrome "$address" "$profile" "$url"
+}
+
+show_capabilities() {
+  jq -cn --arg version "$version" '{
+    ok:true,
+    name:"deskctl",
+    version:$version,
+    output:"json",
+    commands:["capabilities","windows","active","open","focus"],
+    apps:{
+      chrome:{profiles:["auto","personal","work","recent"],options:["--profile","--url"]},
+      files:{},
+      terminal:{}
+    },
+    policy:{reuse_existing_windows:true,focus_on_open:false,chrome_auto:"personal-known-then-most-recent"}
+  }'
+}
+
+show_windows() {
+  local requested=${1:-}
+  if [[ -z "$requested" ]]; then
+    clients | jq '{ok:true,windows:[.[] | select(.mapped == true and .hidden == false) | {address,class,title,pid,workspace:.workspace.id,focused_order:.focusHistoryID}]}'
+  else
+    local app data
+    app=$(normalize_app "$requested")
+    data=$(windows_for "$app")
+    jq -cn --arg app "$app" --argjson windows "$data" '{ok:true,app:$app,windows:$windows}'
+  fi
+}
+
+show_active() {
+  hyprctl activewindow -j | jq '{ok:true,window:{address,class,title,pid,workspace:.workspace.id}}'
+}
+
+main() {
+  local command=${1:-help}
+  case "$command" in
+    help|-h|--help)
+      usage
+      ;;
+    version|--version)
+      printf 'deskctl %s\n' "$version"
+      ;;
+    capabilities)
+      require_runtime
+      show_capabilities
+      ;;
+    windows)
+      require_runtime
+      (($# <= 2)) || fail "windows accepts at most one app" 64
+      show_windows "${2:-}"
+      ;;
+    active)
+      require_runtime
+      (($# == 1)) || fail "active accepts no arguments" 64
+      show_active
+      ;;
+    open|focus)
+      require_runtime
+      (($# >= 2)) || fail "$command requires an app" 64
+      local app allow_launch should_focus
+      app=$(normalize_app "$2")
+      if [[ "$command" == open ]]; then
+        allow_launch=true
+        should_focus=false
+      else
+        allow_launch=false
+        should_focus=true
+      fi
+      shift 2
+      if [[ "$app" == chrome ]]; then
+        open_chrome "$allow_launch" "$should_focus" "$@"
+      else
+        (($# == 0)) || fail "$app does not accept options" 64
+        open_generic "$app" "$allow_launch" "$should_focus"
+      fi
+      ;;
+    chrome)
+      require_runtime
+      shift
+      open_chrome true false "$@"
+      ;;
+    *) fail "unknown command: $command (run: deskctl help)" 64 ;;
+  esac
+}
+
+main "$@"
