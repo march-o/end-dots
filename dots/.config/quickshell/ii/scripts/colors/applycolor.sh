@@ -42,10 +42,11 @@ apply_kitty() {
   done
 
   # Reload
-  if ! pgrep -f kitty >/dev/null; then
+  if ! pgrep -x kitty >/dev/null; then
     return
   fi
-  kill -SIGUSR1 $(pidof kitty)
+  # Kitty reloads kitty.conf (including the generated theme) on SIGUSR1.
+  pkill -USR1 -x kitty || true
 }
 
 apply_anyterm() {

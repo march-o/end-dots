@@ -25,10 +25,12 @@ install_zsh_plugins() {
 install_user_config() {
   install -Dm644 "$repo_root/dots/.zshrc" "$HOME/.zshrc"
   install -Dm644 "$repo_root/dots/.p10k.zsh" "$HOME/.p10k.zsh"
+  install -Dm644 "$repo_root/dots/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
   install -Dm755 "$repo_root/dots/.local/bin/deskctl" "$HOME/.local/bin/deskctl"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
   mkdir -p "$HOME/.config/zshrc.d"
   rsync -a --delete "$repo_root/dots/.config/zshrc.d/" "$HOME/.config/zshrc.d/"
 }
@@ -61,6 +63,8 @@ configure_quickshell_shell() {
       "$quickshell/modules/ii/lock/LockSurface.qml"
     install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/waffle/lock/WaffleLock.qml" \
       "$quickshell/modules/waffle/lock/WaffleLock.qml"
+    install -Dm755 "$repo_root/dots/.config/quickshell/ii/scripts/colors/applycolor.sh" \
+      "$quickshell/scripts/colors/applycolor.sh"
   fi
   local updated
   updated=$(mktemp)
