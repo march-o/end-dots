@@ -14,6 +14,7 @@ Fedora and Nix configurations are intentionally left unchanged.
   Material colors and wallpaper.
 - Static IPv4 `192.168.8.33/24` on `Wired connection 1`, with gateway and DNS
   at `192.168.8.1`.
+- OpenSSH server enabled at boot on the standard SSH port.
 
 ## Apply the personal system profile
 

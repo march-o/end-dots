@@ -1,7 +1,7 @@
 groups=(illogical-impulse)
 pkgname=illogical-impulse-basic
 pkgver=1.0
-pkgrel=4
+pkgrel=5
 pkgdesc='Illogical Impulse Basic Dependencies'
 arch=(any)
 license=(None)
@@ -19,6 +19,7 @@ depends=(
   fzf
   ripgrep
   jq
+  openssh
   qt6-5compat
   sddm
   xdg-user-dirs

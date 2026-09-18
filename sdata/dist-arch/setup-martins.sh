@@ -83,11 +83,16 @@ install_sddm_config() {
   fi
 }
 
+enable_services() {
+  sudo systemctl enable --now sshd.service
+}
+
 install_zsh_plugins
 install_user_config
 configure_quickshell_shell
 install_zram
 install_sddm_config
+enable_services
 
 zsh_path=$(command -v zsh)
 if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$zsh_path" ]]; then
