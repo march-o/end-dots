@@ -1,5 +1,10 @@
 # Handle args for subcmd: install
 # shellcheck shell=bash
+
+# Installs are unattended by default. Use --confirm when reviewing each
+# command interactively is preferred.
+ask=false
+
 showhelp(){
 printf "Syntax: $0 install [OPTIONS]...
 
@@ -8,6 +13,7 @@ Idempotent installation for dotfiles.
 Options for install:
   -h, --help                Print this help message and exit
   -f, --force               (Dangerous) Force mode without any confirm
+      --confirm             Ask for confirmation before each command
   -F, --fisrtrun            Act like it is the first run
   -c, --clean               Clean the build cache first
       --skip-allgreeting    Skip the whole process greeting
@@ -47,7 +53,7 @@ cleancache(){
 # `man getopt` to see more
 para=$(getopt \
   -o hfFk:cs \
-  -l help,force,firstrun,fontset:,clean,skip-allgreeting,skip-alldeps,skip-allsetups,skip-allfiles,ignore-outdate,skip-sysupdate,skip-plasmaintg,skip-backup,skip-quickshell,skip-fish,skip-hyprland,skip-hyprland-entry,skip-fontconfig,skip-miscconf,core,exp-files,via-nix \
+  -l help,force,confirm,firstrun,fontset:,clean,skip-allgreeting,skip-alldeps,skip-allsetups,skip-allfiles,ignore-outdate,skip-sysupdate,skip-plasmaintg,skip-backup,skip-quickshell,skip-fish,skip-hyprland,skip-hyprland-entry,skip-fontconfig,skip-miscconf,core,exp-files,via-nix \
   -n "$0" -- "$@")
 [ $? != 0 ] && echo "$0: Error when getopt, please recheck parameters." && exit 1
 #####################################################################################
@@ -72,6 +78,7 @@ while true ; do
     -c|--clean) shift;;
     ## Ones without parameter
     -f|--force) ask=false;shift;;
+    --confirm) ask=true;shift;;
     -F|--firstrun) INSTALL_FIRSTRUN=true;shift;;
     --skip-allgreeting) SKIP_ALLGREETING=true;shift;;
     --skip-alldeps) SKIP_ALLDEPS=true;shift;;

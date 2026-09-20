@@ -44,7 +44,12 @@ install-chatgpt(){
   fi
 
   printf "${STY_CYAN}[$0]: Installing the official ChatGPT Linux package and configuring its signed repository.${STY_RST}\n"
-  x bash -c 'curl --proto "=https" --tlsv1.2 -fsSL https://persistent.oaistatic.com/codex-app-prod/linux/install-arch.sh | sudo bash'
+  local installer
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' RETURN
+  x curl --proto '=https' --tlsv1.2 -fsSL -o "$installer" \
+    https://persistent.oaistatic.com/codex-app-prod/linux/install-arch.sh
+  x bash -c "yes | sudo bash '$installer'"
 }
 
 #####################################################################################
@@ -77,6 +82,9 @@ fi
 
 showfun implicitize_old_dependencies
 v implicitize_old_dependencies
+
+# Required by the official ChatGPT repository bootstrap on minimal Arch installs.
+v sudo pacman -S --needed --noconfirm curl gnupg
 
 showfun install-chatgpt
 v install-chatgpt
