@@ -1,7 +1,7 @@
 groups=(illogical-impulse)
 pkgname=illogical-impulse-basic
 pkgver=1.0
-pkgrel=5
+pkgrel=6
 pkgdesc='Illogical Impulse Basic Dependencies'
 arch=(any)
 license=(None)
@@ -30,4 +30,5 @@ depends=(
   # Used in install script
   rsync
   go-yq # https://github.com/mikefarah/yq
+  spotify
 )
