@@ -38,6 +38,15 @@ implicitize_old_dependencies(){
   return 0
 }
 
+install-chatgpt(){
+  if pacman -Qq chatgpt-bin >/dev/null 2>&1; then
+    return 0
+  fi
+
+  printf "${STY_CYAN}[$0]: Installing the official ChatGPT Linux package and configuring its signed repository.${STY_RST}\n"
+  x bash -c 'curl --proto "=https" --tlsv1.2 -fsSL https://persistent.oaistatic.com/codex-app-prod/linux/install-arch.sh | sudo bash'
+}
+
 #####################################################################################
 if ! command -v pacman >/dev/null 2>&1; then
   printf "${STY_RED}[$0]: pacman not found, it seems that the system is not ArchLinux or Arch-based distros. Aborting...${STY_RST}\n"
@@ -68,6 +77,9 @@ fi
 
 showfun implicitize_old_dependencies
 v implicitize_old_dependencies
+
+showfun install-chatgpt
+v install-chatgpt
 
 # https://github.com/end-4/dots-hyprland/issues/581
 # yay -Bi is kinda hit or miss, instead cd into the relevant directory and manually source and install deps
