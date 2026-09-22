@@ -141,16 +141,16 @@ launch_detached() {
 
 profile_directory() {
   case "$1" in
-    personal) printf 'Profile 1\n' ;;
-    work) printf 'Default\n' ;;
+    personal) printf 'Default\n' ;;
+    work) printf 'Profile 1\n' ;;
     *) return 1 ;;
   esac
 }
 
 profile_name_for_directory() {
   case "$1" in
-    'Profile 1') printf 'personal\n' ;;
-    Default) printf 'work\n' ;;
+    Default) printf 'personal\n' ;;
+    'Profile 1') printf 'work\n' ;;
     *) printf 'unknown\n' ;;
   esac
 }
@@ -306,7 +306,6 @@ open_chrome() {
     fi
   else
     address=$(known_chrome_address "$profile")
-    [[ -n "$address" ]] || address=$(latest_chrome_address)
   fi
 
   if [[ -z "$url" && -n "$address" ]]; then
