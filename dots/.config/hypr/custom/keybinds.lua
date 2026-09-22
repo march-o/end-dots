@@ -1,5 +1,8 @@
 hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), {description = "Edit user keybinds"} )
 
+hl.bind("CTRL + SUPER + SHIFT + S", hl.dsp.focus({ workspace = "name:Spotify" }),
+    { description = "Spotify: Open workspace" })
+
 -- Treat Super+arrows as a 2D canvas. First focus a window in the requested
 -- direction on the current workspace; only at that edge fall back to the
 -- neighboring monitor or workspace.
