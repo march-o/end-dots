@@ -21,3 +21,10 @@ The PKGBUILDs contains two forms of dependencies:
 
 ## Note
 - `pkgver()` should be removed from `PKGBUILD` cuz it will modify the `PKGBUILD` which is tracked by Git and should not be modified during building.
+
+## Laptop keyd setup
+Set `LAPTOP=1` when running the setup to install keyd, deploy the Colemak-DH configuration, and enable its service on systemd:
+
+```sh
+LAPTOP=1 ./setup install
+```

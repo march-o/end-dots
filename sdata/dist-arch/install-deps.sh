@@ -52,6 +52,23 @@ install-chatgpt(){
   x bash -c "yes | sudo bash '$installer'"
 }
 
+setup-laptop-keyd(){
+  if [[ "${LAPTOP:-}" != "1" ]]; then
+    return 0
+  fi
+
+  x sudo pacman -S --needed --noconfirm keyd
+  x sudo install -Dm644 \
+    "$REPO_ROOT/sdata/dist-arch/config/keyd/default.conf" \
+    /etc/keyd/default.conf
+
+  if [[ -d /run/systemd/system ]]; then
+    x sudo systemctl enable --now keyd
+  else
+    log_warning "keyd was installed and configured, but this init system has no automatic keyd service setup."
+  fi
+}
+
 #####################################################################################
 if ! command -v pacman >/dev/null 2>&1; then
   printf "${STY_RED}[$0]: pacman not found, it seems that the system is not ArchLinux or Arch-based distros. Aborting...${STY_RST}\n"
@@ -88,6 +105,9 @@ v sudo pacman -S --needed --noconfirm curl gnupg
 
 showfun install-chatgpt
 v install-chatgpt
+
+showfun setup-laptop-keyd
+v setup-laptop-keyd
 
 # https://github.com/end-4/dots-hyprland/issues/581
 # yay -Bi is kinda hit or miss, instead cd into the relevant directory and manually source and install deps
