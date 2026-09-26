@@ -28,6 +28,7 @@ Subcommands:
   install-deps   Run the install step \"1. Install dependencies\"
   install-setups Run the install step \"2. Setup for permissions/services etc\"
   install-files  Run the install step \"3. Copying config files\"
+  apply-martins  Apply Martins' Arch user config and desktop launchers.
   resetfirstrun  Reset firstrun state.
   uninstall      Uninstall illogical-impulse.
 
@@ -49,7 +50,7 @@ case $1 in
   # Global help
   ""|help|--help|-h)showhelp_global;exit;;
   # Correct subcommand
-  install|uninstall|exp-update|exp-merge|resetfirstrun|checkdeps|virtmon)
+  install|uninstall|exp-update|exp-merge|resetfirstrun|checkdeps|virtmon|apply-martins)
     SUBCMD_NAME=$1
     SUBCMD_DIR=./sdata/subcmd-$1
     shift;;

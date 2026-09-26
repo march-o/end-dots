@@ -36,6 +36,20 @@ yay -S --needed ii-material-sddm-git
 The script is idempotent. It updates shell plugins, installs the tracked shell
 files, configures zram and SDDM, and sets Zsh as the login shell.
 
+To apply just the tracked Hyprland custom files, Chrome launchers, and
+`deskctl` on the laptop after pulling this repo:
+
+```bash
+git pull --ff-only origin main
+LAPTOP=0 ./setup apply-martins
+```
+
+The command respects `LAPTOP` and defaults to `0`. Use `LAPTOP=1` only when
+you also want to install the tracked keyd configuration and enable its service.
+The command reloads Hyprland when a session is active;
+Spotify autostart runs at the next login. It does not run the broader personal
+system setup above.
+
 Apply the machine-specific static address separately:
 
 ```bash
