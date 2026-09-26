@@ -12,6 +12,7 @@ __pycache__/
 
 # custom os-release
 /os-release
+/.env
 
 # Emacs auto backup file
 *~

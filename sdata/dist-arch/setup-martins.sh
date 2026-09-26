@@ -2,6 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$repo_root"
+source "$repo_root/sdata/lib/machine-env.sh"
 omz_dir="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh"
 
 sync_git_repo() {

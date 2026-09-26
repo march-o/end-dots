@@ -41,11 +41,13 @@ To apply just the tracked Hyprland custom files, Chrome launchers, and
 
 ```bash
 git pull --ff-only origin main
-LAPTOP=0 ./setup apply-martins
+cp -n .env.example .env
+# Set LAPTOP=1 in .env on the laptop; use LAPTOP=0 on the PC.
+./setup apply-martins
 ```
 
-The command respects `LAPTOP` and defaults to `0`. Use `LAPTOP=1` only when
-you also want to install the tracked keyd configuration and enable its service.
+The local `.env` is ignored by Git. An exported `LAPTOP` value overrides it.
+`LAPTOP=1` also installs the tracked keyd configuration and enables its service.
 The command reloads Hyprland when a session is active;
 Spotify autostart runs at the next login. It does not run the broader personal
 system setup above.

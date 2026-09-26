@@ -2,6 +2,7 @@
 cd "$(dirname "$0")"
 # Use REPO_ROOT instead of base - when scripts are sourced they do not need export to inherit vars
 REPO_ROOT="$(pwd)"
+source ./sdata/lib/machine-env.sh || exit 1
 source ./sdata/lib/environment-variables.sh
 source ./sdata/lib/functions.sh
 source ./sdata/lib/package-installers.sh
