@@ -31,15 +31,14 @@ LAPTOP=1 ./setup install
 
 ## Apply repository updates
 
-After creating or pulling changes, apply the current checkout with:
+After creating or pulling changes, create the repo-local `.env` and apply the
+current checkout with:
 
 ```sh
+cp -n .env.example .env
+# Set LAPTOP=0 on the PC or LAPTOP=1 on the laptop.
 ./setup update
 ```
 
-On a laptop, set `LAPTOP=1` in the repo-local `.env` so laptop-specific
-configuration is also reapplied. An explicit environment value takes precedence:
-
-```sh
-LAPTOP=1 ./setup update
-```
+The command requires `.env` with a valid `LAPTOP` setting. An explicit
+environment value takes precedence, but `.env` must still exist.

@@ -36,21 +36,21 @@ yay -S --needed ii-material-sddm-git
 The script is idempotent. It updates shell plugins, installs the tracked shell
 files, configures zram and SDDM, and sets Zsh as the login shell.
 
-To apply just the tracked Hyprland custom files, Chrome launchers, and
-`deskctl` on the laptop after pulling this repo:
+To apply the current checkout on either machine:
 
 ```bash
 git pull --ff-only origin main
 cp -n .env.example .env
 # Set LAPTOP=1 in .env on the laptop; use LAPTOP=0 on the PC.
-./setup apply-martins
+./setup update
 ```
 
-The local `.env` is ignored by Git. An exported `LAPTOP` value overrides it.
-`LAPTOP=1` also installs the tracked keyd configuration and enables its service.
-The command reloads Hyprland when a session is active;
-Spotify autostart runs at the next login. It does not run the broader personal
-system setup above.
+The local `.env` is ignored by Git and required by `./setup update`. The command
+applies all tracked dotfiles and the personal Arch system profile. `LAPTOP=1`
+also installs the tracked keyd configuration and enables its service. An exported
+`LAPTOP` value overrides the value in `.env` for one run, but `.env` must still
+exist and contain a valid setting. The command reloads Hyprland when a session
+is active; Spotify autostart runs at the next login.
 
 Apply the machine-specific static address separately:
 
@@ -69,20 +69,6 @@ Return the connection to DHCP if the network changes:
 ```bash
 git fetch upstream
 git merge upstream/main
-```
-
-To apply the full current checkout after creating or pulling changes, including
-the personal Arch system profile:
-
-```bash
-./setup update
-```
-
-On the laptop, set `LAPTOP=1` in its local `.env`; `./setup update` then also
-applies keyd. An explicit environment value can override `.env` for one run:
-
-```bash
-LAPTOP=1 ./setup update
 ```
 
 Keep personal behavior in the files added by this fork or in Hyprland's

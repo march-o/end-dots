@@ -5,7 +5,7 @@ showhelp(){
 printf "Syntax: $0 update
 
 Apply the current repository checkout to this Arch system.
-Set LAPTOP=1 in .env to also apply laptop-specific configuration.
+Requires .env with LAPTOP=0 for the PC or LAPTOP=1 for the laptop.
 "
 }
 

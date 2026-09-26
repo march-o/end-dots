@@ -2,6 +2,9 @@
 cd "$(dirname "$0")"
 # Use REPO_ROOT instead of base - when scripts are sourced they do not need export to inherit vars
 REPO_ROOT="$(pwd)"
+if [[ ${1:-} == update ]]; then
+  MACHINE_ENV_REQUIRED=1
+fi
 source ./sdata/lib/machine-env.sh || exit 1
 source ./sdata/lib/environment-variables.sh
 source ./sdata/lib/functions.sh
@@ -29,9 +32,8 @@ Subcommands:
   install-deps   Run the install step \"1. Install dependencies\"
   install-setups Run the install step \"2. Setup for permissions/services etc\"
   install-files  Run the install step \"3. Copying config files\"
-  apply-martins  Apply Martins' Arch user config and desktop launchers.
   update         Apply the current checkout to this Arch system.
-                 LAPTOP=1 also applies laptop-specific setup.
+                 Requires .env with LAPTOP=0 or LAPTOP=1.
   resetfirstrun  Reset firstrun state.
   uninstall      Uninstall illogical-impulse.
 
@@ -53,7 +55,7 @@ case $1 in
   # Global help
   ""|help|--help|-h)showhelp_global;exit;;
   # Correct subcommand
-  install|update|apply-martins|uninstall|exp-update|exp-merge|resetfirstrun|checkdeps|virtmon)
+  install|update|uninstall|exp-update|exp-merge|resetfirstrun|checkdeps|virtmon)
     SUBCMD_NAME=$1
     SUBCMD_DIR=./sdata/subcmd-$1
     shift;;
