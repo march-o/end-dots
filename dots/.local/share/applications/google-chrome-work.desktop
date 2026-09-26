@@ -4,7 +4,7 @@ Type=Application
 Name=Chrome Work
 GenericName=Web Browser
 Comment=Browse with the work Chrome profile
-Exec=/usr/bin/google-chrome-stable --profile-directory="Profile 1" %U
+Exec=/usr/bin/google-chrome-stable "--profile-directory=Profile 1" %U
 Icon=google-chrome
 Terminal=false
 StartupNotify=true
@@ -14,8 +14,8 @@ Actions=new-window;new-private-window;
 
 [Desktop Action new-window]
 Name=New Work Window
-Exec=/usr/bin/google-chrome-stable --profile-directory="Profile 1"
+Exec=/usr/bin/google-chrome-stable "--profile-directory=Profile 1"
 
 [Desktop Action new-private-window]
 Name=New Work Incognito Window
-Exec=/usr/bin/google-chrome-stable --profile-directory="Profile 1" --incognito
+Exec=/usr/bin/google-chrome-stable "--profile-directory=Profile 1" --incognito
