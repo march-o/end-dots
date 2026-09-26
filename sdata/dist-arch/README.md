@@ -28,3 +28,18 @@ Set `LAPTOP=1` when running the setup to install keyd, deploy the Colemak-DH con
 ```sh
 LAPTOP=1 ./setup install
 ```
+
+## Apply repository updates
+
+After creating or pulling changes, apply the current checkout with:
+
+```sh
+./setup update
+```
+
+On a laptop, set `LAPTOP=1` in the repo-local `.env` so laptop-specific
+configuration is also reapplied. An explicit environment value takes precedence:
+
+```sh
+LAPTOP=1 ./setup update
+```

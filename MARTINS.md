@@ -71,5 +71,19 @@ git fetch upstream
 git merge upstream/main
 ```
 
+To apply the full current checkout after creating or pulling changes, including
+the personal Arch system profile:
+
+```bash
+./setup update
+```
+
+On the laptop, set `LAPTOP=1` in its local `.env`; `./setup update` then also
+applies keyd. An explicit environment value can override `.env` for one run:
+
+```bash
+LAPTOP=1 ./setup update
+```
+
 Keep personal behavior in the files added by this fork or in Hyprland's
 `custom/*.lua` files to minimize future merge conflicts.

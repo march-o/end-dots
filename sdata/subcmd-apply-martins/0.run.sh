@@ -42,12 +42,7 @@ if command -v update-desktop-database >/dev/null 2>&1; then
 fi
 
 if [[ "${LAPTOP:-0}" == 1 ]]; then
-  sudo pacman -S --needed --noconfirm keyd
-  sudo install -Dm644 "$REPO_ROOT/sdata/dist-arch/config/keyd/default.conf" \
-    /etc/keyd/default.conf
-  if [[ -d /run/systemd/system ]]; then
-    sudo systemctl enable --now keyd
-  fi
+  bash "$REPO_ROOT/sdata/dist-arch/setup-laptop.sh"
 fi
 
 if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then
