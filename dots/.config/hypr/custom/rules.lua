@@ -2,10 +2,10 @@
 -- transparent background; later matching rules take precedence in Hyprland.
 hl.window_rule({ match = { class = "^kitty$" }, no_blur = false })
 
--- Keep Spotify running on its own inactive workspace without changing focus.
+-- Keep Spotify on a hidden special workspace, outside numbered workspace navigation.
 hl.window_rule({
     match = { class = "^Spotify$" },
-    workspace = "name:Spotify silent",
+    workspace = "special:spotify silent",
     no_initial_focus = true,
     suppress_event = "activate activatefocus"
 })

@@ -1,5 +1,5 @@
 hl.on("hyprland.start", function ()
-    -- Start Spotify at login on its own inactive workspace without taking focus.
+    -- Start Spotify at login on its hidden special workspace without taking focus.
     -- Filter Spotify's known upstream appindicator deprecation warning; keep other errors visible.
     hl.exec_cmd("spotify 2> >(grep -v 'libayatana-appindicator is deprecated' >&2)")
 
