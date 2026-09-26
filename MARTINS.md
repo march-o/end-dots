@@ -55,5 +55,17 @@ git fetch upstream
 git merge upstream/main
 ```
 
+Apply the current checkout after creating or pulling changes:
+
+```bash
+./setup update
+```
+
+Use the laptop role to also apply keyd configuration:
+
+```bash
+LAPTOP=1 ./setup update
+```
+
 Keep personal behavior in the files added by this fork or in Hyprland's
 `custom/*.lua` files to minimize future merge conflicts.
