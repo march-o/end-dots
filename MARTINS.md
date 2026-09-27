@@ -51,7 +51,9 @@ applies all tracked dotfiles and the personal Arch system profile. `LAPTOP=1`
 also installs the tracked keyd configuration and enables its service. An exported
 `LAPTOP` value overrides the value in `.env` for one run, but `.env` must still
 exist and contain a valid setting. The command reloads Hyprland when a session
-is active; Spotify autostart runs at the next login.
+is active; Spotify autostart runs at the next login. On the laptop it also uses
+20% GTK text scaling and larger KDE/Qt application fonts without changing the
+PC defaults.
 
 Apply the machine-specific static address separately:
 
