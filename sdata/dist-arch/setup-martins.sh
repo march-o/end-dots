@@ -63,8 +63,14 @@ configure_quickshell_shell() {
   if [[ -d "$quickshell" ]]; then
     install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/Config.qml" \
       "$quickshell/modules/common/Config.qml"
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/panels/lock/LockScreen.qml" \
+      "$quickshell/modules/common/panels/lock/LockScreen.qml"
     install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/panels/lock/LockContext.qml" \
       "$quickshell/modules/common/panels/lock/LockContext.qml"
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/lock/Lock.qml" \
+      "$quickshell/modules/ii/lock/Lock.qml"
+    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/background/Background.qml" \
+      "$quickshell/modules/ii/background/Background.qml"
     install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/lock/LockSurface.qml" \
       "$quickshell/modules/ii/lock/LockSurface.qml"
     install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/waffle/lock/WaffleLock.qml" \

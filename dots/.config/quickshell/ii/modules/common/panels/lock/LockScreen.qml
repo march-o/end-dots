@@ -88,8 +88,36 @@ Scope {
 
     WlSessionLock {
         id: lock
-        locked: GlobalStates.screenLocked
+        // A passwordless screen must not leave the compositor locked if this
+        // shell crashes. Only the password-protected mode uses session lock.
+        locked: GlobalStates.screenLocked && !Config.options.lock.security.passwordless
         surface: root.sessionLockSurface
+    }
+
+    Variants {
+        model: Quickshell.screens
+        delegate: PanelWindow {
+            required property ShellScreen modelData
+            screen: modelData
+            visible: GlobalStates.screenLocked && Config.options.lock.security.passwordless
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+            WlrLayershell.namespace: "quickshell:passwordlessLock"
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            Loader {
+                active: GlobalStates.screenLocked && Config.options.lock.security.passwordless
+                anchors.fill: parent
+                sourceComponent: root.lockSurface
+            }
+        }
     }
 
     function lock() {
@@ -105,6 +133,13 @@ Scope {
 
         function activate(): void {
             root.lock();
+        }
+        function deactivate(): void {
+            if (Config.options.lock.security.passwordless)
+                GlobalStates.screenLocked = false;
+        }
+        function isActive(): bool {
+            return GlobalStates.screenLocked;
         }
         function focus(): void {
             lockContext.shouldReFocus();

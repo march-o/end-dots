@@ -55,11 +55,9 @@ MouseArea {
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton
     onPressed: mouse => {
-        resetDimTimer();
         forceFieldFocus();
     }
     onPositionChanged: mouse => {
-        resetDimTimer();
         forceFieldFocus();
     }
 
@@ -185,6 +183,7 @@ MouseArea {
             }
 
             Keys.onPressed: event => {
+                root.resetDimTimer();
                 root.context.resetClearTimer();
             }
             
@@ -339,7 +338,7 @@ MouseArea {
         IconToolbarButton {
             id: screenOffButton
             onClicked: Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.dpms({ action = "disable" })'])
-            text: "monitor_off"
+            text: "tv_off"
         }
 
         PasswordGuardedIconToolbarButton {

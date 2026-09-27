@@ -3,6 +3,12 @@ hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/
 hl.bind("CTRL + SUPER + SHIFT + S", hl.dsp.workspace.toggle_special("spotify"),
     { description = "Spotify: Toggle window" })
 
+-- Emergency exit if the passwordless QuickShell lock overlay stops responding.
+-- Killing the shell removes the overlay; the compositor remains unlocked.
+hl.bind("CTRL + ALT + SUPER + Escape",
+    hl.dsp.exec_cmd("pkill -x quickshell; sleep 1; quickshell -c ii"),
+    { locked = true, description = "Lock screen: Recover QuickShell" })
+
 -- Treat Super+arrows as a 2D canvas. First focus a window in the requested
 -- direction on the current workspace; only at that edge fall back to the
 -- neighboring monitor or workspace.

@@ -21,8 +21,12 @@ Fedora and Nix configurations are intentionally left unchanged.
   `Ctrl+Super+Alt+T`.
 - On the PC, inactivity locks the screen after 10 minutes without suspending.
   The passwordless lock screen (`Enter` unlocks it) dims visually after five
-  minutes and has a button to turn the monitor off; mouse or keyboard activity
-  wakes it. SDDM login and `sudo` still require normal authentication.
+  minutes; only keyboard activity clears the dimming. It has a button to turn
+  the monitor off, which mouse or keyboard activity wakes. It uses a removable
+  overlay, so a QuickShell crash cannot leave the
+  compositor locked. If the overlay stops responding, `Ctrl+Alt+Super+Esc`
+  restarts QuickShell and dismisses it. SDDM login and `sudo` still require
+  normal authentication.
 
 ## Apply the personal system profile
 

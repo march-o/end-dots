@@ -41,6 +41,9 @@ LockScreen {
     Connections {
         target: GlobalStates
         function onScreenLockedChanged() {
+            // Passwordless mode uses a removable overlay. Keep the real
+            // workspace in place so a shell crash cannot strand the session.
+            if (Config.options.lock.security.passwordless) return;
             if (GlobalStates.screenLocked) {
                 // Lock: save workspace per monitor and move all to temp workspace in one batch
                 var next = {}
@@ -68,7 +71,7 @@ LockScreen {
         model: Quickshell.screens
         delegate: Scope {
             required property ShellScreen modelData
-            property bool shouldPush: GlobalStates.screenLocked
+            property bool shouldPush: GlobalStates.screenLocked && !Config.options.lock.security.passwordless
             property string targetMonitorName: modelData.name
             property int verticalMovementDistance: modelData.height
             property int horizontalSqueeze: modelData.width * 0.2
