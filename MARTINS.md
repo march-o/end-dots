@@ -19,9 +19,10 @@ Fedora and Nix configurations are intentionally left unchanged.
   docked while scrolling through the conversation.
 - Wallpapers cycle through `~/Wallpapers` at each Hyprland login and with
   `Ctrl+Super+Alt+T`.
-- The end-4 lock screen is passwordless (`Enter` unlocks it), while SDDM login
-  and `sudo` still require normal authentication. Idle displays turn off after
-  10 minutes and the machine suspends after 15 minutes.
+- On the PC, inactivity locks the screen after 10 minutes without suspending.
+  The passwordless lock screen (`Enter` unlocks it) dims visually after five
+  minutes and has a button to turn the monitor off; mouse or keyboard activity
+  wakes it. SDDM login and `sudo` still require normal authentication.
 
 ## Apply the personal system profile
 

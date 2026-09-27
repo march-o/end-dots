@@ -34,6 +34,9 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/general.lua" "$HOME/.config/hypr/custom/general.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
+  if [[ "${LAPTOP:-0}" == "0" ]]; then
+    install -Dm644 "$repo_root/sdata/dist-arch/config/hypridle-pc.conf" "$HOME/.config/hypr/hypridle.conf"
+  fi
   mkdir -p "$HOME/.config/zshrc.d"
   rsync -a --delete "$repo_root/dots/.config/zshrc.d/" "$HOME/.config/zshrc.d/"
 }
@@ -74,7 +77,8 @@ configure_quickshell_shell() {
   jq '.apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
       .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''" |
       .lock.security.passwordless = true |
-      .lock.security.unlockKeyring = false' \
+      .lock.security.unlockKeyring = false |
+      .lock.blur.radius = 50' \
     "$config" > "$updated"
   install -m600 "$updated" "$config"
   rm -f "$updated"

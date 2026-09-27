@@ -18,6 +18,29 @@ MouseArea {
     property bool active: false
     property bool showInputField: active || context.currentText.length > 0
     readonly property bool requirePasswordToPower: Config.options.lock.security.requirePasswordToPower
+    property bool dimmed: false
+
+    function resetDimTimer() {
+        dimmed = false;
+        dimTimer.restart();
+    }
+
+    Timer {
+        id: dimTimer
+        interval: 5 * 60 * 1000
+        running: true
+        repeat: false
+        onTriggered: root.dimmed = true
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        z: 100
+        color: "black"
+        opacity: root.dimmed ? 0.7 : 0
+        enabled: false
+        Behavior on opacity { NumberAnimation { duration: 500 } }
+    }
 
     // Force focus on entry
     function forceFieldFocus() {
@@ -32,9 +55,11 @@ MouseArea {
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton
     onPressed: mouse => {
+        resetDimTimer();
         forceFieldFocus();
     }
     onPositionChanged: mouse => {
+        resetDimTimer();
         forceFieldFocus();
     }
 
@@ -62,6 +87,7 @@ MouseArea {
     // Key presses
     property bool ctrlHeld: false
     Keys.onPressed: event => {
+        root.resetDimTimer();
         root.context.resetClearTimer();
         if (event.key === Qt.Key_Control) {
             root.ctrlHeld = true;
@@ -311,9 +337,9 @@ MouseArea {
         }
 
         IconToolbarButton {
-            id: sleepButton
-            onClicked: Session.suspend()
-            text: "dark_mode"
+            id: screenOffButton
+            onClicked: Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.dpms({ action = "disable" })'])
+            text: "monitor_off"
         }
 
         PasswordGuardedIconToolbarButton {
