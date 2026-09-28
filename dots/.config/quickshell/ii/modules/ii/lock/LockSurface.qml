@@ -123,6 +123,7 @@ MouseArea {
     // Main toolbar: unlock button, with a text field only when a password is required.
     Toolbar {
         id: mainIsland
+        spacing: Config.options.lock.security.passwordless ? 0 : 4
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.bottom
@@ -157,7 +158,7 @@ MouseArea {
             // Keep a one-pixel key target so Enter works without showing input UI.
             Layout.preferredWidth: Config.options.lock.security.passwordless ? 1 : 200
             Layout.maximumWidth: Config.options.lock.security.passwordless ? 1 : 200
-            Layout.rightMargin: Config.options.lock.security.passwordless ? 0 : -Layout.leftMargin
+            Layout.rightMargin: Config.options.lock.security.passwordless ? -1 : -Layout.leftMargin
             opacity: Config.options.lock.security.passwordless ? 0 : 1
             placeholderText: Config.options.lock.security.passwordless
                 ? Translation.tr("Press Enter to unlock")
