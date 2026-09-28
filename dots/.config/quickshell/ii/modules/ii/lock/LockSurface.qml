@@ -120,7 +120,7 @@ MouseArea {
     //     }
     // }
 
-    // Main toolbar: password box
+    // Main toolbar: unlock button, with a text field only when a password is required.
     Toolbar {
         id: mainIsland
         anchors {
@@ -154,7 +154,11 @@ MouseArea {
 
         ToolbarTextField {
             id: passwordBox
-            Layout.rightMargin: -Layout.leftMargin
+            // Keep a one-pixel key target so Enter works without showing input UI.
+            Layout.preferredWidth: Config.options.lock.security.passwordless ? 1 : 200
+            Layout.maximumWidth: Config.options.lock.security.passwordless ? 1 : 200
+            Layout.rightMargin: Config.options.lock.security.passwordless ? 0 : -Layout.leftMargin
+            opacity: Config.options.lock.security.passwordless ? 0 : 1
             placeholderText: Config.options.lock.security.passwordless
                 ? Translation.tr("Press Enter to unlock")
                 : (GlobalStates.screenUnlockFailed ? Translation.tr("Incorrect password") : Translation.tr("Enter password"))

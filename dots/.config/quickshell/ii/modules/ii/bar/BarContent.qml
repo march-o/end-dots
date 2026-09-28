@@ -11,6 +11,7 @@ import qs.modules.common.functions
 
 Item { // Bar content region
     id: root
+    property color layerBarColor: Appearance.colors.colLayer0
 
     property var screen: root.QsWindow.window?.screen
     property var brightnessMonitor: Brightness.getMonitorForScreen(screen)
@@ -41,10 +42,10 @@ Item { // Bar content region
             fill: parent
             margins: Config.options.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
         }
-        color: Config.options.bar.showBackground ? Appearance.colors.colLayer0 : "transparent"
+        color: Config.options.bar.showBackground ? root.layerBarColor : "transparent"
         radius: Config.options.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
         border.width: Config.options.bar.cornerStyle === 1 ? 1 : 0
-        border.color: Appearance.colors.colLayer0Border
+        border.color: ColorUtils.mix(Appearance.colors.colLayer0Border, root.layerBarColor, 0.7)
     }
 
     FocusedScrollMouseArea { // Left side | scroll to change brightness

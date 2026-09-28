@@ -8,11 +8,26 @@ import Quickshell.Hyprland
 import qs
 import qs.services
 import qs.modules.common
+import qs.modules.common.functions
 import qs.modules.common.widgets
 
 Scope {
     id: bar
     property bool showBarBackground: Config.options.bar.showBackground
+    property string keyboardLayer: "BASE"
+    readonly property color keyboardHue: {
+        switch (keyboardLayer) {
+        case "LOWER": return "#b33939"
+        case "RAISE": return "#799a28"
+        case "FN": return "#803eb4"
+        default: return "#2563b6"
+        }
+    }
+    readonly property color layerBarColor: {
+        const original = Appearance.colors.colLayer0
+        const mixed = ColorUtils.mix(original, keyboardHue, 0.78)
+        return Qt.rgba(mixed.r, mixed.g, mixed.b, original.a)
+    }
 
     Variants {
         // For each monitor
@@ -103,6 +118,7 @@ Scope {
 
                     BarContent {
                         id: barContent
+                        layerBarColor: bar.layerBarColor
                         
                         implicitHeight: Appearance.sizes.barHeight
                         anchors {
@@ -178,7 +194,7 @@ Scope {
                                 }
 
                                 implicitSize: Appearance.rounding.screenRounding
-                                color: showBarBackground ? Appearance.colors.colLayer0 : "transparent"
+                                color: showBarBackground ? bar.layerBarColor : "transparent"
 
                                 corner: RoundCorner.CornerEnum.TopLeft
                                 states: State {
@@ -197,7 +213,7 @@ Scope {
                                     bottom: Config.options.bar.bottom ? parent.bottom : undefined
                                 }
                                 implicitSize: Appearance.rounding.screenRounding
-                                color: showBarBackground ? Appearance.colors.colLayer0 : "transparent"
+                                color: showBarBackground ? bar.layerBarColor : "transparent"
 
                                 corner: RoundCorner.CornerEnum.TopRight
                                 states: State {
@@ -213,6 +229,18 @@ Scope {
                 }
             }
         }
+    }
+
+    IpcHandler {
+        target: "keyboardLayer"
+
+        function setLayer(name: string): void {
+            if (["BASE", "LOWER", "RAISE", "FN"].includes(name))
+                bar.keyboardLayer = name
+        }
+
+        function getLayer(): string { return bar.keyboardLayer }
+        function getBarColor(): color { return bar.layerBarColor }
     }
 
     IpcHandler {
