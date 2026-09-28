@@ -1,7 +1,9 @@
 hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), {description = "Edit user keybinds"} )
 
-hl.bind("CTRL + SUPER + ALT + R", hl.dsp.exec_cmd("$HOME/.config/hypr/custom/scripts/reset-touchpad.sh"),
-    { description = "Input: Reset touchpad" })
+if is_file_exists(HOME .. "/.config/hypr/.laptop-keyboard") then
+    hl.bind("CTRL + SUPER + ALT + R", hl.dsp.exec_cmd("$HOME/.config/hypr/custom/scripts/reset-touchpad.sh"),
+        { description = "Input: Reset touchpad" })
+end
 
 hl.bind("CTRL + SUPER + SHIFT + S", hl.dsp.workspace.toggle_special("spotify"),
     { description = "Spotify: Toggle window" })
