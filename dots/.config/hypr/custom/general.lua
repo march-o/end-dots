@@ -16,6 +16,17 @@ hl.config({
     }
 })
 
+-- The laptop keeps its Colemak-DH mapping in keyd. Latvian's standard XKB
+-- layout preserves the base keys and adds Latvian letters on Right Alt.
+local laptop_keyboard = io.open(HOME .. "/.config/hypr/.laptop-keyboard", "r")
+if laptop_keyboard then
+    laptop_keyboard:close()
+    hl.config({
+        input = { kb_layout = "lv" },
+        misc = { focus_on_activate = false }
+    })
+end
+
 -- Workspace navigation is vertical to match Super+Up/Down.
 hl.animation({
     leaf = "workspaces",

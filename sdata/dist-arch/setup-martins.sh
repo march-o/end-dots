@@ -58,7 +58,9 @@ install_user_skills() {
 
 configure_quickshell_shell() {
   local config="$HOME/.config/illogical-impulse/config.json"
-  [[ -f "$config" ]] || return 0
+  if [[ ! -f "$config" && "${LAPTOP:-0}" != "1" ]]; then
+    return 0
+  fi
   local quickshell="$HOME/.config/quickshell/ii"
   if [[ -d "$quickshell" ]]; then
     install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/Config.qml" \
@@ -78,15 +80,20 @@ configure_quickshell_shell() {
     install -Dm755 "$repo_root/dots/.config/quickshell/ii/scripts/colors/applycolor.sh" \
       "$quickshell/scripts/colors/applycolor.sh"
   fi
-  local updated
+  local updated input_file="$config" launch_on_startup=false
+  [[ -f "$input_file" ]] || input_file=/dev/null
+  [[ "${LAPTOP:-0}" == "1" ]] && launch_on_startup=true
   updated=$(mktemp)
-  jq '.apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
+  jq -n --slurpfile existing "$input_file" --argjson launch_on_startup "$launch_on_startup" \
+    '($existing[0] // {}) |
+      .apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
       .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''" |
       .lock.security.passwordless = true |
       .lock.security.unlockKeyring = false |
-      .lock.blur.radius = 50' \
-    "$config" > "$updated"
-  install -m600 "$updated" "$config"
+      .lock.blur.radius = 50 |
+      if $launch_on_startup then .lock.launchOnStartup = true else . end' \
+    > "$updated"
+  install -Dm600 "$updated" "$config"
   rm -f "$updated"
 }
 
@@ -94,7 +101,11 @@ configure_codex() {
   local codex_home="${CODEX_HOME:-$HOME/.codex}"
   local config="$codex_home/config.toml"
   mkdir -p "$codex_home"
-  install -Dm644 "$repo_root/sdata/dist-arch/config/codex-AGENTS.md" "$codex_home/AGENTS.md"
+  local codex_agents="$repo_root/sdata/dist-arch/config/codex-AGENTS.md"
+  if [[ "${LAPTOP:-0}" == "1" ]]; then
+    codex_agents="$repo_root/sdata/dist-arch/config/codex-AGENTS-laptop.md"
+  fi
+  install -Dm644 "$codex_agents" "$codex_home/AGENTS.md"
   if [[ -f "$config" ]]; then
     yq -p=toml -o=toml -i \
       '.tui.alternate_screen = "always" |

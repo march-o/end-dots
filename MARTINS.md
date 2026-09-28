@@ -27,6 +27,13 @@ Fedora and Nix configurations are intentionally left unchanged.
   compositor locked. If the overlay stops responding, `Ctrl+Alt+Super+Esc`
   restarts QuickShell and dismisses it. SDDM login and `sudo` still require
   normal authentication.
+- On the laptop, hold right Alt for Latvian letters while keeping the normal
+  Colemak-DH typing layout. For example, right Alt+A types `ā`.
+- Browser activation requests do not move focus away from the current app on
+  the laptop; Codex is also instructed to keep browser work in the background.
+- On the laptop, SDDM automatically starts the Hyprland session at boot and
+  QuickShell opens its passwordless lock overlay. SDDM is only enabled for the
+  next boot; applying these settings does not restart the live session.
 
 ## Apply the personal system profile
 
@@ -56,8 +63,9 @@ also installs the tracked keyd configuration and enables its service. An exporte
 `LAPTOP` value overrides the value in `.env` for one run, but `.env` must still
 exist and contain a valid setting. The command reloads Hyprland when a session
 is active; Spotify autostart runs at the next login. On the laptop it also uses
-20% GTK text scaling and larger KDE/Qt application fonts without changing the
-PC defaults.
+the shared `laptop_ui_scale` value (currently 1.5) for GTK text scaling, which
+Chrome follows, and ChatGPT's launcher scale. KDE/Qt font roles and Kitty's
+14 pt font remain separately configured. The PC defaults are unchanged.
 
 Apply the machine-specific static address separately:
 
