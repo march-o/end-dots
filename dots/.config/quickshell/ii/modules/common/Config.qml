@@ -105,6 +105,7 @@ Singleton {
             }
 
             property JsonObject appearance: JsonObject {
+                property real fontScale: 1 // Laptop profile overrides this; normal desktop stays unchanged
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
                 property JsonObject fonts: JsonObject {

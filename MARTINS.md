@@ -63,9 +63,10 @@ also installs the tracked keyd configuration and enables its service. An exporte
 `LAPTOP` value overrides the value in `.env` for one run, but `.env` must still
 exist and contain a valid setting. The command reloads Hyprland when a session
 is active; Spotify autostart runs at the next login. On the laptop it also uses
-the shared `laptop_ui_scale` value (currently 1.5) for GTK text scaling, which
-Chrome follows, and ChatGPT's launcher scale. KDE/Qt font roles and Kitty's
-14 pt font remain separately configured. The PC defaults are unchanged.
+the shared `laptop-ui-scale` value (currently 1.5) for GTK text scaling, which
+Chrome follows, ChatGPT's launcher scale, and QuickShell text and bar sizing.
+KDE/Qt font roles and Kitty's 14 pt font remain separately configured. The PC
+defaults are unchanged.
 
 Apply the machine-specific static address separately:
 

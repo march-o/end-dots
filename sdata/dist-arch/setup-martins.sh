@@ -91,18 +91,26 @@ configure_quickshell_shell() {
       fi
     done
   fi
-  local updated input_file="$config" launch_on_startup=false
+  local updated input_file="$config" launch_on_startup=false quickshell_font_scale=1
   [[ -f "$input_file" ]] || input_file=/dev/null
-  [[ "${LAPTOP:-0}" == "1" ]] && launch_on_startup=true
+  if [[ "${LAPTOP:-0}" == "1" ]]; then
+    launch_on_startup=true
+    quickshell_font_scale=$(<"$repo_root/sdata/dist-arch/config/laptop-ui-scale")
+  fi
   updated=$(mktemp)
-  jq -n --slurpfile existing "$input_file" --argjson launch_on_startup "$launch_on_startup" \
+  jq -n --slurpfile existing "$input_file" \
+    --argjson launch_on_startup "$launch_on_startup" \
+    --argjson quickshell_font_scale "$quickshell_font_scale" \
     '($existing[0] // {}) |
       .apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
       .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''" |
       .lock.security.passwordless = true |
       .lock.security.unlockKeyring = false |
       .lock.blur.radius = 50 |
-      if $launch_on_startup then .lock.launchOnStartup = true else . end' \
+      if $launch_on_startup then
+        .lock.launchOnStartup = true |
+        .appearance.fontScale = $quickshell_font_scale
+      else . end' \
     > "$updated"
   install -Dm600 "$updated" "$config"
   rm -f "$updated"

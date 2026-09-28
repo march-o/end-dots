@@ -235,15 +235,15 @@ Singleton {
             })
         }
         property QtObject pixelSize: QtObject {
-            property int smallest: 10
-            property int smaller: 12
-            property int smallie: 13
-            property int small: 15
-            property int normal: 16
-            property int large: 17
-            property int larger: 19
-            property int huge: 22
-            property int hugeass: 23
+            property int smallest: Math.round(10 * Config.options.appearance.fontScale)
+            property int smaller: Math.round(12 * Config.options.appearance.fontScale)
+            property int smallie: Math.round(13 * Config.options.appearance.fontScale)
+            property int small: Math.round(15 * Config.options.appearance.fontScale)
+            property int normal: Math.round(16 * Config.options.appearance.fontScale)
+            property int large: Math.round(17 * Config.options.appearance.fontScale)
+            property int larger: Math.round(19 * Config.options.appearance.fontScale)
+            property int huge: Math.round(22 * Config.options.appearance.fontScale)
+            property int hugeass: Math.round(23 * Config.options.appearance.fontScale)
             property int title: huge
         }
     }
@@ -385,7 +385,7 @@ Singleton {
     }
 
     sizes: QtObject {
-        property real baseBarHeight: 40
+        property real baseBarHeight: 40 * Config.options.appearance.fontScale
         property real barHeight: Config.options.bar.cornerStyle === 1 ? 
             (baseBarHeight + root.sizes.hyprlandGapsOut * 2) : baseBarHeight
         property real barCenterSideModuleWidth: Config.options?.bar.verbose ? 360 : 140
@@ -405,7 +405,7 @@ Singleton {
         property real searchWidth: 360
         property real sidebarWidth: 460
         property real sidebarWidthExtended: 750
-        property real baseVerticalBarWidth: 46
+        property real baseVerticalBarWidth: 46 * Config.options.appearance.fontScale
         property real verticalBarWidth: Config.options.bar.cornerStyle === 1 ? 
             (baseVerticalBarWidth + root.sizes.hyprlandGapsOut * 2) : baseVerticalBarWidth
         property real wallpaperSelectorWidth: 1200
