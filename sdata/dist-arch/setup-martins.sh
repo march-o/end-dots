@@ -36,6 +36,10 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
   if [[ "${LAPTOP:-0}" == "0" ]]; then
     install -Dm644 "$repo_root/sdata/dist-arch/config/hypridle-pc.conf" "$HOME/.config/hypr/hypridle.conf"
+  else
+    install -Dm644 "$repo_root/dots/.config/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf"
+    install -Dm755 "$repo_root/dots/.config/hypr/custom/scripts/reset-touchpad.sh" \
+      "$HOME/.config/hypr/custom/scripts/reset-touchpad.sh"
   fi
   mkdir -p "$HOME/.config/zshrc.d"
   rsync -a --delete "$repo_root/dots/.config/zshrc.d/" "$HOME/.config/zshrc.d/"
@@ -68,6 +72,7 @@ configure_quickshell_shell() {
   if [[ -d "$quickshell" ]]; then
     local relative mode source target
     for relative in \
+      modules/common/Appearance.qml \
       modules/common/Config.qml \
       modules/common/models/WorkspaceModel.qml \
       modules/common/panels/lock/LockScreen.qml \
