@@ -51,9 +51,12 @@ install_app_launchers() {
 }
 
 install_user_skills() {
-  local skill_dir="$HOME/.agents/skills/desktop-control"
-  mkdir -p "$skill_dir"
-  rsync -a --delete "$repo_root/sdata/dist-arch/skills/desktop-control/" "$skill_dir/"
+  local skill_name skill_dir
+  for skill_name in desktop-control quickshell; do
+    skill_dir="$HOME/.agents/skills/$skill_name"
+    mkdir -p "$skill_dir"
+    rsync -a --delete "$repo_root/sdata/dist-arch/skills/$skill_name/" "$skill_dir/"
+  done
 }
 
 configure_quickshell_shell() {
@@ -63,22 +66,30 @@ configure_quickshell_shell() {
   fi
   local quickshell="$HOME/.config/quickshell/ii"
   if [[ -d "$quickshell" ]]; then
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/Config.qml" \
-      "$quickshell/modules/common/Config.qml"
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/panels/lock/LockScreen.qml" \
-      "$quickshell/modules/common/panels/lock/LockScreen.qml"
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/common/panels/lock/LockContext.qml" \
-      "$quickshell/modules/common/panels/lock/LockContext.qml"
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/lock/Lock.qml" \
-      "$quickshell/modules/ii/lock/Lock.qml"
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/background/Background.qml" \
-      "$quickshell/modules/ii/background/Background.qml"
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/ii/lock/LockSurface.qml" \
-      "$quickshell/modules/ii/lock/LockSurface.qml"
-    install -Dm644 "$repo_root/dots/.config/quickshell/ii/modules/waffle/lock/WaffleLock.qml" \
-      "$quickshell/modules/waffle/lock/WaffleLock.qml"
-    install -Dm755 "$repo_root/dots/.config/quickshell/ii/scripts/colors/applycolor.sh" \
-      "$quickshell/scripts/colors/applycolor.sh"
+    local relative mode source target
+    for relative in \
+      modules/common/Config.qml \
+      modules/common/models/WorkspaceModel.qml \
+      modules/common/panels/lock/LockScreen.qml \
+      modules/common/panels/lock/LockContext.qml \
+      modules/ii/bar/Workspaces.qml \
+      modules/ii/background/Background.qml \
+      modules/ii/lock/Lock.qml \
+      modules/ii/lock/LockSurface.qml \
+      modules/waffle/lock/WaffleLock.qml \
+      services/HyprlandData.qml \
+      scripts/colors/applycolor.sh; do
+      source="$repo_root/dots/.config/quickshell/ii/$relative"
+      target="$quickshell/$relative"
+      mode=644
+      [[ "$relative" == scripts/* ]] && mode=755
+      if [[ -f "$target" ]]; then
+        cp "$source" "$target"
+        chmod "$mode" "$target"
+      else
+        install -Dm"$mode" "$source" "$target"
+      fi
+    done
   fi
   local updated input_file="$config" launch_on_startup=false
   [[ -f "$input_file" ]] || input_file=/dev/null

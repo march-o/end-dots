@@ -16,6 +16,7 @@ Usage:
   deskctl active
   deskctl open APP [OPTIONS]
   deskctl focus APP [OPTIONS]
+  deskctl launch chrome [OPTIONS]          Desktop launcher; opens and activates Chrome
   deskctl chrome [OPTIONS]                 Alias for: open chrome
 
 Apps:
@@ -26,12 +27,12 @@ Apps:
 Chrome options:
   --profile auto|personal|work|recent      Default: auto
   --url URL                                Open URL in the selected profile
+  --incognito                              Open an incognito window
 
 Behavior:
   open reuses or launches without changing the active window.
   focus explicitly activates an existing matching window and never launches one.
-  Chrome auto mode prefers a known personal window, then the latest Chrome window.
-  If no Chrome window exists, auto launches the personal profile.
+  Chrome auto mode always selects the personal profile.
   Explicit profiles route URLs to that profile. Chrome may create a profile window
   only when that profile has no existing window.
 
@@ -140,25 +141,37 @@ launch_detached() {
 }
 
 profile_directory() {
+  local email
   case "$1" in
-    personal) printf 'Default\n' ;;
-    work) printf 'Profile 1\n' ;;
+    personal) email='march.mrom@gmail.com' ;;
+    work) email='martins.osmucnieks@aerones.com' ;;
     *) return 1 ;;
   esac
+  [[ -r "$chrome_local_state" ]] || return 1
+  jq -er --arg email "$email" '
+    [.profile.info_cache | to_entries[] | select(.value.user_name == $email) | .key]
+    | sort_by(if . == "Default" then 0 else 1 end)
+    | .[0] // empty
+  ' "$chrome_local_state" 2>/dev/null
 }
 
 profile_name_for_directory() {
-  case "$1" in
-    Default) printf 'personal\n' ;;
-    'Profile 1') printf 'work\n' ;;
-    *) printf 'unknown\n' ;;
-  esac
+  local personal work
+  personal=$(profile_directory personal) || personal=''
+  work=$(profile_directory work) || work=''
+  if [[ "$1" == "$personal" && -n "$personal" ]]; then
+    printf 'personal\n'
+  elif [[ "$1" == "$work" && -n "$work" ]]; then
+    printf 'work\n'
+  else
+    printf 'unknown\n'
+  fi
 }
 
 recent_chrome_profile() {
-  local directory='Profile 1'
+  local directory=''
   if [[ -r "$chrome_local_state" ]]; then
-    directory=$(jq -r '.profile.last_used // "Profile 1"' "$chrome_local_state" 2>/dev/null || printf 'Profile 1')
+    directory=$(jq -r '.profile.last_used // empty' "$chrome_local_state" 2>/dev/null || true)
   fi
   profile_name_for_directory "$directory"
 }
@@ -257,7 +270,7 @@ open_generic() {
 open_chrome() {
   local allow_launch=$1 should_focus=$2
   shift 2
-  local requested=auto url='' profile address directory action previous active
+  local requested=auto url='' incognito=false profile address directory action previous active
 
   while (($#)); do
     case "$1" in
@@ -270,6 +283,10 @@ open_chrome() {
         (($# >= 2)) || fail "--url requires a value" 64
         url=$2
         shift 2
+        ;;
+      --incognito)
+        incognito=true
+        shift
         ;;
       --help|-h)
         usage
@@ -291,24 +308,16 @@ open_chrome() {
 
   profile=$requested
   [[ "$profile" == recent ]] && profile=$(recent_chrome_profile)
+  [[ "$profile" == unknown ]] && fail "recent Chrome profile is not a configured personal or work account" 65
 
   if [[ "$profile" == auto ]]; then
+    profile=personal
     address=$(known_chrome_address personal)
-    if [[ -n "$address" ]]; then
-      profile=personal
-    else
-      address=$(latest_chrome_address)
-      if [[ -n "$address" ]]; then
-        profile=$(recent_chrome_profile)
-      else
-        profile=personal
-      fi
-    fi
   else
     address=$(known_chrome_address "$profile")
   fi
 
-  if [[ -z "$url" && -n "$address" ]]; then
+  if [[ -z "$url" && "$incognito" == false && -n "$address" ]]; then
     remember_chrome_window "$address" "$profile"
     if [[ "$should_focus" == true ]]; then
       focus_address "$address"
@@ -321,10 +330,17 @@ open_chrome() {
 
   [[ "$allow_launch" == true ]] || fail "no matching Chrome window is open" 3
   command -v google-chrome-stable >/dev/null || fail "google-chrome-stable is not installed" 69
-  directory=$(profile_directory "$profile") || fail "cannot launch unknown Chrome profile" 65
+  directory=$(profile_directory "$profile") || fail "Chrome $profile account is missing from Local State" 65
   previous=$(active_address)
 
-  if [[ -n "$url" ]]; then
+  if [[ "$incognito" == true ]]; then
+    if [[ -n "$url" ]]; then
+      launch_detached google-chrome-stable "--profile-directory=$directory" --incognito "$url"
+    else
+      launch_detached google-chrome-stable "--profile-directory=$directory" --incognito
+    fi
+    action=launched-incognito
+  elif [[ -n "$url" ]]; then
     launch_detached google-chrome-stable "--profile-directory=$directory" "$url"
     action=opened-url
   else
@@ -353,13 +369,13 @@ show_capabilities() {
     name:"deskctl",
     version:$version,
     output:"json",
-    commands:["capabilities","windows","active","open","focus"],
+    commands:["capabilities","windows","active","open","focus","launch"],
     apps:{
       chrome:{profiles:["auto","personal","work","recent"],options:["--profile","--url"]},
       files:{},
       terminal:{}
     },
-    policy:{reuse_existing_windows:true,focus_on_open:false,chrome_auto:"personal-known-then-most-recent"}
+    policy:{reuse_existing_windows:true,focus_on_open:false,chrome_auto:"personal"}
   }'
 }
 
@@ -402,7 +418,7 @@ main() {
       (($# == 1)) || fail "active accepts no arguments" 64
       show_active
       ;;
-    open|focus)
+    open|focus|launch)
       require_runtime
       (($# >= 2)) || fail "$command requires an app" 64
       local app allow_launch should_focus
@@ -410,6 +426,10 @@ main() {
       if [[ "$command" == open ]]; then
         allow_launch=true
         should_focus=false
+      elif [[ "$command" == launch ]]; then
+        [[ "$app" == chrome ]] || fail "launch currently supports only chrome" 64
+        allow_launch=true
+        should_focus=true
       else
         allow_launch=false
         should_focus=true

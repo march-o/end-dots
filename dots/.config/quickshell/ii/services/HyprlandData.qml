@@ -83,6 +83,19 @@ Singleton {
         updateAll();
     }
 
+    // Quickshell can miss Hyprland events after the compositor or screen resumes.
+    // Refresh the workspace state so the bar keeps tracking the active workspace.
+    Timer {
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: {
+            root.updateMonitors();
+            root.updateWorkspaces();
+            root.updateWindowList();
+        }
+    }
+
     Connections {
         target: Hyprland
 

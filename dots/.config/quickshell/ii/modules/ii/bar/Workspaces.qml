@@ -14,10 +14,10 @@ import Quickshell.Hyprland
 ButtonMouseArea {
     id: root
 
-    readonly property HyprlandMonitor monitor: Hyprland.monitorFor(root.QsWindow.window?.screen)
+    readonly property string screenName: root.QsWindow.window?.screen?.name ?? ""
     WorkspaceModel {
         id: wsModel
-        monitor: root.monitor
+        screenName: root.screenName
     }
 
     property bool vertical: Config.options.bar.vertical
@@ -30,7 +30,7 @@ ButtonMouseArea {
     property real workspaceIconSizeShrinked: workspaceButtonWidth * 0.55
     property real workspaceIconOpacityShrinked: 1
     property real workspaceIconMarginShrinked: -4
-    property int workspaceIndexInGroup: (monitor?.activeWorkspace?.id - 1) % wsModel.shownCount
+    property int workspaceIndexInGroup: (wsModel.activeWorkspace - 1) % wsModel.shownCount
     property real specialTextSize: workspaceButtonWidth * 0.5
 
     Layout.alignment: vertical ? Qt.AlignHCenter : Qt.AlignVCenter
