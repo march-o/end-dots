@@ -7,6 +7,7 @@ import qs.services
 import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Hyprland
 import Quickshell.Services.Mpris
 
 Item {
@@ -29,6 +30,13 @@ Item {
     function setVolume(value) {
         if (canChangeVolume)
             activePlayer.volume = Math.max(0, Math.min(1, value));
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton
+        cursorShape: Qt.PointingHandCursor
+        onClicked: Hyprland.dispatch('hl.dsp.workspace.toggle_special("spotify")')
     }
 
     RowLayout {
@@ -66,28 +74,6 @@ Item {
                 iconSize: 15
                 color: Appearance.colors.colOnSecondaryContainer
             }
-            Rectangle {
-                anchors.fill: parent
-                color: albumClick.containsMouse ? "#80000000" : "transparent"
-            }
-            MaterialSymbol {
-                anchors.centerIn: parent
-                visible: albumClick.containsMouse && !!root.activePlayer
-                text: root.activePlayer?.isPlaying ? "pause" : "play_arrow"
-                fill: 1
-                iconSize: 17
-                color: "white"
-            }
-            MouseArea {
-                id: albumClick
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: root.activePlayer?.canTogglePlaying ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                    if (root.activePlayer?.canTogglePlaying)
-                        root.activePlayer.togglePlaying();
-                }
-            }
         }
 
         Item {
@@ -116,23 +102,6 @@ Item {
                 }
             }
 
-            MouseArea {
-                id: infoMouse
-                anchors.fill: parent
-                acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton | Qt.BackButton | Qt.ForwardButton
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onPressed: event => {
-                    if (event.button === Qt.MiddleButton)
-                        root.activePlayer?.togglePlaying();
-                    else if (event.button === Qt.BackButton)
-                        root.activePlayer?.previous();
-                    else if (event.button === Qt.RightButton || event.button === Qt.ForwardButton)
-                        root.activePlayer?.next();
-                    else
-                        GlobalStates.mediaControlsOpen = !GlobalStates.mediaControlsOpen;
-                }
-            }
         }
 
         Item {
