@@ -112,15 +112,19 @@ Item { // Bar content region
         BarGroup {
             id: leftCenterGroup
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: root.centerSideModuleWidth
 
             Resources {
                 alwaysShowAllResources: root.useShortenedForm === 2
-                Layout.fillWidth: root.useShortenedForm === 2
             }
+        }
+
+        BarGroup {
+            id: mediaCenterGroup
+            visible: root.useShortenedForm < 2
+            anchors.verticalCenter: parent.verticalCenter
+            implicitWidth: root.useShortenedForm === 0 ? 400 : 230
 
             Media {
-                visible: root.useShortenedForm < 2
                 Layout.fillWidth: true
             }
         }

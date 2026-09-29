@@ -25,8 +25,8 @@ Scope {
     }
     readonly property color layerBarColor: {
         const original = Appearance.colors.colLayer0
-        const mixed = ColorUtils.mix(original, keyboardHue, 0.78)
-        return Qt.rgba(mixed.r, mixed.g, mixed.b, original.a)
+        const mixed = ColorUtils.mix(original, keyboardHue, 0.68)
+        return Qt.rgba(mixed.r, mixed.g, mixed.b, 0.88)
     }
 
     Variants {

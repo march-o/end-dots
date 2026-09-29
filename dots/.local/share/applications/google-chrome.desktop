@@ -4,7 +4,7 @@ Type=Application
 Name=Chrome
 GenericName=Web Browser
 Comment=Browse with the personal Chrome profile
-Exec=/home/martins/.local/bin/deskctl launch chrome --profile personal %U
+Exec=google-chrome-stable --profile-directory="Profile 1" %U
 Icon=google-chrome
 Terminal=false
 StartupNotify=true
@@ -15,8 +15,8 @@ Actions=new-window;new-private-window;
 
 [Desktop Action new-window]
 Name=New Window
-Exec=/home/martins/.local/bin/deskctl launch chrome --profile personal
+Exec=google-chrome-stable --profile-directory="Profile 1" --new-window
 
 [Desktop Action new-private-window]
 Name=New Incognito Window
-Exec=/home/martins/.local/bin/deskctl launch chrome --profile personal --incognito
+Exec=google-chrome-stable --profile-directory="Profile 1" --incognito --new-window

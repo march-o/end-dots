@@ -1,7 +1,6 @@
 # Local Desktop Automation
 
-- This is a Hyprland desktop. Before launching or focusing GUI applications, run `deskctl capabilities`.
-- Use `deskctl open ...` rather than launching a second copy of an application directly.
-- `deskctl open ...` does not steal focus; use `deskctl focus ...` only when the user explicitly wants the application brought forward.
-- For Chrome, use `deskctl open chrome --profile auto|personal|work|recent [--url URL]`.
-- `deskctl` returns JSON suitable for agent inspection. Run `deskctl help` for its contract.
+- This is a Hyprland desktop. Read `hyprland-windows` for application windows and `chrome-automation` for Chrome tabs, profiles, or pages.
+- Inspect existing windows with `hyprctl clients -j` and reuse the requested app when it is already open.
+- Use a connected browser tool for page interaction. Keep personal and work Chrome profiles separate.
+- Preserve focus unless the user explicitly asks to bring an application forward.

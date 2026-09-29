@@ -28,7 +28,6 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.zshrc" "$HOME/.zshrc"
   install -Dm644 "$repo_root/dots/.p10k.zsh" "$HOME/.p10k.zsh"
   install -Dm644 "$repo_root/dots/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
-  install -Dm755 "$repo_root/dots/.local/bin/deskctl" "$HOME/.local/bin/deskctl"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/general.lua" "$HOME/.config/hypr/custom/general.lua"
@@ -55,12 +54,9 @@ install_app_launchers() {
 }
 
 install_user_skills() {
-  local skill_name skill_dir
-  for skill_name in desktop-control quickshell; do
-    skill_dir="$HOME/.agents/skills/$skill_name"
-    mkdir -p "$skill_dir"
-    rsync -a --delete "$repo_root/sdata/dist-arch/skills/$skill_name/" "$skill_dir/"
-  done
+  local skills_dir="$HOME/.agents/skills"
+  mkdir -p "$skills_dir/quickshell"
+  rsync -a --delete "$repo_root/sdata/dist-arch/skills/quickshell/" "$skills_dir/quickshell/"
 }
 
 configure_quickshell_shell() {
@@ -77,6 +73,10 @@ configure_quickshell_shell() {
       modules/common/models/WorkspaceModel.qml \
       modules/common/panels/lock/LockScreen.qml \
       modules/common/panels/lock/LockContext.qml \
+      modules/ii/bar/Bar.qml \
+      modules/ii/bar/BarContent.qml \
+      modules/ii/bar/BarGroup.qml \
+      modules/ii/bar/Media.qml \
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \
       modules/ii/lock/Lock.qml \
@@ -191,6 +191,7 @@ install_zsh_plugins
 install_user_config
 install_app_launchers
 install_user_skills
+bash "$repo_root/sdata/dist-arch/install-chrome-control.sh"
 configure_quickshell_shell
 configure_codex
 install_zram

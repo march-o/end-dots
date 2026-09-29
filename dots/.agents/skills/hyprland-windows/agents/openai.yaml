@@ -1,0 +1,3 @@
+interface:
+  display_name: "Hyprland Windows"
+  short_description: "Inspect, open, and focus desktop windows"

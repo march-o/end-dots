@@ -84,7 +84,7 @@ showfun implicitize_old_dependencies
 v implicitize_old_dependencies
 
 # Required by the official ChatGPT repository bootstrap on minimal Arch installs.
-v sudo pacman -S --needed --noconfirm curl gnupg
+v sudo pacman -S --needed --noconfirm curl gnupg nodejs npm
 
 showfun install-chatgpt
 v install-chatgpt

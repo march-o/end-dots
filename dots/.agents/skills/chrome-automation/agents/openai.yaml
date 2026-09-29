@@ -1,0 +1,3 @@
+interface:
+  display_name: "Chrome Automation"
+  short_description: "Use Chrome profiles and existing browser tabs"
