@@ -18,18 +18,58 @@ Item {
         player.dbusName?.toLowerCase().includes("spotify")) ?? null
     readonly property MprisPlayer activePlayer: spotifyPlayer ?? MprisController.activePlayer
     readonly property bool canChangeVolume: !!(activePlayer?.volumeSupported && activePlayer?.canControl)
+    readonly property bool compact: width < 300
     readonly property real volumeLevel: Math.max(0, Math.min(1, activePlayer?.volume ?? 0))
     readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || Translation.tr("No media")
 
     Layout.preferredHeight: 30
     Layout.alignment: Qt.AlignVCenter
     Layout.minimumWidth: 150
-    implicitWidth: 400
+    implicitWidth: 480
     implicitHeight: 30
 
     function setVolume(value) {
         if (canChangeVolume)
             activePlayer.volume = Math.max(0, Math.min(1, value));
+    }
+
+    component TransportButton: Item {
+        id: button
+        property string symbol
+        property bool available: false
+        property bool prominent: false
+        signal activated()
+
+        Layout.preferredWidth: 24
+        Layout.preferredHeight: 30
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 22
+            height: 22
+            radius: 7
+            visible: button.prominent || buttonMouse.containsMouse
+            color: button.prominent ? Appearance.colors.colPrimary : Appearance.colors.colLayer1Hover
+            opacity: button.available ? 1 : 0.45
+        }
+        MaterialSymbol {
+            anchors.centerIn: parent
+            text: button.symbol
+            fill: 1
+            iconSize: button.prominent ? 18 : 19
+            color: button.prominent ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
+            opacity: button.available ? 1 : 0.4
+        }
+        MouseArea {
+            id: buttonMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: button.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: {
+                if (button.available)
+                    button.activated();
+            }
+        }
     }
 
     MouseArea {
@@ -43,10 +83,11 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: 6
         anchors.rightMargin: 6
-        spacing: 8
+        spacing: 6
 
         Rectangle {
             id: albumFrame
+            visible: !root.compact
             Layout.alignment: Qt.AlignVCenter
             implicitWidth: 26
             implicitHeight: 26
@@ -101,13 +142,36 @@ Item {
                     text: root.activePlayer?.trackArtist || (root.spotifyPlayer ? "Spotify" : "Media")
                 }
             }
+        }
 
+        RowLayout {
+            Layout.alignment: Qt.AlignVCenter
+            spacing: 0
+
+            TransportButton {
+                symbol: "skip_previous"
+                available: root.activePlayer?.canGoPrevious ?? false
+                onActivated: root.activePlayer?.previous()
+            }
+            TransportButton {
+                symbol: root.activePlayer?.isPlaying ? "pause" : "play_arrow"
+                available: root.activePlayer?.isPlaying
+                    ? (root.activePlayer?.canPause ?? false)
+                    : (root.activePlayer?.canPlay ?? false)
+                prominent: true
+                onActivated: root.activePlayer?.togglePlaying()
+            }
+            TransportButton {
+                symbol: "skip_next"
+                available: root.activePlayer?.canGoNext ?? false
+                onActivated: root.activePlayer?.next()
+            }
         }
 
         Item {
             id: volumeControl
             visible: root.canChangeVolume
-            Layout.preferredWidth: visible ? (root.width < 300 ? 86 : 144) : 0
+            Layout.preferredWidth: visible ? (root.compact ? 50 : 144) : 0
             Layout.preferredHeight: 30
             Layout.alignment: Qt.AlignVCenter
 
@@ -155,7 +219,7 @@ Item {
         }
 
         MaterialSymbol {
-            visible: root.canChangeVolume
+            visible: root.canChangeVolume && !root.compact
             Layout.alignment: Qt.AlignVCenter
             text: root.volumeLevel < 0.01 ? "volume_off" : root.volumeLevel < 0.5 ? "volume_down" : "volume_up"
             fill: 1

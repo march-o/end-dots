@@ -122,7 +122,7 @@ Item { // Bar content region
             id: mediaCenterGroup
             visible: root.useShortenedForm < 2
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: root.useShortenedForm === 0 ? 400 : 230
+            implicitWidth: root.useShortenedForm === 0 ? 480 : 230
 
             Media {
                 Layout.fillWidth: true
