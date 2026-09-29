@@ -87,35 +87,6 @@ ContentPage {
         ConfigRow {
             
             ContentSubsection {
-                title: Translation.tr("Corner style")
-                Layout.fillWidth: true
-
-                ConfigSelectionArray {
-                    currentValue: Config.options.bar.cornerStyle
-                    onSelected: newValue => {
-                        Config.options.bar.cornerStyle = newValue; // Update local copy
-                    }
-                    options: [
-                        {
-                            displayName: Translation.tr("Hug"),
-                            icon: "line_curve",
-                            value: 0
-                        },
-                        {
-                            displayName: Translation.tr("Float"),
-                            icon: "page_header",
-                            value: 1
-                        },
-                        {
-                            displayName: Translation.tr("Rect"),
-                            icon: "toolbar",
-                            value: 2
-                        }
-                    ]
-                }
-            }
-
-            ContentSubsection {
                 title: Translation.tr("Group style")
                 Layout.fillWidth: false
 

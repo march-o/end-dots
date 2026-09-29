@@ -64,7 +64,8 @@ also installs the tracked keyd configuration and enables its service. An exporte
 exist and contain a valid setting. The command reloads Hyprland when a session
 is active; Spotify autostart runs at the next login. On the laptop it also uses
 the shared `laptop-ui-scale` value (currently 1.5) for GTK text scaling, which
-Chrome follows, ChatGPT's launcher scale, and QuickShell text and bar sizing.
+Chrome follows, and ChatGPT's launcher scale. QuickShell uses a separate 1.25
+font scale on the laptop, and both machines use the floating bar style.
 KDE/Qt font roles and Kitty's 14 pt font remain separately configured. The PC
 defaults are unchanged.
 

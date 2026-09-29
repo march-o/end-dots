@@ -10,6 +10,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 ## Live changes
 
 - Inspect the current instance with `qs list --all` and read recent errors with `qs -c ii log --tail 50`. Confirm `Configuration Loaded` after edits and that no newer `Failed to load configuration` remains.
+- If the lock screen has no wallpaper to blur, check `~/.config/illogical-impulse/config.json` at `.background.wallpaperPath` and confirm the referenced image exists. The background QML uses that setting as its image source, and the lock blur operates on that image; a generated `wallpaper/path.txt` alone does not select the live Quickshell background.
 - When updating an existing live QML file, copy into the existing file with `cp` so Quickshell's file watcher sees the modification. `install` may replace the watched inode; a later edit can then fail to trigger a reload. Use `install -Dm644` for a missing target.
 - If a valid correction does not reload after an earlier failed load, modify the live `shell.qml` in place to prompt a reload. Check the log again before concluding that the correction is active.
 - Remove temporary logging or IPC probes from tracked and live QML after diagnosis. Do not restart the shell casually: the lock UI runs there. For lock changes, ensure a working recovery path and verify that the shell loaded before trying to lock.
@@ -33,6 +34,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 - The Kitty terminal uses `background_opacity 0.88`; Hyprland supplies blur at size 2 and one pass. The `quickshell:bar` layer already has blur enabled by the Hyprland layer rules. Set the QML bar background color alpha to 0.88 for comparable glass; keep the content groups opaque for legibility. The keyboard tint comes from `Bar.qml`'s `layerBarColor` mix.
 - `ColorUtils.mix(first, second, ratio)` weights the first color by `ratio`; check that ordering when using it for subtle tint or contrast.
+- On Arch, keep the floating bar style (`cornerStyle: 1`) in `Config.qml` and normalize existing `config.json` in `setup-martins.sh`; a missing laptop bar entry otherwise falls back to Hug. The laptop's 1.5 GTK/Chrome scale is separate from its 1.25 Quickshell font scale, which kept the 2880×1800 bar more compact in a live visual comparison. Keep the style pickers out of welcome and settings when this style is fixed by the repo.
 
 ## Keep this skill current
 

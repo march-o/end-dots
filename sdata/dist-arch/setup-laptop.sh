@@ -9,7 +9,7 @@ if [[ "${LAPTOP:-0}" != "1" ]]; then
   exit 0
 fi
 
-# Shared laptop UI scale for GTK/Chrome, ChatGPT, and QuickShell.
+# Shared laptop UI scale for GTK/Chrome and ChatGPT.
 laptop_ui_scale=$(<"$repo_root/sdata/dist-arch/config/laptop-ui-scale")
 
 configure_laptop_fonts() {

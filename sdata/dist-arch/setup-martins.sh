@@ -100,7 +100,7 @@ configure_quickshell_shell() {
   [[ -f "$input_file" ]] || input_file=/dev/null
   if [[ "${LAPTOP:-0}" == "1" ]]; then
     launch_on_startup=true
-    quickshell_font_scale=$(<"$repo_root/sdata/dist-arch/config/laptop-ui-scale")
+    quickshell_font_scale=1.25
   fi
   updated=$(mktemp)
   jq -n --slurpfile existing "$input_file" \
@@ -112,6 +112,7 @@ configure_quickshell_shell() {
       .lock.security.passwordless = true |
       .lock.security.unlockKeyring = false |
       .lock.blur.radius = 50 |
+      .bar.cornerStyle = 1 |
       if $launch_on_startup then
         .lock.launchOnStartup = true |
         .appearance.fontScale = $quickshell_font_scale
