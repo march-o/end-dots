@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
+
+function command(file, args, env = process.env) {
+  try {
+    return JSON.parse(execFileSync(file, args, { encoding: 'utf8', timeout: 4000, env }));
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
+const instances = command('hyprctl', ['instances', '-j']);
+const hyprEnv = {
+  ...process.env,
+  XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`,
+  HYPRLAND_INSTANCE_SIGNATURE: process.env.HYPRLAND_INSTANCE_SIGNATURE || instances?.[0]?.instance,
+};
+const monitors = command('hyprctl', ['monitors', '-j'], hyprEnv);
+const clients = command('hyprctl', ['clients', '-j'], hyprEnv);
+const active = command('hyprctl', ['activewindow', '-j'], hyprEnv);
+const browser = command(`${process.env.HOME}/.local/bin/chrome-control`, ['{"action":"list"}']);
+
+const chromeWindows = Array.isArray(clients) ? clients
+  .filter((client) => client.class === 'google-chrome')
+  .map((client) => ({ address: client.address, title: client.title, workspace: client.workspace?.name })) : [];
+const chromeTabs = Array.isArray(browser.result) ? browser.result.flatMap((window) =>
+  (window.tabs || [])
+    .map((tab) => ({ windowId: window.id, tabId: tab.id, url: tab.url, title: tab.title,
+      tabActive: tab.active, windowFocused: window.focused }))) : [];
+
+process.stdout.write(JSON.stringify({
+  at: new Date().toISOString(),
+  monitors: Array.isArray(monitors) ? monitors.map((monitor) => ({
+    name: monitor.name,
+    activeWorkspace: monitor.activeWorkspace?.name,
+    specialWorkspace: monitor.specialWorkspace?.name,
+  })) : monitors,
+  activeWindow: { address: active.address, class: active.class, workspace: active.workspace?.name },
+  chromeWindows,
+  chromeControl: { connected: browser.ok === true, error: browser.error },
+  chromeTabs,
+}) + '\n');
