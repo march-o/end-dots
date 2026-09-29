@@ -35,6 +35,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 - The Kitty terminal uses `background_opacity 0.88`; Hyprland supplies blur at size 2 and one pass. The `quickshell:bar` layer already has blur enabled by the Hyprland layer rules. Set the QML bar background color alpha to 0.88 for comparable glass; keep the content groups opaque for legibility. The keyboard tint comes from `Bar.qml`'s `layerBarColor` mix.
 - `ColorUtils.mix(first, second, ratio)` weights the first color by `ratio`; check that ordering when using it for subtle tint or contrast.
 - On Arch, keep the floating bar style (`cornerStyle: 1`) in `Config.qml` and normalize existing `config.json` in `setup-martins.sh`; a missing laptop bar entry otherwise falls back to Hug. The laptop's 1.5 GTK/Chrome scale is separate from its 1.25 Quickshell font scale, which kept the 2880×1800 bar more compact in a live visual comparison. Keep the style pickers out of welcome and settings when this style is fixed by the repo.
+- Gate the keyboard-layer bar hue by the Planck's serial-specific `/dev/input/by-id/...-event-kbd` symlink, not the `LAPTOP` setting. `test -e` follows the symlink and reports unplugging; polling it updates the tint on hotplug while the plain glass color stays at the same alpha on machines without that keyboard.
 
 ## Keep this skill current
 

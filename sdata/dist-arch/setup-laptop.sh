@@ -4,13 +4,14 @@ set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPO_ROOT="$repo_root"
 source "$repo_root/sdata/lib/machine-env.sh"
+source "$repo_root/sdata/dist-arch/lib/device-profile.sh"
 
 if [[ "${LAPTOP:-0}" != "1" ]]; then
   exit 0
 fi
 
-# Shared laptop UI scale for GTK/Chrome and ChatGPT.
-laptop_ui_scale=$(<"$repo_root/sdata/dist-arch/config/laptop-ui-scale")
+# Laptop app scale is selected by .env through the tracked device profile.
+laptop_ui_scale=$DEVICE_GTK_SCALE
 
 configure_laptop_fonts() {
   # Keep the desktop layout unchanged while making application text easier to
@@ -34,10 +35,6 @@ configure_laptop_fonts() {
 configure_laptop_fonts
 
 # These applications use their own sizing instead of the GTK/KDE font roles.
-kitty_config="$HOME/.config/kitty/kitty.conf"
-if [[ -f "$kitty_config" ]]; then
-  sed -i -E 's/^font_size[[:space:]]+[0-9.]+$/font_size 14.0/' "$kitty_config"
-fi
 chatgpt_launcher="${XDG_DATA_HOME:-$HOME/.local/share}/applications/chatgpt.desktop"
 install -Dm644 "$repo_root/sdata/dist-arch/config/chatgpt.desktop.in" \
   "$chatgpt_launcher"

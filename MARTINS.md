@@ -62,10 +62,13 @@ applies all tracked dotfiles and the personal Arch system profile. `LAPTOP=1`
 also installs the tracked keyd configuration and enables its service. An exported
 `LAPTOP` value overrides the value in `.env` for one run, but `.env` must still
 exist and contain a valid setting. The command reloads Hyprland when a session
-is active; Spotify autostart runs at the next login. On the laptop it also uses
-the shared `laptop-ui-scale` value (currently 1.5) for GTK text scaling, which
-Chrome follows, and ChatGPT's launcher scale. QuickShell uses a separate 1.25
-font scale on the laptop, and both machines use the floating bar style.
+is active; Spotify autostart runs at the next login. The tracked
+`sdata/dist-arch/config/devices/{desktop,laptop}.env` files select sizes for
+Kitty, QuickShell, and GTK/Chrome based on `.env`'s `LAPTOP` toggle. The laptop
+uses 16 pt Kitty, 1.25 QuickShell font scale, and 1.5 GTK/Chrome scale; both
+machines use the floating bar style. The Chrome launchers select personal and
+work profiles by signed-in email, since profile directory names differ between
+machines.
 KDE/Qt font roles and Kitty's 14 pt font remain separately configured. The PC
 defaults are unchanged.
 

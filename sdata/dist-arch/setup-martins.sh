@@ -4,12 +4,17 @@ set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPO_ROOT="$repo_root"
 source "$repo_root/sdata/lib/machine-env.sh"
+source "$repo_root/sdata/dist-arch/lib/device-profile.sh"
 omz_dir="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh"
 
 sync_git_repo() {
   local url=$1 destination=$2
   if [[ -d "$destination/.git" ]]; then
-    git -C "$destination" pull --ff-only
+    if [[ -n "$(git -C "$destination" status --porcelain)" ]]; then
+      printf 'Keeping local changes in %s; skipping its update.\n' "$destination" >&2
+    else
+      git -C "$destination" pull --ff-only
+    fi
   else
     git clone --depth 1 "$url" "$destination"
   fi
@@ -28,6 +33,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.zshrc" "$HOME/.zshrc"
   install -Dm644 "$repo_root/dots/.p10k.zsh" "$HOME/.p10k.zsh"
   install -Dm644 "$repo_root/dots/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
+  sed -i -E "s/^font_size[[:space:]]+[0-9.]+$/font_size $DEVICE_KITTY_FONT_SIZE/" "$HOME/.config/kitty/kitty.conf"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/ash-desktop-state" "$HOME/.local/bin/ash-desktop-state"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
@@ -47,6 +53,7 @@ install_user_config() {
 
 install_app_launchers() {
   local applications_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  install -Dm755 "$repo_root/dots/.local/bin/chrome-profile-launch" "$HOME/.local/bin/chrome-profile-launch"
   install -Dm644 "$repo_root/dots/.local/share/applications/google-chrome.desktop" \
     "$applications_dir/google-chrome.desktop"
   install -Dm644 "$repo_root/dots/.local/share/applications/google-chrome-work.desktop" \
@@ -97,16 +104,15 @@ configure_quickshell_shell() {
       fi
     done
   fi
-  local updated input_file="$config" launch_on_startup=false quickshell_font_scale=1
+  local updated input_file="$config" launch_on_startup=false
   [[ -f "$input_file" ]] || input_file=/dev/null
   if [[ "${LAPTOP:-0}" == "1" ]]; then
     launch_on_startup=true
-    quickshell_font_scale=1.25
   fi
   updated=$(mktemp)
   jq -n --slurpfile existing "$input_file" \
     --argjson launch_on_startup "$launch_on_startup" \
-    --argjson quickshell_font_scale "$quickshell_font_scale" \
+    --argjson quickshell_font_scale "$DEVICE_QUICKSHELL_FONT_SCALE" \
     '($existing[0] // {}) |
       .apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
       .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''" |
@@ -114,9 +120,9 @@ configure_quickshell_shell() {
       .lock.security.unlockKeyring = false |
       .lock.blur.radius = 50 |
       .bar.cornerStyle = 1 |
+      .appearance.fontScale = $quickshell_font_scale |
       if $launch_on_startup then
-        .lock.launchOnStartup = true |
-        .appearance.fontScale = $quickshell_font_scale
+        .lock.launchOnStartup = true
       else . end' \
     > "$updated"
   install -Dm600 "$updated" "$config"

@@ -15,6 +15,7 @@ Scope {
     id: bar
     property bool showBarBackground: Config.options.bar.showBackground
     property string keyboardLayer: "BASE"
+    property bool planckConnected: false
     readonly property color keyboardHue: {
         switch (keyboardLayer) {
         case "LOWER": return "#b33939"
@@ -25,8 +26,27 @@ Scope {
     }
     readonly property color layerBarColor: {
         const original = Appearance.colors.colLayer0
+        if (!planckConnected)
+            return Qt.rgba(original.r, original.g, original.b, 0.88)
         const mixed = ColorUtils.mix(original, keyboardHue, 0.68)
         return Qt.rgba(mixed.r, mixed.g, mixed.b, 0.88)
+    }
+
+    Timer {
+        interval: 5000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: {
+            if (!planckProbe.running)
+                planckProbe.running = true
+        }
+    }
+
+    Process {
+        id: planckProbe
+        command: ["test", "-e", "/dev/input/by-id/usb-Drop_Planck_32003800105355533933382000000000-event-kbd"]
+        onExited: (exitCode, exitStatus) => bar.planckConnected = exitCode === 0
     }
 
     Variants {

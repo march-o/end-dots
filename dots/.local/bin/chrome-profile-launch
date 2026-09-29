@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+  personal) account_email=march.mrom@gmail.com ;;
+  work) account_email=martins.osmucnieks@aerones.com ;;
+  *) printf 'Usage: %s {personal|work} [Chrome arguments...]\n' "$0" >&2; exit 2 ;;
+esac
+shift
+
+local_state="${XDG_CONFIG_HOME:-$HOME/.config}/google-chrome/Local State"
+if [[ ! -f "$local_state" ]]; then
+  printf 'Chrome profile registry is missing: %s\n' "$local_state" >&2
+  exit 1
+fi
+
+profile_directory=$(jq -r --arg email "$account_email" '
+  [.profile.info_cache // {} | to_entries[] | select(.value.user_name == $email) | .key]
+  | if index("Default") then "Default" else (.[0] // empty) end
+' "$local_state")
+if [[ -z "$profile_directory" ]]; then
+  printf 'Chrome profile for %s was not found in %s\n' "$account_email" "$local_state" >&2
+  exit 1
+fi
+
+if [[ "${1:-}" == "--print-profile" ]]; then
+  printf '%s\n' "$profile_directory"
+  exit 0
+fi
+
+exec google-chrome-stable "--profile-directory=$profile_directory" "$@"
