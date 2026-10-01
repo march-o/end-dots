@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-wallpaper_dir="${WALLPAPER_DIR:-$HOME/Wallpapers}"
+wallpaper_dir="${WALLPAPER_DIR:-$HOME/.config/dotfiles/wallpapers}"
 shell_config="${XDG_CONFIG_HOME:-$HOME/.config}/illogical-impulse/config.json"
 switcher="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/ii/scripts/colors/switchwall.sh"
 

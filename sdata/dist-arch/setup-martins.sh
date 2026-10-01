@@ -89,8 +89,10 @@ configure_quickshell_shell() {
       modules/ii/background/Background.qml \
       modules/ii/lock/Lock.qml \
       modules/ii/lock/LockSurface.qml \
+      modules/ii/wallpaperSelector/WallpaperSelectorContent.qml \
       modules/waffle/lock/WaffleLock.qml \
       services/HyprlandData.qml \
+      services/Wallpapers.qml \
       scripts/colors/applycolor.sh; do
       source="$repo_root/dots/.config/quickshell/ii/$relative"
       target="$quickshell/$relative"

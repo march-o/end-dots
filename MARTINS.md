@@ -17,8 +17,9 @@ Fedora and Nix configurations are intentionally left unchanged.
 - OpenSSH server enabled at boot on the standard SSH port.
 - Codex always uses the alternate-screen TUI so its input composer stays
   docked while scrolling through the conversation.
-- Wallpapers cycle through `~/Wallpapers` at each Hyprland login and with
-  `Ctrl+Super+Alt+T`.
+- Wallpapers in the ignored `~/.config/dotfiles/wallpapers/` directory cycle
+  at each Hyprland login, with `Ctrl+Super+Alt+T`, and with the button beside
+  the bar clock. Copy the images separately when setting up another machine.
 - On the PC, inactivity locks the screen after 10 minutes without suspending.
   The passwordless lock screen (`Enter` unlocks it) dims visually after five
   minutes; only keyboard activity clears the dimming. It has a button to turn

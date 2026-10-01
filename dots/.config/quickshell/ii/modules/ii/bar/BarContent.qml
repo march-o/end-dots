@@ -188,6 +188,17 @@ Item { // Bar content region
                     visible: (root.useShortenedForm < 2 && Battery.available)
                     Layout.alignment: Qt.AlignVCenter
                 }
+
+                CircleUtilButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)}/.local/bin/wallpaper-next`])
+
+                    MaterialSymbol {
+                        text: "wallpaper_slideshow"
+                        iconSize: Appearance.font.pixelSize.normal
+                        color: Appearance.colors.colOnLayer2
+                    }
+                }
             }
         }
     }

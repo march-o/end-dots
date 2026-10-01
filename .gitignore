@@ -15,6 +15,7 @@ __pycache__/
 # custom os-release
 /os-release
 /.env
+/wallpapers/
 
 # Emacs auto backup file
 *~

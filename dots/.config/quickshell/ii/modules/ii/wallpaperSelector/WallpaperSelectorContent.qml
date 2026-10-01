@@ -197,7 +197,7 @@ MouseArea {
                             {
                                 icon: "wallpaper",
                                 name: "Wallpapers",
-                                path: `${Directories.pictures}/Wallpapers`
+                                path: `${Directories.home}/.config/dotfiles/wallpapers`
                             },
                             ...(Config.options.policies.weeb === 1 ? [
                                     {
