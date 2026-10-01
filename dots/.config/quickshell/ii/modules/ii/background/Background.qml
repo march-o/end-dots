@@ -133,7 +133,9 @@ Variants {
             StyledImage {
                 id: wallpaper
                 visible: opacity > 0 && !blurLoader.active
-                opacity: (status === Image.Ready && !bgRoot.wallpaperIsVideo) ? 1 : 0
+                // StyledImage retains the old frame while the next source loads.
+                // Keep it visible during Loading instead of flashing the layer below.
+                opacity: bgRoot.wallpaperIsVideo ? 0 : 1
                 cache: false
                 smooth: false
 
