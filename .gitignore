@@ -16,6 +16,7 @@ __pycache__/
 /os-release
 /.env
 /wallpapers/
+/.agents/skills/laptop-access/
 
 # Emacs auto backup file
 *~
