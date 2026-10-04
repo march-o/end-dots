@@ -42,7 +42,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 ## Horizontal bar layout
 
-- In the 40px bar, put related time and date information on one line. A single `StyledText` for the time, weekday, month, and day keeps their baselines aligned; duplicating the weekday in a separate center card wastes space. Keep the active-window title on one line and cap its width with elision.
+- In the 40px bar, put the time, month, and day on one line in a single `StyledText` to keep their baselines aligned. Keep the active-window title on one line and cap its width with elision; leave the weekday out of this compact bar.
 - For a clock followed by a content-sized active-window title, use an explicit `Row` with fixed spacers and a subtle boundary. A `RowLayout` stretched across the whole left region centered an implicit-width title in unused space, leaving an unintended gap of about 80px.
 - Keep passive metrics and utility controls on a quieter layer surface, leaving stronger accent color for media and active controls. A single-line media title leaves room for transport and volume; expose the full title and artist on hover when the title elides.
 - Terminal titles can start with changing Braille spinner glyphs. Strip only leading spinner/punctuation characters from the bar label so the title does not appear to jump horizontally as those glyphs change.

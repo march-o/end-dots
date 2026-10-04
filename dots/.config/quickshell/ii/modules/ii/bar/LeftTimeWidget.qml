@@ -13,7 +13,7 @@ Item {
         anchors.centerIn: parent
         height: 32
         verticalAlignment: Text.AlignVCenter
-        text: DateTime.time + "  |  " + Qt.locale().toString(DateTime.clock.date, "ddd MMM d").toUpperCase()
+        text: DateTime.time + "  |  " + Qt.locale().toString(DateTime.clock.date, "MMM d").toUpperCase()
         font.pixelSize: Appearance.font.pixelSize.normal
         font.weight: Font.Medium
         color: Appearance.colors.colOnLayer0
