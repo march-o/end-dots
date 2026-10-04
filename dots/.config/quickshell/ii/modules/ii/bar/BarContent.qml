@@ -16,7 +16,6 @@ Item { // Bar content region
     property var screen: root.QsWindow.window?.screen
     property var brightnessMonitor: Brightness.getMonitorForScreen(screen)
     property real useShortenedForm: (Appearance.sizes.barHellaShortenScreenWidthThreshold >= screen?.width) ? 2 : (Appearance.sizes.barShortenScreenWidthThreshold >= screen?.width) ? 1 : 0
-    readonly property int centerSideModuleWidth: (useShortenedForm == 2) ? Appearance.sizes.barCenterSideModuleWidthHellaShortened : (useShortenedForm == 1) ? Appearance.sizes.barCenterSideModuleWidthShortened : Appearance.sizes.barCenterSideModuleWidth
 
     component VerticalBarSeparator: Rectangle {
         Layout.topMargin: Appearance.sizes.baseBarHeight / 3
@@ -78,23 +77,43 @@ Item { // Bar content region
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        RowLayout {
+        Row {
             id: leftSectionRowLayout
             anchors.fill: parent
             spacing: 0
 
-            LeftSidebarButton { // Left sidebar button
-                id: leftSidebarButton
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: Appearance.rounding.screenRounding
-                colBackground: barLeftSideMouseArea.hovered ? Appearance.colors.colLayer1Hover : ColorUtils.transparentize(Appearance.colors.colLayer1Hover, 1)
+            Item {
+                width: Appearance.rounding.screenRounding
+                height: 1
+            }
+
+            LeftTimeWidget {
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Item {
+                width: 13
+                height: 1
+                visible: root.useShortenedForm === 0
+            }
+
+            Rectangle {
+                width: 1
+                height: 18
+                anchors.verticalCenter: parent.verticalCenter
+                color: Appearance.colors.colOnLayer0
+                opacity: 0.34
+                visible: root.useShortenedForm === 0
+            }
+
+            Item {
+                width: 14
+                height: 1
+                visible: root.useShortenedForm === 0
             }
 
             ActiveWindow {
-                Layout.leftMargin: 10 + (leftSidebarButton.visible ? 0 : Appearance.rounding.screenRounding)
-                Layout.rightMargin: Appearance.rounding.screenRounding
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                height: parent.height
                 visible: root.useShortenedForm === 0
             }
         }
@@ -112,6 +131,7 @@ Item { // Bar content region
         BarGroup {
             id: leftCenterGroup
             anchors.verticalCenter: parent.verticalCenter
+            colBackground: Appearance.colors.colLayer1
 
             Resources {
                 alwaysShowAllResources: root.useShortenedForm === 2
@@ -136,7 +156,6 @@ Item { // Bar content region
         BarGroup {
             id: middleCenterGroup
             anchors.verticalCenter: parent.verticalCenter
-            padding: workspacesWidget.widgetPadding
 
             Workspaces {
                 id: workspacesWidget
@@ -162,41 +181,39 @@ Item { // Bar content region
         MouseArea {
             id: rightCenterGroup
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: root.centerSideModuleWidth
-            implicitHeight: rightCenterGroupContent.implicitHeight
+            implicitWidth: rightCenterRow.implicitWidth
+            implicitHeight: rightCenterRow.implicitHeight
 
             onPressed: {
                 GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen;
             }
 
-            BarGroup {
-                id: rightCenterGroupContent
+            Row {
+                id: rightCenterRow
                 anchors.fill: parent
+                spacing: 4
 
-                ClockWidget {
-                    showDate: (Config.options.bar.verbose && root.useShortenedForm < 2)
-                    Layout.alignment: Qt.AlignVCenter
-                    Layout.fillWidth: true
-                }
+                BarGroup {
+                    colBackground: Appearance.colors.colLayer1
+                    UtilButtons {
+                        visible: (Config.options.bar.verbose && root.useShortenedForm === 0)
+                        Layout.alignment: Qt.AlignVCenter
+                    }
 
-                UtilButtons {
-                    visible: (Config.options.bar.verbose && root.useShortenedForm === 0)
-                    Layout.alignment: Qt.AlignVCenter
-                }
+                    BatteryIndicator {
+                        visible: (root.useShortenedForm < 2 && Battery.available)
+                        Layout.alignment: Qt.AlignVCenter
+                    }
 
-                BatteryIndicator {
-                    visible: (root.useShortenedForm < 2 && Battery.available)
-                    Layout.alignment: Qt.AlignVCenter
-                }
+                    CircleUtilButton {
+                        Layout.alignment: Qt.AlignVCenter
+                        onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)}/.local/bin/wallpaper-next`])
 
-                CircleUtilButton {
-                    Layout.alignment: Qt.AlignVCenter
-                    onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)}/.local/bin/wallpaper-next`])
-
-                    MaterialSymbol {
-                        text: "wallpaper_slideshow"
-                        iconSize: Appearance.font.pixelSize.normal
-                        color: Appearance.colors.colOnLayer2
+                        MaterialSymbol {
+                            text: "wallpaper_slideshow"
+                            iconSize: Appearance.font.pixelSize.normal
+                            color: Appearance.colors.colOnLayer2
+                        }
                     }
                 }
             }

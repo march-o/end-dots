@@ -85,6 +85,8 @@ configure_quickshell_shell() {
       modules/ii/bar/Bar.qml \
       modules/ii/bar/BarContent.qml \
       modules/ii/bar/BarGroup.qml \
+      modules/ii/bar/ActiveWindow.qml \
+      modules/ii/bar/LeftTimeWidget.qml \
       modules/ii/bar/Media.qml \
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \

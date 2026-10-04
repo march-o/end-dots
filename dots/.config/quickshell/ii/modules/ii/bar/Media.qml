@@ -73,10 +73,17 @@ Item {
     }
 
     MouseArea {
+        id: mediaMouse
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
+        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: Hyprland.dispatch('hl.dsp.workspace.toggle_special("spotify")')
+
+        StyledToolTip {
+            extraVisibleCondition: mediaMouse.containsMouse
+            text: root.cleanedTitle + (root.activePlayer?.trackArtist ? "\n" + root.activePlayer.trackArtist : "")
+        }
     }
 
     RowLayout {
@@ -122,25 +129,14 @@ Item {
             Layout.minimumWidth: 40
             Layout.fillHeight: true
 
-            ColumnLayout {
+            StyledText {
                 anchors.fill: parent
-                spacing: 0
-
-                StyledText {
-                    Layout.fillWidth: true
-                    font.pixelSize: Appearance.font.pixelSize.smaller + 1
-                    font.weight: Font.DemiBold
-                    color: Appearance.colors.colOnLayer1
-                    elide: Text.ElideRight
-                    text: root.cleanedTitle
-                }
-                StyledText {
-                    Layout.fillWidth: true
-                    font.pixelSize: Appearance.font.pixelSize.smallest + 1
-                    color: Appearance.colors.colSubtext
-                    elide: Text.ElideRight
-                    text: root.activePlayer?.trackArtist || (root.spotifyPlayer ? "Spotify" : "Media")
-                }
+                verticalAlignment: Text.AlignVCenter
+                font.pixelSize: Appearance.font.pixelSize.small
+                font.weight: Font.Medium
+                color: Appearance.colors.colOnLayer1
+                elide: Text.ElideRight
+                text: root.cleanedTitle
             }
         }
 
