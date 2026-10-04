@@ -1,0 +1,330 @@
+diff --git a/codex-rs/chatgpt/src/lib.rs b/codex-rs/chatgpt/src/lib.rs
+index 057478d..5589621 100644
+--- a/codex-rs/chatgpt/src/lib.rs
++++ b/codex-rs/chatgpt/src/lib.rs
+@@ -1,3 +1,5 @@
++#![recursion_limit = "256"]
++
+ pub mod apply_command;
+ mod chatgpt_client;
+ pub mod connectors;
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_setup.rs b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+index 64562d1..690c850 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_setup.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+@@ -87,6 +87,9 @@ pub(crate) enum StatusLineItem {
+     /// Committed branch diff stats relative to the default branch.
+     BranchChanges,
+ 
++    /// Staged and unstaged tracked changes relative to HEAD.
++    GitDiff,
++
+     /// Compact runtime run-state text.
+     #[strum(to_string = "run-state", serialize = "status")]
+     Status,
+@@ -174,6 +177,7 @@ impl StatusLineItem {
+             StatusLineItem::BranchChanges => {
+                 "Committed branch changes against the default branch (omitted when unavailable)"
+             }
++            StatusLineItem::GitDiff => "Current Git diff in lines (tracked files)",
+             StatusLineItem::Status => "Compact session run-state text (Ready, Working, Thinking)",
+             StatusLineItem::Permissions => "Active permission profile or sandbox mode",
+             StatusLineItem::ApprovalMode => "Active command approval mode",
+@@ -229,6 +233,7 @@ impl StatusLineItem {
+             StatusLineItem::GitBranch => StatusSurfacePreviewItem::GitBranch,
+             StatusLineItem::PullRequestNumber => StatusSurfacePreviewItem::PullRequestNumber,
+             StatusLineItem::BranchChanges => StatusSurfacePreviewItem::BranchChanges,
++            StatusLineItem::GitDiff => StatusSurfacePreviewItem::GitDiff,
+             StatusLineItem::Status => StatusSurfacePreviewItem::Status,
+             StatusLineItem::Permissions => StatusSurfacePreviewItem::Permissions,
+             StatusLineItem::ApprovalMode => StatusSurfacePreviewItem::ApprovalMode,
+@@ -536,6 +541,10 @@ mod tests {
+             "branch-changes".parse::<StatusLineItem>(),
+             Ok(StatusLineItem::BranchChanges)
+         );
++        assert_eq!(
++            "git-diff".parse::<StatusLineItem>(),
++            Ok(StatusLineItem::GitDiff)
++        );
+     }
+ 
+     #[test]
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+index 8c44ce4..5dc445f 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+@@ -40,7 +40,8 @@ impl StatusLineAccent {
+             StatusLineItem::CurrentDir | StatusLineItem::ProjectRoot => Self::Path,
+             StatusLineItem::GitBranch
+             | StatusLineItem::PullRequestNumber
+-            | StatusLineItem::BranchChanges => Self::Branch,
++            | StatusLineItem::BranchChanges
++            | StatusLineItem::GitDiff => Self::Branch,
+             StatusLineItem::Status => Self::State,
+             StatusLineItem::ContextRemaining
+             | StatusLineItem::ContextUsed
+diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+index f2e6f90..df62dd9 100644
+--- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
++++ b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+@@ -19,6 +19,7 @@ pub(crate) enum StatusSurfacePreviewItem {
+     GitBranch,
+     PullRequestNumber,
+     BranchChanges,
++    GitDiff,
+     Permissions,
+     ApprovalMode,
+     ContextRemaining,
+@@ -56,6 +57,7 @@ impl StatusSurfacePreviewItem {
+             StatusSurfacePreviewItem::GitBranch => "feat/awesome-feature",
+             StatusSurfacePreviewItem::PullRequestNumber => "PR #123",
+             StatusSurfacePreviewItem::BranchChanges => "+12 -3",
++            StatusSurfacePreviewItem::GitDiff => "Δ +8 -2",
+             StatusSurfacePreviewItem::Permissions => "Workspace",
+             StatusSurfacePreviewItem::ApprovalMode => "on-request",
+             StatusSurfacePreviewItem::ContextRemaining => "Context 0% left",
+diff --git a/codex-rs/tui/src/branch_summary.rs b/codex-rs/tui/src/branch_summary.rs
+index 6329e43..7a44470 100644
+--- a/codex-rs/tui/src/branch_summary.rs
++++ b/codex-rs/tui/src/branch_summary.rs
+@@ -41,6 +41,8 @@ pub(crate) struct StatusLineGitSummary {
+     pub(crate) pull_request: Option<StatusLinePullRequest>,
+     /// Additions and deletions between `HEAD` and the repository default branch merge base.
+     pub(crate) branch_change_stats: Option<GitBranchDiffStats>,
++    /// Staged and unstaged tracked line changes relative to HEAD.
++    pub(crate) worktree_change_stats: Option<GitBranchDiffStats>,
+ }
+ 
+ /// Open GitHub pull request shown by the `pull-request-number` status-line item.
+@@ -119,15 +121,74 @@ pub(crate) async fn current_branch_name(
+ pub(crate) async fn status_line_git_summary(
+     runner: &dyn WorkspaceCommandExecutor,
+     cwd: &Path,
++    include_pull_request: bool,
++    include_branch_changes: bool,
++    include_git_diff: bool,
+ ) -> StatusLineGitSummary {
+-    let (pull_request, branch_change_stats) = tokio::join!(
+-        open_pull_request(runner, cwd),
+-        branch_diff_stats_to_default_branch(runner, cwd),
++    let (pull_request, branch_change_stats, worktree_change_stats) = tokio::join!(
++        async {
++            if include_pull_request {
++                open_pull_request(runner, cwd).await
++            } else {
++                None
++            }
++        },
++        async {
++            if include_branch_changes {
++                branch_diff_stats_to_default_branch(runner, cwd).await
++            } else {
++                None
++            }
++        },
++        async {
++            if include_git_diff {
++                worktree_diff_stats(runner, cwd).await
++            } else {
++                None
++            }
++        },
+     );
+     StatusLineGitSummary {
+         pull_request,
+         branch_change_stats,
++        worktree_change_stats,
++    }
++}
++
++/// Counts staged and unstaged changes to tracked files relative to HEAD.
++async fn worktree_diff_stats(
++    runner: &dyn WorkspaceCommandExecutor,
++    cwd: &Path,
++) -> Option<GitBranchDiffStats> {
++    let output = run_git_command(
++        runner,
++        cwd,
++        &["diff", "--no-ext-diff", "--shortstat", "HEAD"],
++    )
++    .await
++    .ok()?;
++    if !output.success() {
++        return None;
++    }
++
++    let mut additions = 0;
++    let mut deletions = 0;
++    for part in output.stdout.split(',') {
++        let mut words = part.split_whitespace();
++        let count = words
++            .next()
++            .and_then(|value| value.parse().ok())
++            .unwrap_or(0);
++        match words.next() {
++            Some("insertion(+)" | "insertions(+)") => additions = count,
++            Some("deletion(-)" | "deletions(-)") => deletions = count,
++            _ => {}
++        }
+     }
++    Some(GitBranchDiffStats {
++        additions,
++        deletions,
++    })
+ }
+ 
+ /// Counts committed line changes between `HEAD` and the repository default branch.
+@@ -519,6 +580,23 @@ mod tests {
+     use std::pin::Pin;
+     use std::sync::Mutex;
+ 
++    #[tokio::test]
++    async fn worktree_diff_stats_counts_staged_and_unstaged_lines() {
++        let runner = FakeRunner::new(vec![response(
++            &["git", "diff", "--no-ext-diff", "--shortstat", "HEAD"],
++            /*exit_code*/ 0,
++            " 3 files changed, 8 insertions(+), 2 deletions(-)\n",
++        )]);
++
++        assert_eq!(
++            worktree_diff_stats(&runner, Path::new("/repo")).await,
++            Some(GitBranchDiffStats {
++                additions: 8,
++                deletions: 2,
++            })
++        );
++    }
++
+     #[tokio::test]
+     async fn branch_diff_stats_prefers_remote_default_ref_over_stale_local_branch() {
+         let runner = FakeRunner::new(vec![
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 616dd6d..f2c9206 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -70,6 +70,7 @@ impl StatusSurfaceSelections {
+             || self
+                 .status_line_items
+                 .contains(&StatusLineItem::BranchChanges)
++            || self.status_line_items.contains(&StatusLineItem::GitDiff)
+     }
+ 
+     fn uses_workspace_headline(&self) -> bool {
+@@ -179,7 +180,7 @@ impl ChatWidget {
+             let cwd = self.status_line_cwd().to_path_buf();
+             self.sync_status_line_git_summary_state(&cwd);
+             if !self.status_line_git_summary_lookup_complete {
+-                self.request_status_line_git_summary(cwd);
++                self.request_status_line_git_summary(cwd, selections);
+             }
+         }
+ 
+@@ -447,7 +448,7 @@ impl ChatWidget {
+         }
+         let cwd = self.status_line_cwd().to_path_buf();
+         self.sync_status_line_git_summary_state(&cwd);
+-        self.request_status_line_git_summary(cwd);
++        self.request_status_line_git_summary(cwd, &selections);
+     }
+ 
+     /// Parses configured status-line ids into known items and collects unknown ids.
+@@ -609,7 +610,20 @@ impl ChatWidget {
+         });
+     }
+ 
+-    fn request_status_line_git_summary(&mut self, cwd: PathBuf) {
++    fn request_status_line_git_summary(
++        &mut self,
++        cwd: PathBuf,
++        selections: &StatusSurfaceSelections,
++    ) {
++        let include_pull_request = selections
++            .status_line_items
++            .contains(&StatusLineItem::PullRequestNumber);
++        let include_branch_changes = selections
++            .status_line_items
++            .contains(&StatusLineItem::BranchChanges);
++        let include_git_diff = selections
++            .status_line_items
++            .contains(&StatusLineItem::GitDiff);
+         if self.status_line_git_summary_pending {
+             return;
+         }
+@@ -620,7 +634,14 @@ impl ChatWidget {
+         self.status_line_git_summary_pending = true;
+         let tx = self.app_event_tx.clone();
+         tokio::spawn(async move {
+-            let summary = branch_summary::status_line_git_summary(runner.as_ref(), &cwd).await;
++            let summary = branch_summary::status_line_git_summary(
++                runner.as_ref(),
++                &cwd,
++                include_pull_request,
++                include_branch_changes,
++                include_git_diff,
++            )
++            .await;
+             tx.send(AppEvent::StatusLineGitSummaryUpdated { cwd, summary });
+         });
+     }
+@@ -728,6 +749,11 @@ impl ChatWidget {
+                 .as_ref()
+                 .and_then(|summary| summary.pull_request.as_ref())
+                 .map(|pull_request| format!("PR #{}", pull_request.number)),
++            StatusLineItem::GitDiff => self
++                .status_line_git_summary
++                .as_ref()
++                .and_then(|summary| summary.worktree_change_stats.as_ref())
++                .map(|stats| format!("Δ +{} -{}", stats.additions, stats.deletions)),
+             StatusLineItem::BranchChanges => self
+                 .status_line_git_summary
+                 .as_ref()
+@@ -853,6 +879,7 @@ impl ChatWidget {
+             StatusSurfacePreviewItem::GitBranch => StatusLineItem::GitBranch,
+             StatusSurfacePreviewItem::PullRequestNumber => StatusLineItem::PullRequestNumber,
+             StatusSurfacePreviewItem::BranchChanges => StatusLineItem::BranchChanges,
++            StatusSurfacePreviewItem::GitDiff => StatusLineItem::GitDiff,
+             StatusSurfacePreviewItem::Permissions => StatusLineItem::Permissions,
+             StatusSurfacePreviewItem::ApprovalMode => StatusLineItem::ApprovalMode,
+             StatusSurfacePreviewItem::ContextRemaining => StatusLineItem::ContextRemaining,
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+index abe4b66..129daf7 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -248,6 +248,10 @@ async fn status_line_git_summary_items_render_values() {
+             additions: 143,
+             deletions: 22,
+         }),
++        worktree_change_stats: Some(crate::branch_summary::GitBranchDiffStats {
++            additions: 8,
++            deletions: 2,
++        }),
+     });
+ 
+     assert_eq!(
+@@ -258,6 +262,10 @@ async fn status_line_git_summary_items_render_values() {
+         chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::BranchChanges),
+         Some("+143 -22".to_string())
+     );
++    assert_eq!(
++        chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::GitDiff),
++        Some("Δ +8 -2".to_string())
++    );
+ }
+ 
+ #[tokio::test]
+@@ -286,6 +294,7 @@ async fn status_line_branch_changes_render_no_changes() {
+             additions: 0,
+             deletions: 0,
+         }),
++        worktree_change_stats: None,
+     });
+ 
+     assert_eq!(
+@@ -311,6 +320,7 @@ async fn stale_status_line_git_summary_update_is_ignored() {
+                 additions: 143,
+                 deletions: 22,
+             }),
++            worktree_change_stats: None,
+         },
+     );
+ 

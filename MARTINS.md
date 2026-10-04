@@ -9,6 +9,8 @@ Fedora and Nix configurations are intentionally left unchanged.
   highlighting, zoxide, and direnv.
 - `cod` runs `codex --dangerously-bypass-approvals-and-sandbox`. This alias
   intentionally disables Codex approvals and sandboxing.
+- `dot` starts Codex in `~/.config/dotfiles`; `dotr` resumes the latest
+  session there. Both use the same Codex options as `cod` and `codr`.
 - An 8 GiB zstd zram swap device at priority 100.
 - The `ii-material-sddm` login theme, including access to end-4's generated
   Material colors and wallpaper.
@@ -37,6 +39,17 @@ Fedora and Nix configurations are intentionally left unchanged.
   next boot; applying these settings does not restart the live session.
 
 ## Apply the personal system profile
+
+Clone this Arch setup into the same path on the PC and laptop:
+
+```bash
+git clone git@github.com:march-o/end-dots.git "$HOME/.config/dotfiles"
+cd "$HOME/.config/dotfiles"
+```
+
+On the PC, run `cp .env.example .env`. On the laptop, run
+`printf 'LAPTOP=1\n' > .env`. Then install with `./setup install`.
+The tracked Zsh configuration provides `dot` and `dotr` on both machines.
 
 The normal Arch dependency installation invokes the profile automatically.
 It can also be reapplied independently:

@@ -33,6 +33,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.zshrc" "$HOME/.zshrc"
   install -Dm644 "$repo_root/dots/.p10k.zsh" "$HOME/.p10k.zsh"
   install -Dm644 "$repo_root/dots/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
+  install -Dm644 "$repo_root/dots/.config/kitty/ssh.conf" "$HOME/.config/kitty/ssh.conf"
   sed -i -E "s/^font_size[[:space:]]+[0-9.]+$/font_size $DEVICE_KITTY_FONT_SIZE/" "$HOME/.config/kitty/kitty.conf"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/ash-desktop-state" "$HOME/.local/bin/ash-desktop-state"
@@ -143,7 +144,7 @@ configure_codex() {
   if [[ -f "$config" ]]; then
     yq -p=toml -o=toml -i \
       '.tui.alternate_screen = "always" |
-       .tui.status_line = ["model-with-reasoning", "context-remaining", "five-hour-limit", "weekly-limit", "git-branch", "task-progress"] |
+       .tui.status_line = ["model-with-reasoning", "current-dir", "git-branch", "git-diff", "context-remaining", "five-hour-limit", "weekly-limit", "task-progress"] |
        .tui.status_line_use_colors = true |
        .tui.keymap.global.open_transcript = ["ctrl-t", "page-up"]' "$config"
   else
