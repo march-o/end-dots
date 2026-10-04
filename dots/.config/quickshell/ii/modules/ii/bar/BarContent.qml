@@ -91,31 +91,6 @@ Item { // Bar content region
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            Item {
-                width: 13
-                height: 1
-                visible: root.useShortenedForm === 0
-            }
-
-            Rectangle {
-                width: 1
-                height: 18
-                anchors.verticalCenter: parent.verticalCenter
-                color: Appearance.colors.colOnLayer0
-                opacity: 0.34
-                visible: root.useShortenedForm === 0
-            }
-
-            Item {
-                width: 14
-                height: 1
-                visible: root.useShortenedForm === 0
-            }
-
-            ActiveWindow {
-                height: parent.height
-                visible: root.useShortenedForm === 0
-            }
         }
     }
 
