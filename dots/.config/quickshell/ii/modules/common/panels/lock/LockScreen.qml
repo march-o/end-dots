@@ -14,6 +14,46 @@ Scope {
 
     required property Component lockSurface
     property alias context: lockContext
+    property bool screenOffRequested: false
+
+    function turnOffScreenWhenReady() {
+        if (!root.screenOffRequested || !GlobalStates.screenLocked) return;
+        if (Config.options.lock.security.passwordless) {
+            // Let the overlay render before powering off the displays.
+            screenOffTimer.restart();
+        } else if (lock.secure) {
+            root.screenOffRequested = false;
+            Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.dpms({ action = "disable" })']);
+        }
+    }
+
+    function lockAndTurnOffScreen() {
+        // Use this shell's lock page, then the same DPMS action as its screen-off button.
+        root.screenOffRequested = true;
+        GlobalStates.screenLocked = true;
+        root.turnOffScreenWhenReady();
+    }
+
+    Timer {
+        id: screenOffTimer
+        interval: 200
+        repeat: false
+        onTriggered: {
+            if (!root.screenOffRequested || !GlobalStates.screenLocked || !Config.options.lock.security.passwordless) return;
+            root.screenOffRequested = false;
+            Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.dpms({ action = "disable" })']);
+        }
+    }
+
+    Connections {
+        target: GlobalStates
+        function onScreenLockedChanged() {
+            if (!GlobalStates.screenLocked) {
+                root.screenOffRequested = false;
+                screenOffTimer.stop();
+            }
+        }
+    }
     property Component sessionLockSurface: WlSessionLockSurface {
         id: sessionLockSurface
         color: "transparent"
@@ -92,6 +132,7 @@ Scope {
         // shell crashes. Only the password-protected mode uses session lock.
         locked: GlobalStates.screenLocked && !Config.options.lock.security.passwordless
         surface: root.sessionLockSurface
+        onSecureStateChanged: root.turnOffScreenWhenReady()
     }
 
     Variants {
@@ -133,6 +174,9 @@ Scope {
 
         function activate(): void {
             root.lock();
+        }
+        function activateAndTurnOffScreen(): void {
+            root.lockAndTurnOffScreen();
         }
         function deactivate(): void {
             if (Config.options.lock.security.passwordless)

@@ -9,11 +9,13 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 ## Live changes
 
+- Before any live copy, edit, or reload, check the lock state with `qs -c ii ipc call lock isActive` and monitor `dpmsStatus` with `hyprctl monitors -j`. If locked, displays are off, or the lock state cannot be confirmed, finish changes in the tracked tree and defer live deployment until the user unlocks and wakes the displays. The passwordless overlay's `GlobalStates.screenLocked` resets on reload, which can expose the desktop and wake an off display. Never use a reload as a way to wake or unlock the user's session.
 - Inspect the current instance with `qs list --all` and read recent errors with `qs -c ii log --tail 50`. Confirm `Configuration Loaded` after edits and that no newer `Failed to load configuration` remains.
 - If the lock screen has no wallpaper to blur, check `~/.config/illogical-impulse/config.json` at `.background.wallpaperPath` and confirm the referenced image exists. The background QML uses that setting as its image source, and the lock blur operates on that image; a generated `wallpaper/path.txt` alone does not select the live Quickshell background.
 - The wallpaper `StyledImage` has `retainWhileLoading: true`, but an opacity binding to `status === Image.Ready` hides the retained frame during each async image load. Keep opacity independent of loading status for an uninterrupted switch.
 - When updating an existing live QML file, copy into the existing file with `cp` so Quickshell's file watcher sees the modification. `install` may replace the watched inode; a later edit can then fail to trigger a reload. Use `install -Dm644` for a missing target.
 - During visual iteration, confirm a fresh `Configuration Loaded` after the last copied file and check that the changed element is visible before judging a screenshot. Reloads can lag by tens of seconds; old log entries and a screenshot taken after a fixed delay can still reflect the previous bar. Save each review capture to a new path so image viewers do not reuse an earlier rendering.
+- Keep `import Quickshell.Hyprland` in a panel that declares `GlobalShortcut`; removing it makes the entire shell configuration fail to load. After a failed reload, check for the newest `Configuration Loaded` before trusting older errors in the log.
 - If a valid correction does not reload after an earlier failed load, modify the live `shell.qml` in place to prompt a reload. Check the log again before concluding that the correction is active.
 - Remove temporary logging or IPC probes from tracked and live QML after diagnosis. Do not restart the shell casually: the lock UI runs there. For lock changes, ensure a working recovery path and verify that the shell loaded before trying to lock.
 - If content changes and an in-place `shell.qml` edit do not reload, check `qs -c ii ipc call lock isActive` before replacing the instance. `qs kill` can report success while the old PID still runs; verify that it exited before launching a replacement, or two bars can appear. After replacement, check `qs list --all`, lock IPC, and a screenshot.
@@ -46,6 +48,8 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 - Use explicit spacing for compact left-side content. A `RowLayout` stretched across the whole left region centered an implicit-width item in unused space, leaving an unintended gap of about 80px.
 - Keep passive metrics and utility controls on a quieter layer surface, leaving stronger accent color for media and active controls. A single-line media title leaves room for transport and volume; expose the full title and artist on hover when the title elides.
 - `Workspaces.qml` has no `widgetPadding` property. Let its `BarGroup` use the default 5px padding; binding to `workspacesWidget.widgetPadding` logs an undefined-to-double warning on every reload.
+- The bar's lock button calls the native lock IPC `activateAndTurnOffScreen`. It uses the lock page's DPMS-disable action after locking: wait for `WlSessionLock.secure` in password-protected mode, or allow the passwordless overlay to render before disabling displays. Cancel pending screen-off on unlock; do not blank the desktop immediately after merely requesting a secure lock.
+- Check that new Material Symbol names form a glyph in the installed font. `screen_lock_desktop` is missing from this font and renders as overflowing text; `lock` and `tv_off` are supported.
 
 ## Keep this skill current
 

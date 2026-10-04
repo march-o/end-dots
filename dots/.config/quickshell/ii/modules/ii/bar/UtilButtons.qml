@@ -1,4 +1,5 @@
 import qs
+import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
@@ -68,19 +69,27 @@ Item {
             }
         }
 
-        Loader {
-            active: Config.options.bar.utilButtons.showKeyboardToggle
-            visible: Config.options.bar.utilButtons.showKeyboardToggle
-            sourceComponent: CircleUtilButton {
-                Layout.alignment: Qt.AlignVCenter
-                onClicked: GlobalStates.oskOpen = !GlobalStates.oskOpen
+        Item {
+            implicitWidth: lockScreenButton.implicitWidth
+            implicitHeight: lockScreenButton.implicitHeight
+            Layout.alignment: Qt.AlignVCenter
+
+            CircleUtilButton {
+                id: lockScreenButton
+                anchors.centerIn: parent
+                onClicked: Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "lock", "activateAndTurnOffScreen"])
                 MaterialSymbol {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 0
-                    text: "keyboard"
+                    text: "lock"
                     iconSize: Appearance.font.pixelSize.large
                     color: Appearance.colors.colOnLayer2
                 }
+            }
+
+            StyledToolTip {
+                extraVisibleCondition: lockScreenButton.hovered
+                text: Translation.tr("Lock and turn off screen")
             }
         }
 

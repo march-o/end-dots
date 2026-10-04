@@ -88,6 +88,7 @@ configure_quickshell_shell() {
       modules/ii/bar/ActiveWindow.qml \
       modules/ii/bar/LeftTimeWidget.qml \
       modules/ii/bar/Media.qml \
+      modules/ii/bar/UtilButtons.qml \
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \
       modules/ii/lock/Lock.qml \
