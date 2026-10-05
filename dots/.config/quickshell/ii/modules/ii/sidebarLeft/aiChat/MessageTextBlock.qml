@@ -25,7 +25,8 @@ ColumnLayout {
     property list<string> renderedLatexHashes: []
     property string renderedSegmentContent: ""
     property string shownText: ""
-    property bool fadeChunkSplitting: !forceDisableChunkSplitting && !editing && !/\n\|/.test(shownText) && Config.options.sidebar.ai.textFadeIn
+    // Markdown needs its original paragraph and list boundaries to render correctly.
+    property bool fadeChunkSplitting: !renderMarkdown && !forceDisableChunkSplitting && !editing && Config.options.sidebar.ai.textFadeIn
 
     Layout.fillWidth: true
 
@@ -91,9 +92,7 @@ ColumnLayout {
 
     onRenderedSegmentContentChanged: {
         // console.log("Rendered segment content changed: " + renderedSegmentContent);
-        if (renderedSegmentContent) {
-            root.shownText = renderedSegmentContent;
-        }
+        root.shownText = renderedSegmentContent;
     }
 
     // When something finishes rendering

@@ -459,8 +459,8 @@ Singleton {
             "done": true,
         });
         const id = idForMessage(aiMessage);
-        root.messageIDs = [...root.messageIDs, id];
         root.messageByID[id] = aiMessage;
+        root.messageIDs = [...root.messageIDs, id];
     }
 
     function removeMessage(index) {
@@ -626,8 +626,8 @@ Singleton {
                 "done": false,
             });
             const id = idForMessage(requester.message);
-            root.messageIDs = [...root.messageIDs, id];
             root.messageByID[id] = requester.message;
+            root.messageIDs = [...root.messageIDs, id];
 
             /* Build header string for curl */ 
             let headerString = Object.entries(requestHeaders)
@@ -740,11 +740,17 @@ Singleton {
     }
 
     function createFunctionOutputMessage(name, output, includeOutputInChat = true) {
+        const callMessage = [...root.messageIDs].reverse()
+            .map(id => root.messageByID[id])
+            .find(message => message?.role === "assistant" && message.functionName === name);
+        const display = "### Tool result · " + name
+            + (includeOutputInChat ? "\n\n```text\n" + output + "\n```" : "");
         return aiMessageComponent.createObject(root, {
             "role": "user",
-            "content": `[[ Output of ${name} ]]${includeOutputInChat ? ("\n\n<think>\n" + output + "\n</think>") : ""}`,
-            "rawContent": `[[ Output of ${name} ]]${includeOutputInChat ? ("\n\n<think>\n" + output + "\n</think>") : ""}`,
+            "content": display,
+            "rawContent": output,
             "functionName": name,
+            "functionCall": callMessage?.functionCall,
             "functionResponse": output,
             "thinking": false,
             "done": true,
@@ -755,8 +761,8 @@ Singleton {
     function addFunctionOutputMessage(name, output) {
         const aiMessage = createFunctionOutputMessage(name, output);
         const id = idForMessage(aiMessage);
-        root.messageIDs = [...root.messageIDs, id];
         root.messageByID[id] = aiMessage;
+        root.messageIDs = [...root.messageIDs, id];
     }
 
     function rejectCommand(message: AiMessageData) {
@@ -771,8 +777,8 @@ Singleton {
 
         const responseMessage = createFunctionOutputMessage(message.functionName, "", false);
         const id = idForMessage(responseMessage);
-        root.messageIDs = [...root.messageIDs, id];
         root.messageByID[id] = responseMessage;
+        root.messageIDs = [...root.messageIDs, id];
 
         commandExecutionProc.message = responseMessage;
         commandExecutionProc.baseMessageContent = responseMessage.content;
@@ -789,13 +795,17 @@ Singleton {
         stdout: SplitParser {
             onRead: (output) => {
                 commandExecutionProc.message.functionResponse += output + "\n\n";
-                const updatedContent = commandExecutionProc.baseMessageContent + `\n\n<think>\n<tt>${commandExecutionProc.message.functionResponse}</tt>\n</think>`;
-                commandExecutionProc.message.rawContent = updatedContent;
+                const updatedContent = commandExecutionProc.baseMessageContent
+                    + "\n\n```text\n" + commandExecutionProc.message.functionResponse + "\n```";
+                commandExecutionProc.message.rawContent = commandExecutionProc.message.functionResponse;
                 commandExecutionProc.message.content = updatedContent;
             }
         }
         onExited: (exitCode, exitStatus) => {
-            commandExecutionProc.message.functionResponse += `[[ Command exited with code ${exitCode} (${exitStatus}) ]]\n`;
+            commandExecutionProc.message.functionResponse += `Command exited with code ${exitCode} (${exitStatus})\n`;
+            commandExecutionProc.message.rawContent = commandExecutionProc.message.functionResponse;
+            commandExecutionProc.message.content = commandExecutionProc.baseMessageContent
+                + "\n\n```text\n" + commandExecutionProc.message.functionResponse + "\n```";
             requester.makeRequest(); // Continue
         }
     }
@@ -825,7 +835,6 @@ Singleton {
                 return;
             }
             const contentToAppend = `\n\n**Command execution request**\n\n\`\`\`command\n${args.command}\n\`\`\``;
-            message.rawContent += contentToAppend;
             message.content += contentToAppend;
             message.functionPending = true; // Use thinking to indicate the command is waiting for approval
         }
@@ -837,6 +846,7 @@ Singleton {
             const message = root.messageByID[id]
             return ({
                 "role": message.role,
+                "content": message.content,
                 "rawContent": message.rawContent,
                 "fileMimeType": message.fileMimeType,
                 "fileUri": message.fileUri,
@@ -884,16 +894,13 @@ Singleton {
             // console.log(saveContent)
             const saveData = JSON.parse(saveContent)
             root.clearMessages()
-            root.messageIDs = saveData.map((_, i) => {
-                return i
-            })
             // console.log(JSON.stringify(messageIDs))
             for (let i = 0; i < saveData.length; i++) {
                 const message = saveData[i];
                 root.messageByID[i] = root.aiMessageComponent.createObject(root, {
                     "role": message.role,
                     "rawContent": message.rawContent,
-                    "content": message.rawContent,
+                    "content": message.content ?? message.rawContent,
                     "fileMimeType": message.fileMimeType,
                     "fileUri": message.fileUri,
                     "localFilePath": message.localFilePath,
@@ -908,6 +915,7 @@ Singleton {
                     "visibleToUser": message.visibleToUser,
                 });
             }
+            root.messageIDs = saveData.map((_, i) => i)
         } catch (e) {
             console.log("[AI] Could not load chat: ", e);
         } finally {

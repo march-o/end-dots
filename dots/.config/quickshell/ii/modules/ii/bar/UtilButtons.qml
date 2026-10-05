@@ -70,6 +70,33 @@ Item {
         }
 
         Item {
+            implicitWidth: wireGuardButton.implicitWidth
+            implicitHeight: wireGuardButton.implicitHeight
+            Layout.alignment: Qt.AlignVCenter
+
+            CircleUtilButton {
+                id: wireGuardButton
+                anchors.centerIn: parent
+                toggled: WireGuard.active
+                onClicked: WireGuard.toggle()
+                MaterialSymbol {
+                    horizontalAlignment: Qt.AlignHCenter
+                    fill: WireGuard.active ? 1 : 0
+                    text: "vpn_key"
+                    iconSize: Appearance.font.pixelSize.large
+                    color: WireGuard.active ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer2
+                    opacity: WireGuard.busy ? 0.5 : 1
+                }
+            }
+
+            PopupToolTip {
+                extraVisibleCondition: wireGuardButton.hovered
+                anchorEdges: Config.options.bar.bottom ? Edges.Top : Edges.Bottom
+                text: WireGuard.statusText
+            }
+        }
+
+        Item {
             implicitWidth: lockScreenButton.implicitWidth
             implicitHeight: lockScreenButton.implicitHeight
             Layout.alignment: Qt.AlignVCenter

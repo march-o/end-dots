@@ -56,7 +56,7 @@ Item { // Bar content region
             left: parent.left
             right: middleSection.left
         }
-        implicitWidth: leftSectionRowLayout.implicitWidth
+        implicitWidth: leftSectionClock.implicitWidth
         implicitHeight: Appearance.sizes.baseBarHeight
 
         onScrollDown: Brightness.decreaseBrightness()
@@ -77,20 +77,9 @@ Item { // Bar content region
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        Row {
-            id: leftSectionRowLayout
-            anchors.fill: parent
-            spacing: 0
-
-            Item {
-                width: Appearance.rounding.screenRounding
-                height: 1
-            }
-
-            LeftTimeWidget {
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
+        LeftTimeWidget {
+            id: leftSectionClock
+            anchors.centerIn: parent
         }
     }
 

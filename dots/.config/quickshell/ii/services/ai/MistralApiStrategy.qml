@@ -2,6 +2,9 @@ import QtQuick
 
 ApiStrategy {
     property bool isReasoning: false
+    property string pendingToolName: ""
+    property string pendingToolId: ""
+    property string pendingToolArguments: ""
     
     function buildEndpoint(model: AiModel): string {
         // console.log("[AI] Endpoint: " + model.endpoint);
@@ -19,13 +22,19 @@ ApiStrategy {
                         "role": message.role,
                         "content": message.rawContent,
                     }
-                    if (hasFunctionCall) {
-                        if (message.functionResponse?.length > 0) {
-                            messageData.name = message.functionName; // Does the func call also need this name? or just the func output?
-                            messageData.role = "tool";
-                            messageData.content = message.functionResponse;
-                            messageData.tool_call_id = message.functionCall.id
-                        }
+                    if (message.functionResponse?.length > 0 && message.functionName.length > 0) {
+                        messageData.role = "tool";
+                        messageData.content = message.functionResponse;
+                        messageData.tool_call_id = message.functionCall?.id;
+                    } else if (hasFunctionCall) {
+                        messageData.tool_calls = [{
+                            id: message.functionCall.id,
+                            type: "function",
+                            function: {
+                                name: message.functionName,
+                                arguments: JSON.stringify(message.functionCall.args ?? {})
+                            }
+                        }];
                     }
                     return messageData
                 }),
@@ -75,15 +84,20 @@ ApiStrategy {
             // Function call
             if (dataJson.choices[0]?.delta?.tool_calls) {
                 const functionCall = dataJson.choices[0].delta.tool_calls[0];
-                const functionName = functionCall.function.name;
-                const functionArgs = JSON.parse(functionCall.function.arguments) || {}; // Args are given as string???
-                const functionId = functionCall.id;
-                const newContent = `\n\n[[ Function: ${functionName}(${JSON.stringify(functionArgs, null, 2)}) ]]\n`;
-                message.rawContent += newContent;
-                message.content += newContent;
-                message.functionName = functionName;
-                message.functionCall = functionName; 
-                return { functionCall: { name: functionName, args: functionArgs, id: functionId } };
+                pendingToolName += functionCall.function?.name ?? "";
+                pendingToolId += functionCall.id ?? "";
+                pendingToolArguments += functionCall.function?.arguments ?? "";
+            }
+            if (dataJson.choices[0]?.finish_reason === "tool_calls" && pendingToolName) {
+                const args = JSON.parse(pendingToolArguments || "{}");
+                const call = { name: pendingToolName, args, id: pendingToolId };
+                message.functionName = pendingToolName;
+                message.content += "\n\n### Tool call · " + pendingToolName
+                    + "\n\n```json\n" + JSON.stringify(args, null, 2) + "\n```";
+                pendingToolName = "";
+                pendingToolId = "";
+                pendingToolArguments = "";
+                return { functionCall: call };
             }
 
             // Thinking?
@@ -139,6 +153,9 @@ ApiStrategy {
     
     function reset() {
         isReasoning = false;
+        pendingToolName = "";
+        pendingToolId = "";
+        pendingToolArguments = "";
     }
 
 }

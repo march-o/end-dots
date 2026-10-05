@@ -20,23 +20,24 @@ ApiStrategy {
             // console.log("[AI] Building request data for message:", JSON.stringify(message, null, 2));
             const geminiApiRoleName = (message.role === "assistant") ? "model" : message.role;
             const usingSearch = tools[0]?.google_search !== undefined
+            if (!usingSearch && message.functionResponse?.length > 0 && message.functionName.length > 0) {
+                return {
+                    "role": geminiApiRoleName,
+                    "parts": [{
+                        functionResponse: {
+                            "name": message.functionName,
+                            "response": { "content": message.functionResponse }
+                        }
+                    }]
+                }
+            }
             if (!usingSearch && message.functionCall != undefined && message.functionName.length > 0) {
                 return {
                     "role": geminiApiRoleName,
                     "parts": [{
                         functionCall: {
                             "name": message.functionName,
-                        }
-                    }]
-                }
-            }
-            if (!usingSearch && message.functionResponse != undefined && message.functionName.length > 0) {
-                return {
-                    "role": geminiApiRoleName,
-                    "parts": [{ 
-                        functionResponse: {
-                            "name": message.functionName,
-                            "response": { "content": message.functionResponse }
+                            "args": message.functionCall.args ?? {},
                         }
                     }]
                 }
@@ -131,9 +132,8 @@ ApiStrategy {
             if (dataJson.candidates[0]?.content?.parts[0]?.functionCall) {
                 const functionCall = dataJson.candidates[0]?.content?.parts[0]?.functionCall;
                 message.functionName = functionCall.name;
-                message.functionCall = functionCall.name;
-                const newContent = `\n\n[[ Function: ${functionCall.name}(${JSON.stringify(functionCall.args, null, 2)}) ]]\n`
-                message.rawContent += newContent;
+                const newContent = "\n\n### Tool call · " + functionCall.name
+                    + "\n\n```json\n" + JSON.stringify(functionCall.args ?? {}, null, 2) + "\n```";
                 message.content += newContent;
                 return { functionCall: { name: functionCall.name, args: functionCall.args }, finished: finished };
             }

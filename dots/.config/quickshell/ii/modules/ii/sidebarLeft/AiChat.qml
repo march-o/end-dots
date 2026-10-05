@@ -213,7 +213,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
         }
 
         // Always scroll to bottom when user sends a message
-        messageListView.positionViewAtEnd();
+        Qt.callLater(() => messageListView.positionViewAtEnd());
     }
 
     Process {
@@ -368,19 +368,15 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 //     if (atYEnd)
                 //         Qt.callLater(positionViewAtEnd);
                 // }
-                // onCountChanged: {
-                //     // Auto-scroll when new messages are added
-                //     if (atYEnd)
-                //         Qt.callLater(positionViewAtEnd);
-                // }
+                onCountChanged: {
+                    if (atYEnd || count <= 2)
+                        Qt.callLater(positionViewAtEnd);
+                }
 
                 add: null // Prevent function calls from being janky
 
                 model: ScriptModel {
-                    values: Ai.messageIDs.filter(id => {
-                        const message = Ai.messageByID[id];
-                        return message?.visibleToUser ?? true;
-                    })
+                    values: Ai.messageIDs.filter(id => Ai.messageByID[id]?.visibleToUser === true)
                 }
                 delegate: AiMessage {
                     required property var modelData
@@ -398,7 +394,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 shown: Ai.messageIDs.length === 0
                 icon: "neurology"
                 title: Translation.tr("Large language models")
-                description: Translation.tr("Type /key to get started with online models\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar")
+                description: Translation.tr("Type /key to get started with online models\nPress Escape to close the popup")
                 shape: MaterialShape.Shape.PixelCircle
             }
 

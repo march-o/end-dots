@@ -91,12 +91,19 @@ configure_quickshell_shell() {
       modules/ii/bar/UtilButtons.qml \
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \
+      modules/ii/sidebarLeft/SidebarLeft.qml \
+      modules/ii/sidebarLeft/AiChat.qml \
+      modules/ii/sidebarLeft/aiChat/MessageTextBlock.qml \
       modules/ii/lock/Lock.qml \
       modules/ii/lock/LockSurface.qml \
       modules/ii/wallpaperSelector/WallpaperSelectorContent.qml \
       modules/waffle/lock/WaffleLock.qml \
       services/HyprlandData.qml \
+      services/Ai.qml \
+      services/ai/GeminiApiStrategy.qml \
+      services/ai/MistralApiStrategy.qml \
       services/Wallpapers.qml \
+      services/WireGuard.qml \
       scripts/colors/applycolor.sh; do
       source="$repo_root/dots/.config/quickshell/ii/$relative"
       target="$quickshell/$relative"
@@ -200,6 +207,8 @@ install_sddm_config() {
 enable_services() {
   sudo systemctl enable --now sshd.service
 }
+
+sudo pacman -S --needed --noconfirm wireguard-tools
 
 install_zsh_plugins
 install_user_config

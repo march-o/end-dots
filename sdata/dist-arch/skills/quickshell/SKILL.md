@@ -35,6 +35,10 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 - When adding transport buttons to a media card, give each its own full-height mouse target so clicks do not reach the card-wide workspace action. Widen both `Media.qml` and its `BarContent.qml` group together; with a 144px volume slider, a 400px card clipped the artist, while 480px left room for the artwork, metadata, three controls, and volume. Keep a compact layout for shortened bars.
 - `CircleUtilButton` accepts one `Item` as its default content. Putting a `StyledToolTip` alongside the icon inside it prevents the entire bar from loading; place any tooltip outside that default content slot.
 
+## WireGuard controls
+
+- Discover WireGuard profiles through NetworkManager and toggle by UUID, keeping connection names and credentials out of the dotfiles. In `nmcli --terse --escape no --fields UUID,TYPE,DEVICE,NAME connection show`, parse the three fixed leading fields and preserve the rest as the name so colons in profile names work. Use On/Off for interface state; activation alone does not prove a peer handshake. Test both toggle directions and leave the requested connection active.
+
 ## Bar glass
 
 - The Kitty terminal uses `background_opacity 0.88`; Hyprland supplies blur at size 2 and one pass. The `quickshell:bar` layer already has blur enabled by the Hyprland layer rules. Set the QML bar background color alpha to 0.88 for comparable glass; keep the content groups opaque for legibility. The keyboard tint comes from `Bar.qml`'s `layerBarColor` mix.

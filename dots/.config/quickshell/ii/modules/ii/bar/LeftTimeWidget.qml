@@ -5,16 +5,16 @@ import QtQuick
 
 Item {
     id: root
-    implicitWidth: clockText.implicitWidth
-    implicitHeight: 32
+    implicitWidth: clockText.implicitWidth + 12
+    implicitHeight: Appearance.sizes.baseBarHeight
 
     StyledText {
         id: clockText
-        anchors.centerIn: parent
-        height: 32
+        anchors.fill: parent
+        horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         text: DateTime.time + "  |  " + Qt.locale().toString(DateTime.clock.date, "MMM d").toUpperCase()
-        font.pixelSize: Appearance.font.pixelSize.normal
+        font.pixelSize: Appearance.font.pixelSize.huge
         font.weight: Font.Medium
         color: Appearance.colors.colOnLayer0
     }

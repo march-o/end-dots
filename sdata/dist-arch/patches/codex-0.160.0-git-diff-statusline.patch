@@ -50,7 +50,7 @@ index 64562d1..690c850 100644
  
      #[test]
 diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
-index 8c44ce4..5dc445f 100644
+index 8c44ce4..a463afc 100644
 --- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
 +++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
 @@ -40,7 +40,8 @@ impl StatusLineAccent {
@@ -63,6 +63,96 @@ index 8c44ce4..5dc445f 100644
              StatusLineItem::Status => Self::State,
              StatusLineItem::ContextRemaining
              | StatusLineItem::ContextUsed
+@@ -124,6 +125,8 @@ where
+             && let Some(thread_id) = thread_id
+         {
+             Style::default().fg(thread_color(thread_id))
++        } else if use_theme_colors && let Some(remaining) = remaining_percent(item, &text) {
++            Style::default().fg(remaining_color(remaining))
+         } else if use_theme_colors {
+             let accent = StatusLineAccent::for_item(item);
+             soften_status_line_style(
+@@ -158,6 +161,39 @@ fn soften_status_line_style(mut style: Style) -> Style {
+     style
+ }
+ 
++fn remaining_percent(item: StatusLineItem, text: &str) -> Option<u8> {
++    if !matches!(
++        item,
++        StatusLineItem::ContextRemaining
++            | StatusLineItem::FiveHourLimit
++            | StatusLineItem::WeeklyLimit
++    ) {
++        return None;
++    }
++    text.strip_suffix("% left")?
++        .split_whitespace()
++        .last()?
++        .parse::<u8>()
++        .ok()
++        .map(|percent| percent.min(100))
++}
++
++fn remaining_color(percent: u8) -> Color {
++    let (start, end, position) = if percent < 50 {
++        ((220, 72, 72), (230, 190, 60), percent)
++    } else {
++        ((230, 190, 60), (72, 190, 104), percent - 50)
++    };
++    let blend = |from: u8, to: u8| {
++        (u16::from(from) * u16::from(50 - position) + u16::from(to) * u16::from(position)) / 50
++    };
++    Color::Rgb(
++        blend(start.0, end.0) as u8,
++        blend(start.1, end.1) as u8,
++        blend(start.2, end.2) as u8,
++    )
++}
++
+ #[allow(clippy::disallowed_methods)]
+ fn soften_status_line_color(color: Color) -> Color {
+     match color {
+@@ -321,6 +357,40 @@ mod tests {
+         assert_eq!(line.spans[2].style, secondary_text_style());
+     }
+ 
++    #[test]
++    fn remaining_limits_progress_from_red_through_amber_to_green() {
++        for (percent, expected) in [
++            (0, Color::Rgb(220, 72, 72)),
++            (50, Color::Rgb(230, 190, 60)),
++            (100, Color::Rgb(72, 190, 104)),
++        ] {
++            let line = status_line_from_segments_with_resolver(
++                [
++                    (
++                        StatusLineItem::ContextRemaining,
++                        format!("Context {percent}% left"),
++                    ),
++                    (
++                        StatusLineItem::WeeklyLimit,
++                        format!("weekly {percent}% left"),
++                    ),
++                ],
++                /*use_theme_colors*/ true,
++                /*thread_id*/ None,
++                |_| None,
++            )
++            .expect("status line");
++            assert_eq!(
++                line.spans[0].style.fg,
++                Some(readable_color_on(expected, None))
++            );
++            assert_eq!(
++                line.spans[2].style.fg,
++                Some(readable_color_on(expected, None))
++            );
++        }
++    }
++
+     #[test]
+     fn pull_request_number_uses_link_style() {
+         let line = status_line_from_segments_with_resolver(
 diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
 index f2e6f90..df62dd9 100644
 --- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
