@@ -79,7 +79,9 @@ Item { // Bar content region
 
         LeftTimeWidget {
             id: leftSectionClock
-            anchors.centerIn: parent
+            anchors.left: parent.left
+            anchors.leftMargin: Appearance.rounding.screenRounding
+            anchors.verticalCenter: parent.verticalCenter
         }
     }
 
