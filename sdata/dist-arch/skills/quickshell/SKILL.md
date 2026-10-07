@@ -40,6 +40,15 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 - `vpn_lock` is supported by the installed Material Symbols font and shows a globe with a lock, distinguishing VPN controls from the screen lock. The bar's screen-off lock control reuses `tv_off` from `LockSurface.qml`.
 - Discover WireGuard profiles through NetworkManager and toggle by UUID, keeping connection names and credentials out of the dotfiles. In `nmcli --terse --escape no --fields UUID,TYPE,DEVICE,NAME connection show`, parse the three fixed leading fields and preserve the rest as the name so colons in profile names work. Use On/Off for interface state; activation alone does not prove a peer handshake. Test both toggle directions and leave the requested connection active.
 
+## Wallpaper formats
+
+- AVIF appears in the wallpaper picker and Qt can decode it, but the background size probe also uses `magick identify`. Check that decoder before treating AVIF as fully supported: a missing ImageMagick HEIC module breaks the dimension probe even if Pillow opens the image. Convert to PNG with Pillow when needed, preserving decoded pixels, and select it through `switchwall.sh --image` so the live wallpaper path and theming update together.
+
+## Terminal theme generation
+
+- If Kitty reports an invalid color such as `#$secondary #`, inspect the generated `~/.local/state/quickshell/user/generated/terminal/kitty-theme.conf`, not just `kitty.conf`. Render templates into a temporary file, validate every referenced palette color, and atomically publish the complete result before sending SIGUSR1. Editing the published template through repeated `sed -i` calls exposes incomplete colors to terminals starting during generation. An incomplete palette must preserve the last valid theme.
+- `NotificationPopup.qml` must use the `Config.qml` notification monitor property (`notifications.monitor` in this tracked configuration). A consumer expecting `forceMonitor` logs an undefined-property error even when the shell otherwise loads.
+
 ## Bar glass
 
 - The Kitty terminal uses `background_opacity 0.88`; Hyprland supplies blur at size 2 and one pass. The `quickshell:bar` layer already has blur enabled by the Hyprland layer rules. Set the QML bar background color alpha to 0.88 for comparable glass; keep the content groups opaque for legibility. The keyboard tint comes from `Bar.qml`'s `layerBarColor` mix.

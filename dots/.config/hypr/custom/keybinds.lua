@@ -118,3 +118,9 @@ end
 hl.unbind("CTRL + SUPER + ALT + T")
 hl.bind("CTRL + SUPER + ALT + T", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-next"),
     { description = "Shell: Next wallpaper" })
+
+-- Launch the configured terminal directly instead of using the upstream fallback.
+for _, key in ipairs({ "SUPER + Return", "SUPER + T", "CTRL + ALT + T" }) do
+    hl.unbind(key)
+    hl.bind(key, hl.dsp.exec_cmd("kitty"), { description = "App: Kitty terminal" })
+end

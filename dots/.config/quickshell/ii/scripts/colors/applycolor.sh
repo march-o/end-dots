@@ -16,16 +16,38 @@ if [ ! -d "$STATE_DIR"/user/generated ]; then
 fi
 cd "$CONFIG_DIR" || exit
 
-colornames=''
-colorstrings=''
-colorlist=()
-colorvalues=()
+# Render privately and publish only a complete theme. Concurrent wallpaper
+# changes must never expose template placeholders to a newly launched Kitty.
+render_terminal_theme() {
+  python3 - "$STATE_DIR/user/generated/material_colors.scss" "$1" "$2" "$term_alpha" <<'PYTHON'
+import os
+from pathlib import Path
+import re
+import sys
+import tempfile
 
-colornames=$(cat $STATE_DIR/user/generated/material_colors.scss | cut -d: -f1)
-colorstrings=$(cat $STATE_DIR/user/generated/material_colors.scss | cut -d: -f2 | cut -d ' ' -f2 | cut -d ";" -f1)
-IFS=$'\n'
-colorlist=($colornames)     # Array of color names
-colorvalues=($colorstrings) # Array of color values
+palette, template, target, alpha = sys.argv[1:]
+colors = dict(re.findall(r"\$(\w+):\s*(#[0-9a-fA-F]{6});", Path(palette).read_text()))
+text = Path(template).read_text()
+def replace(match):
+    name = match.group(1)
+    if name not in colors:
+        raise ValueError(f"Missing terminal theme color: {name}")
+    return colors[name]
+text = re.sub(r"#\$(\w+) #", replace, text).replace("$alpha", alpha)
+destination = Path(target)
+destination.parent.mkdir(parents=True, exist_ok=True)
+fd, temporary = tempfile.mkstemp(prefix=".theme-", dir=destination.parent)
+try:
+    with os.fdopen(fd, "w") as output:
+        output.write(text)
+    os.chmod(temporary, 0o644)
+    os.replace(temporary, destination)
+finally:
+    if os.path.exists(temporary):
+        os.unlink(temporary)
+PYTHON
+}
 
 apply_kitty() {  
   # Check if terminal escape sequence template exists
@@ -33,13 +55,8 @@ apply_kitty() {
     echo "Template file not found for Kitty theme. Skipping that."
     return
   fi
-  # Copy template
-  mkdir -p "$STATE_DIR"/user/generated/terminal
-  cp "$SCRIPT_DIR/terminal/kitty-theme.conf" "$STATE_DIR"/user/generated/terminal/kitty-theme.conf
-  # Apply colors
-  for i in "${!colorlist[@]}"; do
-    sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$STATE_DIR"/user/generated/terminal/kitty-theme.conf
-  done
+  render_terminal_theme "$SCRIPT_DIR/terminal/kitty-theme.conf" \
+    "$STATE_DIR/user/generated/terminal/kitty-theme.conf" || return
 
   # Reload
   if ! pgrep -x kitty >/dev/null; then
@@ -55,15 +72,8 @@ apply_anyterm() {
     echo "Template file not found for Terminal. Skipping that."
     return
   fi
-  # Copy template
-  mkdir -p "$STATE_DIR"/user/generated/terminal
-  cp "$SCRIPT_DIR/terminal/sequences.txt" "$STATE_DIR"/user/generated/terminal/sequences.txt
-  # Apply colors
-  for i in "${!colorlist[@]}"; do
-    sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$STATE_DIR"/user/generated/terminal/sequences.txt
-  done
-
-  sed -i "s/\$alpha/$term_alpha/g" "$STATE_DIR/user/generated/terminal/sequences.txt"
+  render_terminal_theme "$SCRIPT_DIR/terminal/sequences.txt" \
+    "$STATE_DIR/user/generated/terminal/sequences.txt" || return
 
   for file in /dev/pts/*; do
     if [[ $file =~ ^/dev/pts/[0-9]+$ ]]; then

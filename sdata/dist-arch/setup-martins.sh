@@ -91,6 +91,7 @@ configure_quickshell_shell() {
       modules/ii/bar/UtilButtons.qml \
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \
+      modules/ii/notificationPopup/NotificationPopup.qml \
       modules/ii/sidebarLeft/SidebarLeft.qml \
       modules/ii/sidebarLeft/AiChat.qml \
       modules/ii/sidebarLeft/aiChat/MessageTextBlock.qml \
