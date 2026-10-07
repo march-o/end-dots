@@ -37,6 +37,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 ## WireGuard controls
 
+- `vpn_lock` is supported by the installed Material Symbols font and shows a globe with a lock, distinguishing VPN controls from the screen lock. The bar's screen-off lock control reuses `tv_off` from `LockSurface.qml`.
 - Discover WireGuard profiles through NetworkManager and toggle by UUID, keeping connection names and credentials out of the dotfiles. In `nmcli --terse --escape no --fields UUID,TYPE,DEVICE,NAME connection show`, parse the three fixed leading fields and preserve the rest as the name so colons in profile names work. Use On/Off for interface state; activation alone does not prove a peer handshake. Test both toggle directions and leave the requested connection active.
 
 ## Bar glass

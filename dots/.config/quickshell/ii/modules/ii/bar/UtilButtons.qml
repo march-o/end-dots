@@ -82,7 +82,7 @@ Item {
                 MaterialSymbol {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: WireGuard.active ? 1 : 0
-                    text: "vpn_key"
+                    text: "vpn_lock"
                     iconSize: Appearance.font.pixelSize.large
                     color: WireGuard.active ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer2
                     opacity: WireGuard.busy ? 0.5 : 1
@@ -108,7 +108,7 @@ Item {
                 MaterialSymbol {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 0
-                    text: "lock"
+                    text: "tv_off"
                     iconSize: Appearance.font.pixelSize.large
                     color: Appearance.colors.colOnLayer2
                 }
