@@ -110,11 +110,12 @@ configure_quickshell_shell() {
       services/ai/MistralApiStrategy.qml \
       services/Wallpapers.qml \
       services/WireGuard.qml \
-      scripts/colors/applycolor.sh; do
+      scripts/colors/applycolor.sh \
+      scripts/colors/terminal/sequences.txt; do
       source="$repo_root/dots/.config/quickshell/ii/$relative"
       target="$quickshell/$relative"
       mode=644
-      [[ "$relative" == scripts/* ]] && mode=755
+      [[ "$relative" == scripts/* && "$relative" != *.txt ]] && mode=755
       if [[ -f "$target" ]]; then
         cp "$source" "$target"
         chmod "$mode" "$target"

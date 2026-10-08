@@ -52,6 +52,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 ## Terminal theme generation
 
+- Never broadcast wallpaper color escapes to `/dev/pts/*`. The `sequences.txt` template once ended its final OSC with a lone ESC rather than ESC-backslash: Kitty's isolated parser swallowed both echoed text and TUI output until a later complete OSC terminator arrived. Validate complete OSC commands before publishing the generated asset, and use the Kitty theme file plus SIGUSR1 for live colors. To recover an affected terminal, send only ESC-backslash to its identified PTY output; preserve its process and focus.
 - If Kitty reports an invalid color such as `#$secondary #`, inspect the generated `~/.local/state/quickshell/user/generated/terminal/kitty-theme.conf`, not just `kitty.conf`. Render templates into a temporary file, validate every referenced palette color, and atomically publish the complete result before sending SIGUSR1. Editing the published template through repeated `sed -i` calls exposes incomplete colors to terminals starting during generation. An incomplete palette must preserve the last valid theme.
 - `NotificationPopup.qml` must use the `Config.qml` notification monitor property (`notifications.monitor` in this tracked configuration). A consumer expecting `forceMonitor` logs an undefined-property error even when the shell otherwise loads.
 

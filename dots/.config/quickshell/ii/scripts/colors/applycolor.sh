@@ -35,6 +35,10 @@ def replace(match):
         raise ValueError(f"Missing terminal theme color: {name}")
     return colors[name]
 text = re.sub(r"#\$(\w+) #", replace, text).replace("$alpha", alpha)
+# Escape templates must contain complete OSC commands. An unterminated OSC
+# leaves Kitty consuming subsequent application output instead of displaying it.
+if "\x1b" in text and not re.fullmatch(r"(?:\x1b\][^\x1b\x07]*(?:\x1b\\|\x07))+", text):
+    raise ValueError("Terminal escape template contains an incomplete OSC command")
 destination = Path(target)
 destination.parent.mkdir(parents=True, exist_ok=True)
 fd, temporary = tempfile.mkstemp(prefix=".theme-", dir=destination.parent)
@@ -66,7 +70,7 @@ apply_kitty() {
   pkill -USR1 -x kitty || true
 }
 
-apply_anyterm() {
+render_terminal_sequences() {
   # Check if terminal escape sequence template exists
   if [ ! -f "$SCRIPT_DIR/terminal/sequences.txt" ]; then
     echo "Template file not found for Terminal. Skipping that."
@@ -75,18 +79,13 @@ apply_anyterm() {
   render_terminal_theme "$SCRIPT_DIR/terminal/sequences.txt" \
     "$STATE_DIR/user/generated/terminal/sequences.txt" || return
 
-  for file in /dev/pts/*; do
-    if [[ $file =~ ^/dev/pts/[0-9]+$ ]]; then
-      {
-      cat "$STATE_DIR"/user/generated/terminal/sequences.txt >"$file"
-      } & disown || true
-    fi
-  done
+  # Keep the generated asset for explicit consumers, but never inject escapes
+  # into arbitrary PTYs: they can interleave with running TUI/SSH/tmux output.
 }
 
 apply_term() {
-  apply_anyterm &
-  apply_kitty &
+  render_terminal_sequences
+  apply_kitty
 }
 
 # Check if terminal theming is enabled in config
