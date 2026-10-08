@@ -8,46 +8,10 @@ import Quickshell.Hyprland
 import qs
 import qs.services
 import qs.modules.common
-import qs.modules.common.functions
 import qs.modules.common.widgets
 
 Scope {
     id: bar
-    property bool showBarBackground: Config.options.bar.showBackground
-    property string keyboardLayer: "BASE"
-    property bool planckConnected: false
-    readonly property color keyboardHue: {
-        switch (keyboardLayer) {
-        case "LOWER": return "#b33939"
-        case "RAISE": return "#799a28"
-        case "FN": return "#803eb4"
-        default: return "#2563b6"
-        }
-    }
-    readonly property color layerBarColor: {
-        const original = Appearance.colors.colLayer0
-        if (!planckConnected)
-            return Qt.rgba(original.r, original.g, original.b, 0.88)
-        const mixed = ColorUtils.mix(original, keyboardHue, 0.68)
-        return Qt.rgba(mixed.r, mixed.g, mixed.b, 0.88)
-    }
-
-    Timer {
-        interval: 5000
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: {
-            if (!planckProbe.running)
-                planckProbe.running = true
-        }
-    }
-
-    Process {
-        id: planckProbe
-        command: ["test", "-e", "/dev/input/by-id/usb-Drop_Planck_32003800105355533933382000000000-event-kbd"]
-        onExited: (exitCode, exitStatus) => bar.planckConnected = exitCode === 0
-    }
 
     Variants {
         // For each monitor
@@ -93,7 +57,13 @@ Scope {
                 WlrLayershell.namespace: "quickshell:bar"
                 implicitHeight: Appearance.sizes.barHeight + Appearance.rounding.screenRounding
                 mask: Region {
-                    item: hoverMaskRegion
+                    Region { item: barContent.clockIsland }
+                    Region { item: barContent.systemIsland }
+                    Region { item: barContent.mediaIsland.visible ? barContent.mediaIsland : null }
+                    Region { item: barContent.workspaceIsland }
+                    Region { item: barContent.buttonsIsland }
+                    Region { item: barContent.statusIsland }
+                    Region { item: Config.options.bar.autoHide.enable ? hoverMaskRegion : null }
                 }
                 color: "transparent"
 
@@ -138,7 +108,6 @@ Scope {
 
                     BarContent {
                         id: barContent
-                        layerBarColor: bar.layerBarColor
                         
                         implicitHeight: Appearance.sizes.barHeight
                         anchors {
@@ -177,90 +146,10 @@ Scope {
                         }
                     }
 
-                    // Round decorators
-                    Loader {
-                        id: roundDecorators
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            top: barContent.bottom
-                            bottom: undefined
-                        }
-                        height: Appearance.rounding.screenRounding
-                        active: showBarBackground && Config.options.bar.cornerStyle === 0 // Hug
 
-                        states: State {
-                            name: "bottom"
-                            when: Config.options.bar.bottom
-                            AnchorChanges {
-                                target: roundDecorators
-                                anchors {
-                                    right: parent.right
-                                    left: parent.left
-                                    top: undefined
-                                    bottom: barContent.top
-                                }
-                            }
-                        }
-
-                        sourceComponent: Item {
-                            implicitHeight: Appearance.rounding.screenRounding
-                            RoundCorner {
-                                id: leftCorner
-                                anchors {
-                                    top: parent.top
-                                    bottom: parent.bottom
-                                    left: parent.left
-                                }
-
-                                implicitSize: Appearance.rounding.screenRounding
-                                color: showBarBackground ? bar.layerBarColor : "transparent"
-
-                                corner: RoundCorner.CornerEnum.TopLeft
-                                states: State {
-                                    name: "bottom"
-                                    when: Config.options.bar.bottom
-                                    PropertyChanges {
-                                        leftCorner.corner: RoundCorner.CornerEnum.BottomLeft
-                                    }
-                                }
-                            }
-                            RoundCorner {
-                                id: rightCorner
-                                anchors {
-                                    right: parent.right
-                                    top: !Config.options.bar.bottom ? parent.top : undefined
-                                    bottom: Config.options.bar.bottom ? parent.bottom : undefined
-                                }
-                                implicitSize: Appearance.rounding.screenRounding
-                                color: showBarBackground ? bar.layerBarColor : "transparent"
-
-                                corner: RoundCorner.CornerEnum.TopRight
-                                states: State {
-                                    name: "bottom"
-                                    when: Config.options.bar.bottom
-                                    PropertyChanges {
-                                        rightCorner.corner: RoundCorner.CornerEnum.BottomRight
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
-    }
-
-    IpcHandler {
-        target: "keyboardLayer"
-
-        function setLayer(name: string): void {
-            if (["BASE", "LOWER", "RAISE", "FN"].includes(name))
-                bar.keyboardLayer = name
-        }
-
-        function getLayer(): string { return bar.keyboardLayer }
-        function getBarColor(): color { return bar.layerBarColor }
     }
 
     IpcHandler {

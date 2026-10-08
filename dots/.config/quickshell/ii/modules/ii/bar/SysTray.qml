@@ -9,6 +9,7 @@ import qs.modules.common.widgets
 
 Item {
     id: root
+    WallpaperIconColor { id: localColors; target: root }
     implicitWidth: gridLayout.implicitWidth
     implicitHeight: gridLayout.implicitHeight
     property bool vertical: false
@@ -85,16 +86,21 @@ Item {
             background.implicitWidth: 24
             background.implicitHeight: 24
             background.anchors.centerIn: this
-            colBackgroundToggled: Appearance.colors.colSecondaryContainer
-            colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
-            colRippleToggled: Appearance.colors.colSecondaryContainerActive
+            colBackground: "transparent"
+            colBackgroundHover: "transparent"
+            colBackgroundToggled: "transparent"
+            colBackgroundToggledHover: "transparent"
+            rippleEnabled: false
+            property color iconColor: toggled
+                ? (hovered ? localColors.statePalette.onHover : localColors.statePalette.on)
+                : (hovered ? localColors.statePalette.offHover : localColors.statePalette.off)
 
             contentItem: MaterialSymbol {
                 anchors.centerIn: parent
                 iconSize: Appearance.font.pixelSize.larger
                 text: "expand_more"
                 horizontalAlignment: Text.AlignHCenter
-                color: root.trayOverflowOpen ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colOnLayer2
+                color: trayOverflowButton.iconColor
                 rotation: (root.trayOverflowOpen ? 180 : 0) - (90 * root.vertical) + (180 * root.invertSide)
                 Behavior on rotation {
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -119,6 +125,8 @@ Item {
                         delegate: SysTrayItem {
                             required property SystemTrayItem modelData
                             item: modelData
+                            statePalette: BarGlassPalette.buttonColors(Appearance.m3colors.m3surfaceContainer)
+                            sampledBackground: Appearance.m3colors.m3surfaceContainer
                             Layout.fillHeight: !root.vertical
                             Layout.fillWidth: root.vertical
                             onMenuClosed: root.releaseFocus();
@@ -137,6 +145,8 @@ Item {
             delegate: SysTrayItem {
                 required property SystemTrayItem modelData
                 item: modelData
+                statePalette: localColors.statePalette ?? BarGlassPalette.buttonColors(BarGlassPalette.dominant)
+                sampledBackground: localColors.sampledBackground
                 Layout.fillHeight: !root.vertical
                 Layout.fillWidth: root.vertical
                 onMenuClosed: root.releaseFocus();
@@ -149,7 +159,7 @@ Item {
         StyledText {
             Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
             font.pixelSize: Appearance.font.pixelSize.larger
-            color: Appearance.colors.colSubtext
+            color: localColors.mutedColor
             text: "•"
             visible: root.showSeparator && SystemTray.items.values.length > 0
         }

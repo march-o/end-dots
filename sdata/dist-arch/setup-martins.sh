@@ -42,6 +42,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/general.lua" "$HOME/.config/hypr/custom/general.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/custom/glass.lua" "$HOME/.config/hypr/custom/glass.lua"
   if [[ "${LAPTOP:-0}" == "0" ]]; then
     install -Dm644 "$repo_root/sdata/dist-arch/config/hypridle-pc.conf" "$HOME/.config/hypr/hypridle.conf"
   else
@@ -88,9 +89,22 @@ configure_quickshell_shell() {
       modules/ii/bar/Bar.qml \
       modules/ii/bar/BarContent.qml \
       modules/ii/bar/BarGroup.qml \
+      modules/ii/bar/BarGlassIsland.qml \
+      modules/ii/bar/BarGlassPalette.qml \
+      modules/ii/bar/GlassIcon.qml \
+      modules/ii/bar/GlassButton.qml \
+      modules/ii/bar/WallpaperIconColor.qml \
       modules/ii/bar/ActiveWindow.qml \
       modules/ii/bar/LeftTimeWidget.qml \
       modules/ii/bar/Media.qml \
+      modules/ii/bar/Resource.qml \
+      modules/ii/bar/Resources.qml \
+      modules/ii/bar/SysTray.qml \
+      modules/ii/bar/SysTrayItem.qml \
+      modules/ii/bar/ScrollHint.qml \
+      modules/ii/bar/NotificationUnreadCount.qml \
+      modules/ii/bar/BatteryIndicator.qml \
+      modules/ii/bar/weather/WeatherBar.qml \
       modules/ii/bar/UtilButtons.qml \
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \
@@ -110,6 +124,7 @@ configure_quickshell_shell() {
       services/ai/MistralApiStrategy.qml \
       services/Wallpapers.qml \
       services/WireGuard.qml \
+      scripts/images/sample-bar-wallpaper.py \
       scripts/colors/applycolor.sh \
       scripts/colors/terminal/sequences.txt; do
       source="$repo_root/dots/.config/quickshell/ii/$relative"

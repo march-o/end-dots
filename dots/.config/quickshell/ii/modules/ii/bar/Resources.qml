@@ -20,12 +20,14 @@ MouseArea {
         anchors.rightMargin: 4
 
         Resource {
+            groupHovered: root.containsMouse
             iconName: "memory"
             percentage: ResourceUsage.memoryUsedPercentage
             warningThreshold: Config.options.bar.resources.memoryWarningThreshold
         }
 
         Resource {
+            groupHovered: root.containsMouse
             iconName: "swap_horiz"
             percentage: ResourceUsage.swapUsedPercentage
             shown: (Config.options.bar.resources.alwaysShowSwap && percentage > 0) || 
@@ -36,6 +38,7 @@ MouseArea {
         }
 
         Resource {
+            groupHovered: root.containsMouse
             iconName: "planner_review"
             percentage: ResourceUsage.cpuUsage
             shown: Config.options.bar.resources.alwaysShowCpu || 

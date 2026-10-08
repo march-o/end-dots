@@ -5,23 +5,26 @@ import QtQuick.Layouts
 Item {
     id: root
     property bool vertical: false
+    property bool glass: false
     property real padding: 5
-    property color colBackground: Config.options?.bar.borderless ? "transparent" : Appearance.colors.colSecondaryContainer
+    property color colBackground: "transparent"
     implicitWidth: vertical ? Appearance.sizes.baseVerticalBarWidth : (gridLayout.implicitWidth + padding * 2)
     implicitHeight: vertical ? (gridLayout.implicitHeight + padding * 2) : Appearance.sizes.baseBarHeight
     default property alias items: gridLayout.children
 
-    Rectangle {
+    BarGlassIsland {
         id: background
+        parent: root
         anchors {
             fill: parent
-            topMargin: root.vertical ? 0 : 4
-            bottomMargin: root.vertical ? 0 : 4
-            leftMargin: root.vertical ? 4 : 0
-            rightMargin: root.vertical ? 4 : 0
+            topMargin: root.glass || root.vertical ? 0 : 4
+            bottomMargin: root.glass || root.vertical ? 0 : 4
+            leftMargin: root.glass || !root.vertical ? 0 : 4
+            rightMargin: root.glass || !root.vertical ? 0 : 4
         }
-        color: root.colBackground
-        radius: Appearance.rounding.small
+        color: root.glass && Config.options.bar.showBackground ? Qt.rgba(1, 1, 1, 0.035) : root.colBackground
+        radius: root.glass ? Math.min(height / 2, Appearance.rounding.windowRounding) : Appearance.rounding.small
+        border.width: root.glass && Config.options.bar.showBackground ? 2 : 0
     }
 
     GridLayout {

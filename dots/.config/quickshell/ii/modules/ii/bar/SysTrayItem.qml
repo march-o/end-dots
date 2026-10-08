@@ -13,6 +13,12 @@ MouseArea {
     id: root
     required property SystemTrayItem item
     property bool targetMenuOpen: false
+    property color sampledBackground: BarGlassPalette.dominant
+    property var statePalette: BarGlassPalette.buttonColors(BarGlassPalette.dominant)
+    property color iconColor: targetMenuOpen
+        ? (containsMouse ? statePalette.onHover : statePalette.on)
+        : (containsMouse ? statePalette.offHover : statePalette.off)
+    Behavior on iconColor { ColorAnimation { duration: 120 } }
 
     signal menuOpened(qsWindow: var)
     signal menuClosed()
@@ -60,8 +66,9 @@ MouseArea {
                     ? (Config.options.bar.bottom ? Edges.Left : Edges.Right)
                     : (Config.options.bar.bottom ? Edges.Top : Edges.Bottom)
             }
-            onMenuOpened: (window) => root.menuOpened(window);
+            onMenuOpened: (window) => { root.targetMenuOpen = true; root.menuOpened(window) }
             onMenuClosed: {
+                root.targetMenuOpen = false;
                 root.menuClosed();
                 menu.active = false;
             }
@@ -81,17 +88,12 @@ MouseArea {
         active: Config.options.tray.monochromeIcons
         anchors.fill: trayIcon
         sourceComponent: Item {
-            Desaturate {
-                id: desaturatedIcon
-                visible: false // There's already color overlay
+            Colorizer {
                 anchors.fill: parent
                 source: trayIcon
-                desaturation: 0.8 // 1.0 means fully grayscale
-            }
-            ColorOverlay {
-                anchors.fill: desaturatedIcon
-                source: desaturatedIcon
-                color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.9)
+                colorizationColor: root.iconColor
+                colorization: 0.85
+                brightness: BarGlassPalette.luminance(root.iconColor) > BarGlassPalette.luminance(root.sampledBackground) ? 0.4 : -0.1
             }
         }
     }

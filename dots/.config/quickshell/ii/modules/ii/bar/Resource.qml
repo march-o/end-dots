@@ -5,10 +5,20 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    WallpaperIconColor { id: iconColors; target: resourceCircProg }
+    WallpaperIconColor { id: valueColors; target: percentageText }
     required property string iconName
     required property double percentage
     property int warningThreshold: 100
     property bool shown: true
+    property bool groupHovered: false
+    property var statePalette: iconColors.statePalette
+    property var textStatePalette: valueColors.textStatePalette
+    property color warningColor: valueColors.warningColor
+    property color iconColor: warning ? iconColors.warningColor : groupHovered ? statePalette.offHover : statePalette.off
+    property color textColor: warning ? warningColor : groupHovered ? textStatePalette.offHover : textStatePalette.off
+    Behavior on iconColor { ColorAnimation { duration: 120 } }
+    Behavior on textColor { ColorAnimation { duration: 120 } }
     clip: true
     visible: width > 0 && height > 0
     implicitWidth: resourceRowLayout.x < 0 ? 0 : resourceRowLayout.implicitWidth
@@ -17,20 +27,20 @@ Item {
 
     RowLayout {
         id: resourceRowLayout
-        spacing: 2
+        spacing: 4
         x: shown ? 0 : -resourceRowLayout.width
         anchors {
             verticalCenter: parent.verticalCenter
         }
 
-        ClippedFilledCircularProgress {
+        CircularProgress {
             id: resourceCircProg
             Layout.alignment: Qt.AlignVCenter
-            lineWidth: Appearance.rounding.unsharpen
+            lineWidth: 1
             value: percentage
-            implicitSize: 20
-            colPrimary: root.warning ? Appearance.colors.colError : Appearance.colors.colOnSecondaryContainer
-            accountForLightBleeding: !root.warning
+            implicitSize: 24
+            colPrimary: root.iconColor
+            colSecondary: "transparent"
             enableAnimation: false
 
             Item {
@@ -44,7 +54,7 @@ Item {
                     fill: 1
                     text: iconName
                     iconSize: Appearance.font.pixelSize.normal
-                    color: Appearance.m3colors.m3onSecondaryContainer
+                    color: root.iconColor
                 }
             }
         }
@@ -63,8 +73,9 @@ Item {
             StyledText {
                 id: percentageText
                 anchors.centerIn: parent
-                color: Appearance.colors.colOnLayer1
+                color: root.textColor
                 font.pixelSize: Appearance.font.pixelSize.small
+                font.weight: Font.Medium
                 text: `${Math.round(percentage * 100).toString()}`
             }
         }

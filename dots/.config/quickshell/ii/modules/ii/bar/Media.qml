@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import qs
 import qs.modules.common
 import qs.modules.common.functions
@@ -12,6 +13,9 @@ import Quickshell.Services.Mpris
 
 Item {
     id: root
+    WallpaperIconColor { id: localColors; target: root }
+    readonly property var iconStates: localColors.statePalette ?? BarGlassPalette.buttonColors(BarGlassPalette.dominant)
+    readonly property var textStates: localColors.textStatePalette ?? BarGlassPalette.buttonColors(BarGlassPalette.dominant, 4.5)
 
     // Control Spotify's player volume, not the computer's PipeWire sink.
     readonly property MprisPlayer spotifyPlayer: Mpris.players.values.find(player =>
@@ -40,25 +44,19 @@ Item {
         property bool prominent: false
         signal activated()
 
-        Layout.preferredWidth: 24
+        Layout.preferredWidth: 32.5
         Layout.preferredHeight: 30
 
-        Rectangle {
-            anchors.centerIn: parent
-            width: 22
-            height: 22
-            radius: 7
-            visible: button.prominent || buttonMouse.containsMouse
-            color: button.prominent ? Appearance.colors.colPrimary : Appearance.colors.colLayer1Hover
-            opacity: button.available ? 1 : 0.45
-        }
         MaterialSymbol {
             anchors.centerIn: parent
             text: button.symbol
             fill: 1
-            iconSize: button.prominent ? 18 : 19
-            color: button.prominent ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
-            opacity: button.available ? 1 : 0.4
+            iconSize: Appearance.font.pixelSize.large * 1.25
+            color: !button.available ? localColors.mutedColor
+                : button.prominent && root.activePlayer?.isPlaying
+                    ? (buttonMouse.containsMouse ? root.iconStates.onHover : root.iconStates.on)
+                    : (buttonMouse.containsMouse ? root.iconStates.offHover : root.iconStates.off)
+            Behavior on color { ColorAnimation { duration: 120 } }
         }
         MouseArea {
             id: buttonMouse
@@ -99,7 +97,7 @@ Item {
             implicitWidth: 26
             implicitHeight: 26
             radius: 4
-            color: Appearance.colors.colSecondaryContainer
+            color: "transparent"
             layer.enabled: true
             layer.effect: OpacityMask {
                 maskSource: Rectangle {
@@ -120,7 +118,7 @@ Item {
                 text: "graphic_eq"
                 fill: 1
                 iconSize: 15
-                color: Appearance.colors.colOnSecondaryContainer
+                color: root.activePlayer?.isPlaying ? root.iconStates.on : root.iconStates.off
             }
         }
 
@@ -134,7 +132,10 @@ Item {
                 verticalAlignment: Text.AlignVCenter
                 font.pixelSize: Appearance.font.pixelSize.small
                 font.weight: Font.Medium
-                color: Appearance.colors.colOnLayer1
+                color: root.activePlayer?.isPlaying
+                    ? (mediaMouse.containsMouse ? root.textStates.onHover : root.textStates.on)
+                    : (mediaMouse.containsMouse ? root.textStates.offHover : root.textStates.off)
+                Behavior on color { ColorAnimation { duration: 120 } }
                 elide: Text.ElideRight
                 text: root.cleanedTitle
             }
@@ -177,24 +178,24 @@ Item {
                 anchors.leftMargin: 6
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
-                height: 6
-                radius: 3
-                color: ColorUtils.mix(Appearance.colors.colLayer0, Appearance.colors.colSecondaryContainer, 0.7)
+                height: 4
+                radius: 2
+                color: ColorUtils.applyAlpha(root.iconStates.off, 0.35)
 
                 Rectangle {
                     width: parent.width * root.volumeLevel
                     height: parent.height
                     radius: parent.radius
-                    color: Appearance.colors.colPrimary
+                    color: volumeMouse.containsMouse ? root.iconStates.onHover : root.iconStates.on
                 }
             }
             Rectangle {
                 x: Math.max(6, Math.min(parent.width - width - 6, 6 + (parent.width - 12) * root.volumeLevel - width / 2))
                 anchors.verticalCenter: parent.verticalCenter
-                width: 5
-                height: volumeMouse.pressed ? 20 : 17
-                radius: 2.5
-                color: Appearance.colors.colPrimary
+                width: 3
+                height: volumeMouse.pressed ? 18 : 15
+                radius: 1.5
+                color: volumeMouse.containsMouse ? root.iconStates.onHover : root.iconStates.on
             }
 
             MouseArea {
@@ -220,7 +221,7 @@ Item {
             text: root.volumeLevel < 0.01 ? "volume_off" : root.volumeLevel < 0.5 ? "volume_down" : "volume_up"
             fill: 1
             iconSize: 18
-            color: Appearance.colors.colPrimary
+            color: volumeMouse.containsMouse ? root.iconStates.onHover : root.iconStates.on
         }
     }
 }

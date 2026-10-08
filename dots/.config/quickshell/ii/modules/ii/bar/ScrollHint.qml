@@ -5,6 +5,7 @@ import QtQuick
 Revealer { // Scroll hint
     id: root
     property string icon
+    property color color: BarGlassPalette.iconColor
     property string side: "left"
     property string tooltipText: ""
     
@@ -43,17 +44,17 @@ Revealer { // Scroll hint
             MaterialSymbol {
                 text: "keyboard_arrow_up"
                 iconSize: 14
-                color: Appearance.colors.colSubtext
+                color: root.color
             }
             MaterialSymbol {
                 text: root.icon
                 iconSize: 14
-                color: Appearance.colors.colSubtext
+                color: root.color
             }
             MaterialSymbol {
                 text: "keyboard_arrow_down"
                 iconSize: 14
-                color: Appearance.colors.colSubtext
+                color: root.color
             }
         }
     }

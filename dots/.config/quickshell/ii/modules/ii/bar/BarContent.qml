@@ -11,53 +11,31 @@ import qs.modules.common.functions
 
 Item { // Bar content region
     id: root
-    property color layerBarColor: Appearance.colors.colLayer0
 
     property var screen: root.QsWindow.window?.screen
     property var brightnessMonitor: Brightness.getMonitorForScreen(screen)
     property real useShortenedForm: (Appearance.sizes.barHellaShortenScreenWidthThreshold >= screen?.width) ? 2 : (Appearance.sizes.barShortenScreenWidthThreshold >= screen?.width) ? 1 : 0
 
-    component VerticalBarSeparator: Rectangle {
-        Layout.topMargin: Appearance.sizes.baseBarHeight / 3
-        Layout.bottomMargin: Appearance.sizes.baseBarHeight / 3
-        Layout.fillHeight: true
-        implicitWidth: 1
-        color: Appearance.colors.colOutlineVariant
-    }
-
-    // Background shadow
-    Loader {
-        active: Config.options.bar.showBackground && Config.options.bar.cornerStyle === 1 && Config.options.bar.floatStyleShadow
-        anchors.fill: barBackground
-        sourceComponent: StyledRectangularShadow {
-            anchors.fill: undefined // The loader's anchors act on this, and this should not have any anchor
-            target: barBackground
-        }
-    }
-    // Background
-    Rectangle {
-        id: barBackground
-        anchors {
-            fill: parent
-            margins: Config.options.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
-        }
-        color: Config.options.bar.showBackground ? root.layerBarColor : "transparent"
-        radius: Config.options.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
-        border.width: Config.options.bar.cornerStyle === 1 ? 1 : 0
-        border.color: ColorUtils.mix(Appearance.colors.colLayer0Border, root.layerBarColor, 0.7)
-    }
+    property alias clockIsland: barLeftSideMouseArea
+    property alias systemIsland: leftCenterGroup
+    property alias mediaIsland: mediaCenterGroup
+    property alias workspaceIsland: middleCenterGroup
+    property alias buttonsIsland: rightCenterGroup
+    property alias statusIsland: barRightSideMouseArea
 
     FocusedScrollMouseArea { // Left side | scroll to change brightness
         id: barLeftSideMouseArea
 
         anchors {
-            top: parent.top
-            bottom: parent.bottom
+            verticalCenter: parent.verticalCenter
             left: parent.left
-            right: middleSection.left
+            leftMargin: Appearance.sizes.hyprlandGapsOut
         }
-        implicitWidth: leftSectionClock.implicitWidth
-        implicitHeight: Appearance.sizes.baseBarHeight
+        implicitWidth: leftSectionClock.implicitWidth + 16
+        height: Appearance.sizes.baseBarHeight
+        width: implicitWidth
+
+        BarGlassIsland { anchors.fill: parent }
 
         onScrollDown: Brightness.decreaseBrightness()
         onScrollUp: Brightness.increaseBrightness()
@@ -70,6 +48,7 @@ Item { // Bar content region
         // Visual content
         ScrollHint {
             reveal: barLeftSideMouseArea.hovered
+            color: leftSectionClock.textColor
             icon: Hyprsunset.gamma === 100 ? "light_mode" : "wb_twilight"
             tooltipText: Translation.tr("Scroll to change brightness")
             side: "left"
@@ -80,7 +59,7 @@ Item { // Bar content region
         LeftTimeWidget {
             id: leftSectionClock
             anchors.left: parent.left
-            anchors.leftMargin: Appearance.rounding.screenRounding
+            anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
         }
     }
@@ -92,12 +71,12 @@ Item { // Bar content region
             bottom: parent.bottom
             horizontalCenter: parent.horizontalCenter
         }
-        spacing: 4
+        spacing: 12
 
         BarGroup {
             id: leftCenterGroup
+            glass: true
             anchors.verticalCenter: parent.verticalCenter
-            colBackground: Appearance.colors.colLayer1
 
             Resources {
                 alwaysShowAllResources: root.useShortenedForm === 2
@@ -106,6 +85,7 @@ Item { // Bar content region
 
         BarGroup {
             id: mediaCenterGroup
+            glass: true
             visible: root.useShortenedForm < 2
             anchors.verticalCenter: parent.verticalCenter
             implicitWidth: root.useShortenedForm === 0 ? 480 : 230
@@ -115,12 +95,9 @@ Item { // Bar content region
             }
         }
 
-        VerticalBarSeparator {
-            visible: Config.options?.bar.borderless
-        }
-
         BarGroup {
             id: middleCenterGroup
+            glass: true
             anchors.verticalCenter: parent.verticalCenter
 
             Workspaces {
@@ -140,10 +117,6 @@ Item { // Bar content region
             }
         }
 
-        VerticalBarSeparator {
-            visible: Config.options?.bar.borderless
-        }
-
         MouseArea {
             id: rightCenterGroup
             anchors.verticalCenter: parent.verticalCenter
@@ -160,8 +133,9 @@ Item { // Bar content region
                 spacing: 4
 
                 BarGroup {
-                    colBackground: Appearance.colors.colLayer1
+                    glass: true
                     UtilButtons {
+                        id: utilityButtons
                         visible: (Config.options.bar.verbose && root.useShortenedForm === 0)
                         Layout.alignment: Qt.AlignVCenter
                     }
@@ -171,14 +145,14 @@ Item { // Bar content region
                         Layout.alignment: Qt.AlignVCenter
                     }
 
-                    CircleUtilButton {
+                    GlassButton {
+                        statePalette: utilityButtons.statePalette
                         Layout.alignment: Qt.AlignVCenter
                         onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)}/.local/bin/wallpaper-next`])
 
-                        MaterialSymbol {
+                        GlassIcon {
                             text: "wallpaper_slideshow"
-                            iconSize: Appearance.font.pixelSize.normal
-                            color: Appearance.colors.colOnLayer2
+                            iconSize: Appearance.font.pixelSize.large * 1.25
                         }
                     }
                 }
@@ -190,13 +164,15 @@ Item { // Bar content region
         id: barRightSideMouseArea
 
         anchors {
-            top: parent.top
-            bottom: parent.bottom
-            left: middleSection.right
+            verticalCenter: parent.verticalCenter
             right: parent.right
+            rightMargin: Appearance.sizes.hyprlandGapsOut
         }
-        implicitWidth: rightSectionRowLayout.implicitWidth
-        implicitHeight: Appearance.sizes.baseBarHeight
+        implicitWidth: rightSectionRowLayout.implicitWidth + 10
+        width: implicitWidth
+        height: Appearance.sizes.baseBarHeight
+
+        BarGlassIsland { anchors.fill: parent }
 
         onScrollDown: Audio.decrementVolume();
         onScrollUp: Audio.incrementVolume();
@@ -210,6 +186,7 @@ Item { // Bar content region
         // Visual content
         ScrollHint {
             reveal: barRightSideMouseArea.hovered
+            color: rightSidebarButton.colText
             icon: "volume_up"
             tooltipText: Translation.tr("Scroll to change volume")
             side: "right"
@@ -220,6 +197,8 @@ Item { // Bar content region
         RowLayout {
             id: rightSectionRowLayout
             anchors.fill: parent
+            anchors.leftMargin: 5
+            anchors.rightMargin: 5
             spacing: 5
             layoutDirection: Qt.RightToLeft
 
@@ -227,21 +206,23 @@ Item { // Bar content region
                 id: rightSidebarButton
 
                 Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                Layout.rightMargin: Appearance.rounding.screenRounding
+                Layout.rightMargin: 0
                 Layout.fillWidth: false
 
                 implicitWidth: indicatorsRowLayout.implicitWidth + 10 * 2
                 implicitHeight: indicatorsRowLayout.implicitHeight + 5 * 2
 
+                WallpaperIconColor { id: statusPalette; target: rightSidebarButton }
                 buttonRadius: Appearance.rounding.full
-                colBackground: barRightSideMouseArea.hovered ? Appearance.colors.colLayer1Hover : ColorUtils.transparentize(Appearance.colors.colLayer1Hover, 1)
-                colBackgroundHover: Appearance.colors.colLayer1Hover
-                colRipple: Appearance.colors.colLayer1Active
-                colBackgroundToggled: Appearance.colors.colSecondaryContainer
-                colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
-                colRippleToggled: Appearance.colors.colSecondaryContainerActive
+                colBackground: "transparent"
+                colBackgroundHover: "transparent"
+                colBackgroundToggled: "transparent"
+                colBackgroundToggledHover: "transparent"
+                rippleEnabled: false
                 toggled: GlobalStates.sidebarRightOpen
-                property color colText: toggled ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+                property color colText: toggled
+                    ? (hovered ? statusPalette.statePalette.onHover : statusPalette.statePalette.on)
+                    : (hovered ? statusPalette.statePalette.offHover : statusPalette.statePalette.off)
 
                 Behavior on colText {
                     animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
@@ -286,7 +267,9 @@ Item { // Bar content region
                     HyprlandXkbIndicator {
                         Layout.alignment: Qt.AlignVCenter
                         Layout.rightMargin: indicatorsRowLayout.realSpacing
-                        color: rightSidebarButton.colText
+                        color: rightSidebarButton.toggled
+                            ? (rightSidebarButton.hovered ? statusPalette.textStatePalette.onHover : statusPalette.textStatePalette.on)
+                            : (rightSidebarButton.hovered ? statusPalette.textStatePalette.offHover : statusPalette.textStatePalette.off)
                     }
                     Revealer {
                         reveal: Notifications.silent || Notifications.unread > 0
@@ -299,19 +282,25 @@ Item { // Bar content region
                         }
                         NotificationUnreadCount {
                             id: notificationUnreadCount
+                            color: rightSidebarButton.colText
+                            indicatorColor: statusPalette.statePalette.on
                         }
                     }
                     MaterialSymbol {
                         text: Network.materialSymbol
                         iconSize: Appearance.font.pixelSize.larger
-                        color: rightSidebarButton.colText
+                        color: Network.ethernet || Network.wifi
+                            ? (rightSidebarButton.hovered ? statusPalette.statePalette.onHover : statusPalette.statePalette.on)
+                            : rightSidebarButton.colText
                     }
                     MaterialSymbol {
                         Layout.leftMargin: indicatorsRowLayout.realSpacing
                         visible: BluetoothStatus.available
                         text: BluetoothStatus.connected ? "bluetooth_connected" : BluetoothStatus.enabled ? "bluetooth" : "bluetooth_disabled"
                         iconSize: Appearance.font.pixelSize.larger
-                        color: rightSidebarButton.colText
+                        color: BluetoothStatus.enabled
+                            ? (rightSidebarButton.hovered ? statusPalette.statePalette.onHover : statusPalette.statePalette.on)
+                            : rightSidebarButton.colText
                     }
                 }
             }
@@ -321,11 +310,6 @@ Item { // Bar content region
                 Layout.fillWidth: false
                 Layout.fillHeight: true
                 invertSide: Config?.options.bar.bottom
-            }
-
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
             }
 
             // Weather
