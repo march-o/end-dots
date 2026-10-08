@@ -124,3 +124,11 @@ for _, key in ipairs({ "SUPER + Return", "SUPER + T", "CTRL + ALT + T" }) do
     hl.unbind(key)
     hl.bind(key, hl.dsp.exec_cmd("kitty"), { description = "App: Kitty terminal" })
 end
+
+-- Use the bar's region selector, then open the annotation editor.
+hl.unbind("Print")
+hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"),
+    { description = "Utilities: Select screenshot region and annotate" })
+
+-- PrintScreen is the screenshot shortcut. Remove both upstream snip bindings.
+hl.unbind("SUPER + SHIFT + S")

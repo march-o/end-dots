@@ -35,6 +35,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
   install -Dm644 "$repo_root/dots/.config/kitty/ssh.conf" "$HOME/.config/kitty/ssh.conf"
   sed -i -E "s/^font_size[[:space:]]+[0-9.]+$/font_size $DEVICE_KITTY_FONT_SIZE/" "$HOME/.config/kitty/kitty.conf"
+  install -Dm644 "$repo_root/sdata/dist-arch/config/swappy.conf" "$HOME/.config/swappy/config"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/ash-desktop-state" "$HOME/.local/bin/ash-desktop-state"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
@@ -79,6 +80,8 @@ configure_quickshell_shell() {
     for relative in \
       modules/common/Appearance.qml \
       modules/common/Config.qml \
+      modules/common/utils/TempScreenshotProcess.qml \
+      modules/common/utils/ScreenshotAction.qml \
       modules/common/models/WorkspaceModel.qml \
       modules/common/panels/lock/LockScreen.qml \
       modules/common/panels/lock/LockContext.qml \
@@ -92,6 +95,8 @@ configure_quickshell_shell() {
       modules/ii/bar/Workspaces.qml \
       modules/ii/background/Background.qml \
       modules/ii/notificationPopup/NotificationPopup.qml \
+      modules/ii/regionSelector/RegionSelection.qml \
+      modules/ii/regionSelector/CursorGuide.qml \
       modules/ii/sidebarLeft/SidebarLeft.qml \
       modules/ii/sidebarLeft/AiChat.qml \
       modules/ii/sidebarLeft/aiChat/MessageTextBlock.qml \

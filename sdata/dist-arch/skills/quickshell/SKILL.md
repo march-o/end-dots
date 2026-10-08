@@ -20,6 +20,12 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 - Remove temporary logging or IPC probes from tracked and live QML after diagnosis. Do not restart the shell casually: the lock UI runs there. For lock changes, ensure a working recovery path and verify that the shell loaded before trying to lock.
 - If content changes and an in-place `shell.qml` edit do not reload, check `qs -c ii ipc call lock isActive` before replacing the instance. `qs kill` can report success while the old PID still runs; verify that it exited before launching a replacement, or two bars can appear. After replacement, check `qs list --all`, lock IPC, and a screenshot.
 
+## Screenshot actions
+
+- The bar screenshot button, `region screenshot` IPC, and `regionScreenshot` global shortcut share `RegionSelector.qml`. The final mouse-button action is chosen in `RegionSelection.qml`, overriding the initial action; changing only `RegionSelector.screenshot()` does not change left-drag behavior. Keep `CursorGuide.qml` in sync with that mapping. On Arch, left-button selection opens the configured annotation editor and right-button selection copies directly. Swappy uses `show_panel=true` to expose its drawing tools on launch.
+
+- Avoid PNG compression for transient screenshot capture (`grim -l 0`) and the cropped pipe to the annotation editor (`magick -define png:compression-level=0 png:-`). On this desktop, full-screen capture dropped from about 0.78s to 0.04s and editor-input cropping from 0.34s to 0.12s; Swappy window startup was about 0.22s. Keep normal encoding for saved output.
+
 ## Workspace data
 
 - `HyprlandData.qml` obtains monitor, workspace, active workspace, and client data from `hyprctl`. Compare it with `hyprctl monitors -j`, `hyprctl workspaces -j`, and `hyprctl clients -j` when the bar disagrees with Hyprland.

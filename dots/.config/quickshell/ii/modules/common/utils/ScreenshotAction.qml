@@ -34,6 +34,8 @@ Singleton {
         const cropBase = `magick ${StringUtils.shellSingleQuoteEscape(screenshotPath)} `
             + `-crop ${rw}x${rh}+${rx}+${ry} +repage`
         const cropToStdout = `${cropBase} -`
+        // Editor input is temporary: skip PNG compression to reduce startup latency.
+        const cropToEditor = `${cropBase} -define png:compression-level=0 png:-`
         const cropInPlace = `${cropBase} '${StringUtils.shellSingleQuoteEscape(screenshotPath)}'`
         const cleanup = `rm '${StringUtils.shellSingleQuoteEscape(screenshotPath)}'`
         const slurpRegion = `${rx},${ry} ${rw}x${rh}`
@@ -59,7 +61,7 @@ Singleton {
 
                 break;
             case ScreenshotAction.Action.Edit:
-                return ["bash", "-c", `${cropToStdout} | ${annotationCommand} && ${cleanup}`]
+                return ["bash", "-c", `${cropToEditor} | ${annotationCommand} && ${cleanup}`]
                 break;
             case ScreenshotAction.Action.Search:
                 return ["bash", "-c", `${cropInPlace} && xdg-open "${root.imageSearchEngineBaseUrl}$(${uploadAndGetUrl(screenshotPath)})" && ${cleanup}`]
