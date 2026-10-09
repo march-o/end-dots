@@ -55,7 +55,9 @@ Scope {
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 :
                     Appearance.sizes.baseBarHeight + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
                 WlrLayershell.namespace: "quickshell:bar"
-                implicitHeight: Appearance.sizes.barHeight + Appearance.rounding.screenRounding
+                // Keep the compositor surface stable while the glass frame morphs.
+                // The input mask still passes through everything outside the islands.
+                implicitHeight: Math.max(Appearance.sizes.barHeight + Appearance.rounding.screenRounding, barContent.mediaSurfaceHeight)
                 mask: Region {
                     Region { item: barContent.clockIsland }
                     Region { item: barContent.systemIsland }

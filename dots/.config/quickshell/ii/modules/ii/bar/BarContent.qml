@@ -18,7 +18,8 @@ Item { // Bar content region
 
     property alias clockIsland: barLeftSideMouseArea
     property alias systemIsland: leftCenterGroup
-    property alias mediaIsland: mediaCenterGroup
+    property alias mediaIsland: mediaCenterGroup.glassFrame
+    readonly property real mediaSurfaceHeight: root.useShortenedForm < 2 ? 438 + Appearance.sizes.baseBarHeight : 0
     property alias workspaceIsland: middleCenterGroup
     property alias buttonsIsland: rightCenterGroup
     property alias statusIsland: barRightSideMouseArea
@@ -86,11 +87,21 @@ Item { // Bar content region
         BarGroup {
             id: mediaCenterGroup
             glass: true
+            glassWidth: width
+            glassHeight: height + mediaWidget.expansionProgress * (438 - height)
+            glassFrame.colorTarget: mediaWidget
+            glassFrame.color: Config.options.bar.showBackground ? Qt.rgba(
+                1 + (mediaWidget.glassTint.r - 1) * mediaWidget.expansionProgress,
+                1 + (mediaWidget.glassTint.g - 1) * mediaWidget.expansionProgress,
+                1 + (mediaWidget.glassTint.b - 1) * mediaWidget.expansionProgress,
+                0.035 + (mediaWidget.glassTintOpacity - 0.035) * mediaWidget.expansionProgress) : "transparent"
             visible: root.useShortenedForm < 2
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: root.useShortenedForm === 0 ? 480 : 230
+            implicitWidth: (root.useShortenedForm === 0 ? 240 : 115) * (1 - mediaWidget.expansionProgress) + 320 * mediaWidget.expansionProgress
 
             Media {
+                id: mediaWidget
+                glassFrame: mediaCenterGroup.glassFrame
                 Layout.fillWidth: true
             }
         }

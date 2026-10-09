@@ -43,6 +43,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/glass.lua" "$HOME/.config/hypr/custom/glass.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/hyprland/env.lua" "$HOME/.config/hypr/hyprland/env.lua"
   if [[ "${LAPTOP:-0}" == "0" ]]; then
     install -Dm644 "$repo_root/sdata/dist-arch/config/hypridle-pc.conf" "$HOME/.config/hypr/hypridle.conf"
   else
@@ -97,6 +98,13 @@ configure_quickshell_shell() {
       modules/ii/bar/ActiveWindow.qml \
       modules/ii/bar/LeftTimeWidget.qml \
       modules/ii/bar/Media.qml \
+      modules/ii/bar/MediaCard.qml \
+      modules/ii/bar/MediaProgress.qml \
+      modules/ii/bar/MediaVolumeSlider.qml \
+      modules/ii/overview/OverviewWidget.qml \
+      scripts/cava/media_card_config.txt \
+      scripts/media/spotify-connect.py \
+      scripts/media/sample-card-backdrop.py \
       modules/ii/bar/Resource.qml \
       modules/ii/bar/Resources.qml \
       modules/ii/bar/SysTray.qml \

@@ -3,7 +3,8 @@ import qs.modules.common
 
 Rectangle {
     id: root
-    WallpaperIconColor { id: frameColors; target: root }
+    property Item colorTarget: root
+    WallpaperIconColor { id: frameColors; target: root.colorTarget }
     readonly property color outlineColor: BarGlassPalette.readableColor(
         [Appearance.m3colors.m3primary, Appearance.m3colors.m3primaryContainer,
          Appearance.m3colors.m3onPrimaryFixedVariant, Appearance.m3colors.m3secondary],

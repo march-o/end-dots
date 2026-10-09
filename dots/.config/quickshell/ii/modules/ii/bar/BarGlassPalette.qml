@@ -14,6 +14,14 @@ QtObject {
     }
     readonly property color dominant: wallpaper.colors[0] ?? Appearance.m3colors.m3primary
     readonly property color iconColor: bestColor(dominant)
+    readonly property color darkestTone: [Appearance.m3colors.m3surfaceContainerLowest,
+        Appearance.m3colors.m3surfaceDim, Appearance.m3colors.m3onPrimaryFixed,
+        Appearance.m3colors.m3onSecondaryFixed, Appearance.m3colors.m3onTertiaryFixed]
+        .reduce((best, candidate) => luminance(candidate) < luminance(best) ? candidate : best)
+    readonly property color lightestTone: [Appearance.m3colors.m3onSurface,
+        Appearance.m3colors.m3primaryFixed, Appearance.m3colors.m3secondaryFixed,
+        Appearance.m3colors.m3tertiaryFixed]
+        .reduce((best, candidate) => luminance(candidate) > luminance(best) ? candidate : best)
 
     function readableColor(preferred, background, minimumContrast = 3): color {
         const candidates = preferred.concat([Appearance.m3colors.m3primary,

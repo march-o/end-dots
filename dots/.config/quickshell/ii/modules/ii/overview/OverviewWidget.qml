@@ -14,31 +14,35 @@ import Quickshell.Hyprland
 Item {
     id: root
     required property var screen
-    readonly property HyprlandMonitor monitor: Hyprland.monitorFor(screen)
+    // Native monitor IDs can be stale after reconnect/resume; use the refreshed
+    // CLI record for this screen throughout the overview geometry.
+    readonly property var monitor: HyprlandData.monitors.find(m => m.name === root.screen?.name) ?? null
     readonly property var toplevels: ToplevelManager.toplevels
     // Clamp to avoid lock-screen temp workspace (2147483647 - N) leaking into UI
     readonly property int effectiveActiveWorkspaceId: Math.max(1, Math.min(100, monitor?.activeWorkspace?.id ?? 1))
     readonly property int workspacesShown: Config.options.overview.rows * Config.options.overview.columns
     readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / workspacesShown)
-    property bool monitorIsFocused: (Hyprland.focusedMonitor?.name == monitor.name)
+    property bool monitorIsFocused: monitor?.focused ?? false
     property var windows: HyprlandData.windowList
     property var windowByAddress: HyprlandData.windowByAddress
     property var windowAddresses: HyprlandData.addresses
-    property var monitorData: HyprlandData.monitors.find(m => m.id === root.monitor?.id)
+    readonly property var monitorData: root.monitor
     property real scale: Config.options.overview.scale
     property color activeBorderColor: Appearance.colors.colSecondary
 
-    property real workspaceImplicitWidth: (monitorData?.transform % 2 === 1) ? 
-        ((monitor.height - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale / monitor.scale) :
-        ((monitor.width - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale / monitor.scale)
-    property real workspaceImplicitHeight: (monitorData?.transform % 2 === 1) ? 
-        ((monitor.width - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scale / monitor.scale) :
-        ((monitor.height - monitorData?.reserved[1] - monitorData?.reserved[3]) * root.scale / monitor.scale)
+    readonly property real monitorScale: Math.max(0.1, monitorData?.scale ?? root.screen?.devicePixelRatio ?? 1)
+    readonly property real monitorWidth: monitorData?.width ?? (root.screen?.width ?? 1) * monitorScale
+    readonly property real monitorHeight: monitorData?.height ?? (root.screen?.height ?? 1) * monitorScale
+    readonly property bool monitorRotated: (monitorData?.transform ?? 0) % 2 === 1
+    property real workspaceImplicitWidth: Math.max(1, ((monitorRotated ? monitorHeight : monitorWidth)
+        - (monitorData?.reserved?.[0] ?? 0) - (monitorData?.reserved?.[2] ?? 0)) * root.scale / monitorScale)
+    property real workspaceImplicitHeight: Math.max(1, ((monitorRotated ? monitorWidth : monitorHeight)
+        - (monitorData?.reserved?.[1] ?? 0) - (monitorData?.reserved?.[3] ?? 0)) * root.scale / monitorScale)
     property real largeWorkspaceRadius: Appearance.rounding.large
     property real smallWorkspaceRadius: Appearance.rounding.verysmall
 
     property real workspaceNumberMargin: 80
-    property real workspaceNumberSize: 250 * monitor.scale
+    property real workspaceNumberSize: 250 * root.monitorScale
     property int workspaceZ: 0
     property int windowZ: 1
     property int windowDraggingZ: 99999
@@ -175,6 +179,7 @@ Item {
             Repeater { // Window repeater
                 model: ScriptModel {
                     values: {
+                        if (!root.monitorData) return []
                         // console.log(JSON.stringify(ToplevelManager.toplevels.values.map(t => t), null, 2))
                         return ToplevelManager.toplevels.values.filter((toplevel) => {
                             const address = `0x${toplevel.HyprlandToplevel?.address}`
@@ -193,7 +198,7 @@ Item {
                     toplevel: modelData
                     monitorData: this.monitor
                     scale: root.scale
-                    widgetMonitor: HyprlandData.monitors.find(m => m.id == root.monitor.id)
+                    widgetMonitor: root.monitorData
                     windowData: windowByAddress[address]
 
                     property bool atInitPosition: (initX == x && initY == y)
