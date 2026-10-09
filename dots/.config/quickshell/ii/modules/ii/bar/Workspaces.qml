@@ -16,7 +16,6 @@ ButtonMouseArea {
     WorkspaceModel { id: wsModel; screenName: root.screenName }
     WallpaperIconColor { id: localColors; target: root }
     property bool vertical: Config.options.bar.vertical
-    property bool superPressAndHeld: false
     property real workspaceButtonWidth: 32.5
     property real workspaceIconSize: Appearance.font.pixelSize.large * 1.25
     readonly property real barThickness: vertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.barHeight
@@ -57,9 +56,8 @@ ButtonMouseArea {
                 readonly property bool occupied: !!wsModel.occupied[index] && wsId !== wsModel.fakeWorkspace
                 readonly property var biggestWindow: wsModel.biggestWindow[index]
                 readonly property bool hovered: root.containsMouse && root.hoverIndex === index
-                readonly property bool showingNumber: root.superPressAndHeld ||
-                    (Config.options.bar.workspaces.alwaysShowNumbers &&
-                     (!Config.options.bar.workspaces.showAppIcons || !biggestWindow))
+                readonly property bool showingNumber: Config.options.bar.workspaces.alwaysShowNumbers &&
+                    (!Config.options.bar.workspaces.showAppIcons || !biggestWindow)
                 readonly property bool showingApp: !showingNumber && !!biggestWindow && Config.options.bar.workspaces.showAppIcons
                 property color iconColor: active
                     ? (hovered ? localColors.statePalette.onHover : localColors.statePalette.on)
@@ -69,8 +67,15 @@ ButtonMouseArea {
                     : (hovered ? localColors.textStatePalette.offHover : localColors.textStatePalette.off)
                 implicitWidth: root.vertical ? root.barThickness : root.workspaceButtonWidth
                 implicitHeight: root.vertical ? root.workspaceButtonWidth : root.barThickness
-                Behavior on iconColor { ColorAnimation { duration: 120 } }
-                Behavior on textColor { ColorAnimation { duration: 120 } }
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 27
+                    height: 27
+                    radius: 9
+                    color: Qt.rgba(workspace.iconColor.r, workspace.iconColor.g, workspace.iconColor.b, 0.13)
+                    visible: workspace.active
+                }
 
                 AppIcon {
                     id: appIcon
@@ -130,19 +135,5 @@ ButtonMouseArea {
         color: localColors.textStatePalette.on
         font.pixelSize: Appearance.font.pixelSize.normal
         font.weight: Font.Medium
-    }
-    Timer {
-        id: superPressAndHeldTimer
-        interval: Config.options.bar.autoHide.showWhenPressingSuper.delay ?? 100
-        onTriggered: root.superPressAndHeld = true
-    }
-    Connections {
-        target: GlobalStates
-        function onSuperDownChanged() {
-            if (!Config.options.bar.autoHide.showWhenPressingSuper.enable) return
-            if (GlobalStates.superDown) superPressAndHeldTimer.restart()
-            else { superPressAndHeldTimer.stop(); root.superPressAndHeld = false }
-        }
-        function onSuperReleaseMightTriggerChanged() { superPressAndHeldTimer.stop() }
     }
 }

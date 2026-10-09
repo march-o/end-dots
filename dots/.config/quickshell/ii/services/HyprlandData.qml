@@ -21,6 +21,34 @@ Singleton {
     property var activeWorkspace: null
     property var monitors: []
     property var layers: ({})
+    property string focusedMonitorName: ""
+    property int workspaceRevision: 0
+
+    // Apply compositor events immediately; CLI snapshots remain the resume fallback.
+    function handleEvent(name, data) {
+        const parts = data.split(",");
+        let monitorName = root.focusedMonitorName || root.monitors.find(m => m.focused)?.name;
+        if (name === "focusedmonv2") {
+            monitorName = parts[0];
+            root.focusedMonitorName = monitorName;
+        }
+        if (name === "workspacev2" || name === "focusedmonv2") {
+            const id = Number(parts[name === "workspacev2" ? 0 : 1]);
+            if (Number.isFinite(id) && id > 0 && monitorName) {
+                root.workspaceRevision++;
+                const workspace = { id: id, name: name === "workspacev2" ? parts.slice(1).join(",") : String(id) };
+                root.activeWorkspace = workspace;
+                root.monitors = root.monitors.map(m => m.name === monitorName
+                    ? Object.assign({}, m, { activeWorkspace: workspace }) : m);
+            }
+        } else if (name === "activespecialv2") {
+            root.workspaceRevision++;
+            const special = { id: Number(parts[0]) || 0, name: parts[1] || "" };
+            root.monitors = root.monitors.map(m => m.name === parts[2]
+                ? Object.assign({}, m, { specialWorkspace: special }) : m);
+        }
+        if (!["openlayer", "closelayer", "screencast", "screencastv2"].includes(name)) refreshEvents.restart();
+    }
 
     // Convenient stuff
 
@@ -55,12 +83,14 @@ Singleton {
     }
 
     function updateMonitors() {
+        if (getMonitors.running) return;
+        getMonitors.requestRevision = root.workspaceRevision;
         getMonitors.running = true;
     }
 
     function updateWorkspaces() {
         getWorkspaces.running = true;
-        getActiveWorkspace.running = true;
+
     }
 
     function updateAll() {
@@ -96,14 +126,27 @@ Singleton {
         }
     }
 
-    Connections {
-        target: Hyprland
-
-        function onRawEvent(event) {
-            // console.log("Hyprland raw event:", event.name);
-            if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
-            updateAll()
+    Socket {
+        id: workspaceEvents
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/hypr/" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "/.socket2.sock"
+        connected: true
+        parser: SplitParser {
+            onRead: line => {
+                const separator = line.indexOf(">>");
+                if (separator >= 0) root.handleEvent(line.slice(0, separator), line.slice(separator + 2));
+            }
         }
+    }
+    Timer {
+        interval: 1000
+        running: !workspaceEvents.connected
+        repeat: true
+        onTriggered: workspaceEvents.connected = true
+    }
+    Timer {
+        id: refreshEvents
+        interval: 25
+        onTriggered: root.updateAll()
     }
 
     Process {
@@ -126,11 +169,19 @@ Singleton {
 
     Process {
         id: getMonitors
+        property int requestRevision: 0
         command: ["hyprctl", "monitors", "-j"]
         stdout: StdioCollector {
             id: monitorsCollector
             onStreamFinished: {
+                // Discard a snapshot started before a newer workspace event.
+                if (getMonitors.requestRevision !== root.workspaceRevision) return;
                 root.monitors = JSON.parse(monitorsCollector.text);
+                const focused = root.monitors.find(m => m.focused);
+                if (focused) {
+                    root.focusedMonitorName = focused.name;
+                    root.activeWorkspace = focused.activeWorkspace;
+                }
             }
         }
     }
@@ -166,14 +217,4 @@ Singleton {
         }
     }
 
-    Process {
-        id: getActiveWorkspace
-        command: ["hyprctl", "activeworkspace", "-j"]
-        stdout: StdioCollector {
-            id: activeWorkspaceCollector
-            onStreamFinished: {
-                root.activeWorkspace = JSON.parse(activeWorkspaceCollector.text);
-            }
-        }
-    }
 }

@@ -21,7 +21,6 @@ Item { // Bar content region
     property alias mediaIsland: mediaCenterGroup.glassFrame
     readonly property real mediaSurfaceHeight: root.useShortenedForm < 2 ? 438 + Appearance.sizes.baseBarHeight : 0
     property alias workspaceIsland: middleCenterGroup
-    property alias buttonsIsland: rightCenterGroup
     property alias statusIsland: barRightSideMouseArea
 
     FocusedScrollMouseArea { // Left side | scroll to change brightness
@@ -65,19 +64,11 @@ Item { // Bar content region
         }
     }
 
-    Row { // Middle section
-        id: middleSection
-        anchors {
-            top: parent.top
-            bottom: parent.bottom
-            horizontalCenter: parent.horizontalCenter
-        }
-        spacing: 12
-
         BarGroup {
             id: leftCenterGroup
             glass: true
             anchors.verticalCenter: parent.verticalCenter
+            x: (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width) / 2
 
             Resources {
                 alwaysShowAllResources: root.useShortenedForm === 2
@@ -85,31 +76,10 @@ Item { // Bar content region
         }
 
         BarGroup {
-            id: mediaCenterGroup
-            glass: true
-            glassWidth: width
-            glassHeight: height + mediaWidget.expansionProgress * (438 - height)
-            glassFrame.colorTarget: mediaWidget
-            glassFrame.color: Config.options.bar.showBackground ? Qt.rgba(
-                1 + (mediaWidget.glassTint.r - 1) * mediaWidget.expansionProgress,
-                1 + (mediaWidget.glassTint.g - 1) * mediaWidget.expansionProgress,
-                1 + (mediaWidget.glassTint.b - 1) * mediaWidget.expansionProgress,
-                0.035 + (mediaWidget.glassTintOpacity - 0.035) * mediaWidget.expansionProgress) : "transparent"
-            visible: root.useShortenedForm < 2
-            anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: (root.useShortenedForm === 0 ? 240 : 115) * (1 - mediaWidget.expansionProgress) + 320 * mediaWidget.expansionProgress
-
-            Media {
-                id: mediaWidget
-                glassFrame: mediaCenterGroup.glassFrame
-                Layout.fillWidth: true
-            }
-        }
-
-        BarGroup {
             id: middleCenterGroup
             glass: true
             anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
 
             Workspaces {
                 id: workspacesWidget
@@ -128,48 +98,28 @@ Item { // Bar content region
             }
         }
 
-        MouseArea {
-            id: rightCenterGroup
+        BarGroup {
+            id: mediaCenterGroup
+            glass: true
+            glassWidth: width
+            glassHeight: height + mediaWidget.expansionProgress * (438 - height)
+            glassFrame.colorTarget: mediaWidget
+            glassFrame.color: Config.options.bar.showBackground ? Qt.rgba(
+                1 + (mediaWidget.glassTint.r - 1) * mediaWidget.expansionProgress,
+                1 + (mediaWidget.glassTint.g - 1) * mediaWidget.expansionProgress,
+                1 + (mediaWidget.glassTint.b - 1) * mediaWidget.expansionProgress,
+                0.035 + (mediaWidget.glassTintOpacity - 0.035) * mediaWidget.expansionProgress) : "transparent"
+            visible: root.useShortenedForm < 2
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: rightCenterRow.implicitWidth
-            implicitHeight: rightCenterRow.implicitHeight
+            x: (middleCenterGroup.x + middleCenterGroup.width + barRightSideMouseArea.x - width) / 2
+            implicitWidth: (root.useShortenedForm === 0 ? 240 : 115) * (1 - mediaWidget.expansionProgress) + 320 * mediaWidget.expansionProgress
 
-            onPressed: {
-                GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen;
-            }
-
-            Row {
-                id: rightCenterRow
-                anchors.fill: parent
-                spacing: 4
-
-                BarGroup {
-                    glass: true
-                    UtilButtons {
-                        id: utilityButtons
-                        visible: (Config.options.bar.verbose && root.useShortenedForm === 0)
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-
-                    BatteryIndicator {
-                        visible: (root.useShortenedForm < 2 && Battery.available)
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-
-                    GlassButton {
-                        statePalette: utilityButtons.statePalette
-                        Layout.alignment: Qt.AlignVCenter
-                        onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)}/.local/bin/wallpaper-next`])
-
-                        GlassIcon {
-                            text: "wallpaper_slideshow"
-                            iconSize: Appearance.font.pixelSize.large * 1.25
-                        }
-                    }
-                }
+            Media {
+                id: mediaWidget
+                glassFrame: mediaCenterGroup.glassFrame
+                Layout.fillWidth: true
             }
         }
-    }
 
     FocusedScrollMouseArea { // Right side | scroll to change volume
         id: barRightSideMouseArea
@@ -208,8 +158,8 @@ Item { // Bar content region
         RowLayout {
             id: rightSectionRowLayout
             anchors.fill: parent
-            anchors.leftMargin: 5
-            anchors.rightMargin: 5
+            anchors.leftMargin: 10
+            anchors.rightMargin: 10
             spacing: 5
             layoutDirection: Qt.RightToLeft
 
@@ -321,6 +271,33 @@ Item { // Bar content region
                 Layout.fillWidth: false
                 Layout.fillHeight: true
                 invertSide: Config?.options.bar.bottom
+            }
+
+            BatteryIndicator {
+                visible: root.useShortenedForm < 2 && Battery.available
+                Layout.alignment: Qt.AlignVCenter
+            }
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: 18
+                Layout.leftMargin: 4
+                Layout.rightMargin: 4
+                Layout.alignment: Qt.AlignVCenter
+                color: Qt.rgba(statusPalette.iconColor.r, statusPalette.iconColor.g, statusPalette.iconColor.b, 0.35)
+            }
+            UtilButtons {
+                id: utilityButtons
+                visible: Config.options.bar.verbose && root.useShortenedForm === 0
+                Layout.alignment: Qt.AlignVCenter
+            }
+            GlassButton {
+                statePalette: utilityButtons.statePalette
+                Layout.alignment: Qt.AlignVCenter
+                onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)}/.local/bin/wallpaper-next`])
+                GlassIcon {
+                    text: "wallpaper_slideshow"
+                    iconSize: Appearance.font.pixelSize.large * 1.25
+                }
             }
 
             // Weather

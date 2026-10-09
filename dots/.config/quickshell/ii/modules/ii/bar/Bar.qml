@@ -63,7 +63,6 @@ Scope {
                     Region { item: barContent.systemIsland }
                     Region { item: barContent.mediaIsland.visible ? barContent.mediaIsland : null }
                     Region { item: barContent.workspaceIsland }
-                    Region { item: barContent.buttonsIsland }
                     Region { item: barContent.statusIsland }
                     Region { item: Config.options.bar.autoHide.enable ? hoverMaskRegion : null }
                 }
