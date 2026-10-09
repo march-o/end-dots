@@ -238,7 +238,7 @@ enable_services() {
   sudo systemctl enable --now sshd.service
 }
 
-sudo pacman -S --needed --noconfirm wireguard-tools
+sudo pacman -S --needed --noconfirm wireguard-tools python-pillow
 
 install_zsh_plugins
 install_user_config
