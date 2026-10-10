@@ -20,6 +20,8 @@ Preserve the user's active window and workspace unless they explicitly ask to br
 hyprctl dispatch 'hl.dsp.focus({ window = "address:0x..." })'
 ```
 
+For browser computer-use focus stealing, inspect `hyprctl getoption misc:focus_on_activate -j` as well as the per-window activation rules. The laptop formerly disabled this setting inside its keyboard-only conditional, leaving the desktop at the upstream `true` default. Keep `focus_on_activate = false` outside that conditional in `custom/general.lua`, alongside Chrome/ChatGPT activation suppression in `custom/rules.lua`. Apply just the changed values through `hyprctl eval`, staging persistent files with autoreload temporarily disabled; avoid a compositor reload. Verify with a disposable browser tab: opening, clicking, and typing through the actual computer-use tool must leave the user's active window and workspace unchanged. Do not use `no_focus`, which would interfere with ordinary manual focus.
+
 On this Hyprland version, dispatchers use Lua syntax. To open a new window directly in a hidden workspace, install a named temporary rule with `workspace = "special:name silent"` and `no_initial_focus = true`. Keep its handle in a global Lua variable, then disable it after the window maps, without reloading or changing focus:
 
 ```sh

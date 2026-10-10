@@ -22,10 +22,13 @@ local laptop_keyboard = io.open(HOME .. "/.config/hypr/.laptop-keyboard", "r")
 if laptop_keyboard then
     laptop_keyboard:close()
     hl.config({
-        input = { kb_layout = "lv" },
-        misc = { focus_on_activate = false }
+        input = { kb_layout = "lv" }
     })
 end
+
+-- Background app activation must not switch the user's window or workspace.
+-- This applies to desktop computer use as well as the laptop.
+hl.config({ misc = { focus_on_activate = false } })
 
 -- Workspace navigation is vertical to match Super+Up/Down.
 hl.animation({
