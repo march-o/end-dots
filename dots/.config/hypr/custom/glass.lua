@@ -40,3 +40,24 @@ hg.config({
     },
 })
 hg.layer("quickshell:bar", { mask_threshold = 0.01, mask_mode = "alpha" })
+
+-- A separate cached blur for browser/chat windows; other windows stay native.
+hg.preset("app_frost", {
+    blur_strength = 1.5,
+    blur_iterations = 1,
+    refraction_strength = 0.0,
+    lens_distortion = 0.0,
+    chromatic_aberration = 0.0,
+    fresnel_strength = 0.0,
+    specular_strength = 0.0,
+    glass_opacity = 1.0,
+    tint_color = 0x00000000,
+    dark = { brightness = 1.0, contrast = 1.0, saturation = 1.0,
+        vibrancy = 0.0, adaptive_dim = 0.0, adaptive_boost = 0.0 },
+    light = { brightness = 1.0, contrast = 1.0, saturation = 1.0,
+        vibrancy = 0.0, adaptive_dim = 0.0, adaptive_boost = 0.0 },
+})
+local app_class = "^(google-chrome|Chatgpt|ChatGPT|chatgpt)$"
+hl.window_rule({ match = { class = app_class }, tag = "+hyprglass_enabled" })
+hl.window_rule({ match = { class = app_class }, tag = "+hyprglass_preset_app_frost", no_blur = true })
+hl.window_rule({ match = { class = app_class, fullscreen = true }, tag = "+hyprglass_disabled" })

@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -74,7 +75,7 @@ Item {
                 visible: root.node?.audio.muted ?? false
                 text: root.node?.isSink ? "volume_off" : "mic_off"
                 iconSize: 22
-                color: Appearance.colors.colOnLayer1
+                color: SidebarColors.colors.colOnLayer1
             }
         }
 
@@ -85,7 +86,7 @@ Item {
             StyledText {
                 Layout.fillWidth: true
                 font.pixelSize: Appearance.font.pixelSize.small
-                color: Appearance.colors.colSubtext
+                color: SidebarColors.colors.colSubtext
                 elide: Text.ElideRight
                 text: {
                     // application.name -> description -> name

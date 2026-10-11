@@ -37,11 +37,11 @@ Button {
     implicitHeight: (root.down && bounce) ? clickedHeight : baseHeight
 
     property color colBackground: ColorUtils.transparentize(colBackgroundHover, 1) || "transparent"
-    property color colBackgroundHover: Appearance?.colors.colLayer1Hover ?? "#E5DFED"
-    property color colBackgroundActive: Appearance?.colors.colLayer1Active ?? "#D6CEE2"
-    property color colBackgroundToggled: Appearance?.colors.colPrimary ?? "#65558F"
-    property color colBackgroundToggledHover: Appearance?.colors.colPrimaryHover ?? "#77699C"
-    property color colBackgroundToggledActive: Appearance?.colors.colPrimaryActive ?? "#D6CEE2"
+    property color colBackgroundHover: ScopedColors.forItem(root).colLayer1Hover ?? "#E5DFED"
+    property color colBackgroundActive: ScopedColors.forItem(root).colLayer1Active ?? "#D6CEE2"
+    property color colBackgroundToggled: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colPrimary ?? "#65558F")
+    property color colBackgroundToggledHover: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colPrimaryHover ?? "#77699C")
+    property color colBackgroundToggledActive: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colPrimaryActive ?? "#D6CEE2")
 
     property real radius: root.down ? root.buttonRadiusPressed : root.buttonRadius
     property real leftRadius: root.down ? root.buttonRadiusPressed : root.buttonRadius
@@ -132,7 +132,7 @@ Button {
         }
 
         border.width: root.tabbedTo ? 2 : 0
-        border.color: Appearance.colors.colSecondary
+        border.color: ScopedColors.forItem(root).colSecondary
     }
 
     contentItem: StyledText {

@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -18,7 +19,7 @@ QuickToggleButton {
         width: 16
         height: 16
         colorize: true
-        color: root.toggled ? Appearance.m3colors.m3onPrimary : Appearance.colors.colOnLayer1
+        color: root.toggled ? SidebarColors.m3colors.m3onPrimary : SidebarColors.colors.colOnLayer1
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)

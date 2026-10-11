@@ -17,20 +17,20 @@ Button {
     property real buttonRadiusPressed: buttonRadius
     property real buttonEffectiveRadius: root.down ? root.buttonRadiusPressed : root.buttonRadius
     property int rippleDuration: 1200
-    property bool rippleEnabled: true
+    property bool rippleEnabled: !ScopedColors.isGlass(root)
     property var downAction // When left clicking (down)
     property var releaseAction // When left clicking (release)
     property var altAction // When right clicking
     property var middleClickAction // When middle clicking
 
-    property color colBackground: ColorUtils.transparentize(Appearance?.colors.colLayer1Hover, 1) || "transparent"
-    property color colBackgroundHover: Appearance?.colors.colLayer1Hover ?? "#E5DFED"
-    property color colBackgroundToggled: Appearance?.colors.colPrimary ?? "#65558F"
-    property color colBackgroundToggledHover: Appearance?.colors.colPrimaryHover ?? "#77699C"
-    property color colRipple: Appearance?.colors.colLayer1Active ?? "#D6CEE2"
-    property color colRippleToggled: Appearance?.colors.colPrimaryActive ?? "#D6CEE2"
+    property color colBackground: ColorUtils.transparentize(ScopedColors.forItem(root).colLayer1Hover, 1) || "transparent"
+    property color colBackgroundHover: ScopedColors.forItem(root).colLayer1Hover ?? "#E5DFED"
+    property color colBackgroundToggled: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colPrimary ?? "#65558F")
+    property color colBackgroundToggledHover: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colPrimaryHover ?? "#77699C")
+    property color colRipple: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colLayer1Active ?? "#D6CEE2")
+    property color colRippleToggled: ScopedColors.isGlass(root) ? "transparent" : (ScopedColors.forItem(root).colPrimaryActive ?? "#D6CEE2")
 
-    opacity: root.enabled ? 1 : 0.4
+    opacity: ScopedColors.isGlass(root) ? 1 : (root.enabled ? 1 : 0.4)
     property color buttonColor: ColorUtils.transparentize(root.toggled ? 
         (root.hovered ? colBackgroundToggledHover : 
             colBackgroundToggled) :

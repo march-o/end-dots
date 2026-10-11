@@ -16,9 +16,9 @@ RippleButton { // Expand button
     Layout.fillHeight: false
 
     buttonRadius: Appearance.rounding.full
-    colBackground: ColorUtils.mix(Appearance?.colors.colLayer2, Appearance?.colors.colLayer2Hover, 0.5)
-    colBackgroundHover: Appearance?.colors.colLayer2Hover ?? "#E5DFED"
-    colRipple: Appearance?.colors.colLayer2Active ?? "#D6CEE2"
+    colBackground: ColorUtils.mix(ScopedColors.forItem(root).colLayer2, ScopedColors.forItem(root).colLayer2Hover, 0.5)
+    colBackgroundHover: ScopedColors.forItem(root).colLayer2Hover ?? "#E5DFED"
+    colRipple: ScopedColors.forItem(root).colLayer2Active ?? "#D6CEE2"
 
     contentItem: Item {
         anchors.centerIn: parent
@@ -36,7 +36,7 @@ RippleButton { // Expand button
             MaterialSymbol {
                 text: "keyboard_arrow_down"
                 iconSize: root.iconSize
-                color: Appearance.colors.colOnLayer2
+                color: ScopedColors.forItem(root).colOnLayer2
                 rotation: expanded ? 180 : 0
                 Behavior on rotation {
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)

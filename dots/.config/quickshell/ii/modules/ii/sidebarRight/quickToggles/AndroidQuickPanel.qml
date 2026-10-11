@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -122,7 +123,7 @@ AbstractQuickPanel {
             }
             sourceComponent: Rectangle {
                 implicitHeight: 1
-                color: Appearance.colors.colOutlineVariant
+                color: SidebarColors.colors.colOutlineVariant
             }
         }
 

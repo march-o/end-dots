@@ -5,8 +5,9 @@ import qs.modules.common.functions
 import qs.modules.common.widgets
 
 StyledText {
+    id: root
     text: "Dialog Title"
-    color: Appearance.colors.colOnSurface
+    color: ScopedColors.forItem(root).colOnSurface
     wrapMode: Text.Wrap
     font {
         family: Appearance.font.family.title

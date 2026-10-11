@@ -12,13 +12,13 @@ RippleButton {
     leftPadding: 15
     rightPadding: 15
     buttonRadius: Appearance.rounding.small
-    colBackground: (urgency == NotificationUrgency.Critical) ? Appearance.colors.colSecondaryContainer : Appearance.colors.colLayer4
-    colBackgroundHover: (urgency == NotificationUrgency.Critical) ? Appearance.colors.colSecondaryContainerHover : Appearance.colors.colLayer4Hover
-    colRipple: (urgency == NotificationUrgency.Critical) ? Appearance.colors.colSecondaryContainerActive : Appearance.colors.colLayer4Active
+    colBackground: (urgency == NotificationUrgency.Critical) ? ScopedColors.forItem(button).colSecondaryContainer : ScopedColors.forItem(button).colLayer4
+    colBackgroundHover: (urgency == NotificationUrgency.Critical) ? ScopedColors.forItem(button).colSecondaryContainerHover : ScopedColors.forItem(button).colLayer4Hover
+    colRipple: (urgency == NotificationUrgency.Critical) ? ScopedColors.forItem(button).colSecondaryContainerActive : ScopedColors.forItem(button).colLayer4Active
 
     contentItem: StyledText {
         horizontalAlignment: Text.AlignHCenter
         text: buttonText
-        color: (urgency == NotificationUrgency.Critical) ? Appearance.m3colors.m3onSurfaceVariant : Appearance.m3colors.m3onSurface
+        color: (urgency == NotificationUrgency.Critical) ? ScopedColors.m3ForItem(button).m3onSurfaceVariant : ScopedColors.m3ForItem(button).m3onSurface
     }
 }

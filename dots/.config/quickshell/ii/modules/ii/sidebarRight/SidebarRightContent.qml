@@ -1,6 +1,7 @@
 import qs
 import qs.services
 import qs.modules.common
+import qs.modules.ii.bar
 import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Controls
@@ -19,6 +20,8 @@ import qs.modules.ii.sidebarRight.wifiNetworks
 
 Item {
     id: root
+    readonly property var glassColors: SidebarColors.colors
+    readonly property var glassM3Colors: SidebarColors.m3colors
     property int sidebarWidth: Appearance.sizes.sidebarWidth
     property int sidebarPadding: 10
     property string settingsQmlPath: Quickshell.shellPath("settings.qml")
@@ -44,19 +47,15 @@ Item {
     implicitHeight: sidebarRightBackground.implicitHeight
     implicitWidth: sidebarRightBackground.implicitWidth
 
-    StyledRectangularShadow {
-        target: sidebarRightBackground
-    }
-    Rectangle {
+    BarGlassIsland {
         id: sidebarRightBackground
+        wallpaperAmount: 1
+        wallpaperNamespace: "quickshell:sidebarRight"
 
         anchors.fill: parent
         implicitHeight: parent.height - Appearance.sizes.hyprlandGapsOut * 2
         implicitWidth: sidebarWidth - Appearance.sizes.hyprlandGapsOut * 2
-        color: Appearance.colors.colLayer0
-        border.width: 1
-        border.color: Appearance.colors.colLayer0Border
-        radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
+        radius: BarGeometry.cornerRadius
 
         ColumnLayout {
             anchors.fill: parent
@@ -217,7 +216,7 @@ Item {
                 bottom: parent.bottom
                 left: parent.left
             }
-            color: Appearance.colors.colLayer1
+            color: SidebarColors.colors.colLayer1
             radius: height / 2
             implicitWidth: uptimeRow.implicitWidth + 24
             implicitHeight: uptimeRow.implicitHeight + 8
@@ -233,12 +232,12 @@ Item {
                     height: 25
                     source: SystemInfo.distroIcon
                     colorize: true
-                    color: Appearance.colors.colOnLayer0
+                    color: SidebarColors.colors.colOnLayer0
                 }
                 StyledText {
                     anchors.verticalCenter: parent.verticalCenter
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    color: Appearance.colors.colOnLayer0
+                    color: SidebarColors.colors.colOnLayer0
                     text: Translation.tr("Up %1").arg(DateTime.uptime)
                     textFormat: Text.MarkdownText
                 }
@@ -252,7 +251,7 @@ Item {
                 bottom: parent.bottom
                 right: parent.right
             }
-            color: Appearance.colors.colLayer1
+            color: SidebarColors.colors.colLayer1
             padding: 4
 
             QuickToggleButton {

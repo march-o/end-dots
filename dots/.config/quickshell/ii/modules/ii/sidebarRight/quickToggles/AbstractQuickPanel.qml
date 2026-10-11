@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import QtQuick
 import qs.modules.common
 
@@ -5,7 +6,7 @@ Rectangle {
     id: root
 
     radius: Appearance.rounding.normal
-    color: Appearance.colors.colLayer1
+    color: SidebarColors.colors.colLayer1
 
     signal openAudioOutputDialog()
     signal openAudioInputDialog()

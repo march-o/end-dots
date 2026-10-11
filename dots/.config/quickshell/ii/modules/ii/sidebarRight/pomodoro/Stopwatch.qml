@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -53,7 +54,7 @@ Item {
             StyledText {
                 // Layout.preferredWidth: elapsedIndicator.width * 0.6 // Prevent shakiness
                 font.pixelSize: 40
-                color: Appearance.m3colors.m3onSurface
+                color: SidebarColors.m3colors.m3onSurface
                 text: {
                     let totalSeconds = Math.floor(TimerService.stopwatchTime) / 100
                     let minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
@@ -64,7 +65,7 @@ Item {
             StyledText {
                 Layout.fillWidth: true
                 font.pixelSize: 40
-                color: Appearance.colors.colSubtext
+                color: SidebarColors.colors.colSubtext
                 text: {
                     return `:<sub>${(Math.floor(TimerService.stopwatchTime) % 100).toString().padStart(2, '0')}</sub>`
                 }
@@ -99,7 +100,7 @@ Item {
                 width: lapsList.width
                 implicitHeight: lapRow.implicitHeight + verticalPadding * 2
                 implicitWidth: lapRow.implicitWidth + horizontalPadding * 2
-                color: Appearance.colors.colLayer2
+                color: SidebarColors.colors.colLayer2
                 radius: Appearance.rounding.small
 
                 RowLayout {
@@ -114,7 +115,7 @@ Item {
 
                     StyledText {
                         font.pixelSize: Appearance.font.pixelSize.small
-                        color: Appearance.colors.colSubtext
+                        color: SidebarColors.colors.colSubtext
                         text: `${TimerService.stopwatchLaps.length - lapItem.index}.`
                     }
 
@@ -134,7 +135,7 @@ Item {
 
                     StyledText {
                         font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: Appearance.colors.colPrimary
+                        color: SidebarColors.colors.colPrimary
                         text: {
                             const originalIndex = TimerService.stopwatchLaps.length - lapItem.index - 1
                             const lastTime = originalIndex > 0 ? TimerService.stopwatchLaps[originalIndex - 1] : 0
@@ -168,13 +169,13 @@ Item {
                     TimerService.toggleStopwatch()
                 }
 
-                colBackground: TimerService.stopwatchRunning ? Appearance.colors.colSecondaryContainer : Appearance.colors.colPrimary 
-                colBackgroundHover: TimerService.stopwatchRunning ? Appearance.colors.colSecondaryContainerHover : Appearance.colors.colPrimaryHover 
-                colRipple: TimerService.stopwatchRunning ? Appearance.colors.colSecondaryContainerActive : Appearance.colors.colPrimaryActive 
+                colBackground: TimerService.stopwatchRunning ? SidebarColors.colors.colSecondaryContainer : SidebarColors.colors.colPrimary
+                colBackgroundHover: TimerService.stopwatchRunning ? SidebarColors.colors.colSecondaryContainerHover : SidebarColors.colors.colPrimaryHover
+                colRipple: TimerService.stopwatchRunning ? SidebarColors.colors.colSecondaryContainerActive : SidebarColors.colors.colPrimaryActive
 
                 contentItem: StyledText {
                     horizontalAlignment: Text.AlignHCenter
-                    color: TimerService.stopwatchRunning ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colOnPrimary
+                    color: TimerService.stopwatchRunning ? SidebarColors.colors.colOnSecondaryContainer : SidebarColors.colors.colOnPrimary
                     text: TimerService.stopwatchRunning ? Translation.tr("Pause") : TimerService.stopwatchTime === 0 ? Translation.tr("Start") : Translation.tr("Resume")
                 }
             }
@@ -192,14 +193,14 @@ Item {
                 }
                 enabled: TimerService.stopwatchTime > 0 || Persistent.states.timer.stopwatch.laps.length > 0
 
-                colBackground: TimerService.stopwatchRunning ? Appearance.colors.colLayer2 : Appearance.colors.colErrorContainer
-                colBackgroundHover: TimerService.stopwatchRunning ? Appearance.colors.colLayer2Hover : Appearance.colors.colErrorContainerHover
-                colRipple: TimerService.stopwatchRunning ? Appearance.colors.colLayer2Active : Appearance.colors.colErrorContainerActive
+                colBackground: TimerService.stopwatchRunning ? SidebarColors.colors.colLayer2 : SidebarColors.colors.colErrorContainer
+                colBackgroundHover: TimerService.stopwatchRunning ? SidebarColors.colors.colLayer2Hover : SidebarColors.colors.colErrorContainerHover
+                colRipple: TimerService.stopwatchRunning ? SidebarColors.colors.colLayer2Active : SidebarColors.colors.colErrorContainerActive
 
                 contentItem: StyledText {
                     horizontalAlignment: Text.AlignHCenter
                     text: TimerService.stopwatchRunning ? Translation.tr("Lap") : Translation.tr("Reset")
-                    color: TimerService.stopwatchRunning ? Appearance.colors.colOnLayer2 : Appearance.colors.colOnErrorContainer
+                    color: TimerService.stopwatchRunning ? SidebarColors.colors.colOnLayer2 : SidebarColors.colors.colOnErrorContainer
                 }
             }
         }

@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import QtQuick
 import QtQuick.Layouts
 import qs.services
@@ -59,14 +60,18 @@ GroupButton {
     horizontalPadding: padding
     verticalPadding: padding
 
-    colBackground: Appearance.colors.colLayer2
-    colBackgroundToggled: (altAction && expandedSize) ? Appearance.colors.colLayer2 : Appearance.colors.colPrimary
-    colBackgroundToggledHover: (altAction && expandedSize) ? Appearance.colors.colLayer2Hover : Appearance.colors.colPrimaryHover
-    colBackgroundToggledActive: (altAction && expandedSize) ? Appearance.colors.colLayer2Active : Appearance.colors.colPrimaryActive
+    colBackground: "transparent"
+    colBackgroundToggled: "transparent"
+    colBackgroundToggledHover: "transparent"
+    colBackgroundToggledActive: "transparent"
     buttonRadius: toggled ? Appearance.rounding.large : height / 2
     buttonRadiusPressed: Appearance.rounding.normal
-    property color colText: (toggled && !(altAction && expandedSize) && enabled) ? Appearance.colors.colOnPrimary : ColorUtils.transparentize(Appearance.colors.colOnLayer2, enabled ? 0 : 0.7)
-    property color colIcon: expandedSize ? ((root.toggled) ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer3) : colText
+    readonly property var iconStates: SidebarColors.states
+    readonly property var colorStates: SidebarColors.textStates
+    property color colText: toggled
+        ? (hovered ? colorStates.onHover : colorStates.on)
+        : (hovered ? colorStates.offHover : colorStates.off)
+    property color colIcon: colText
 
     onClicked: {
         if (root.expandedSize && root.altAction) root.altAction();
@@ -103,11 +108,7 @@ GroupButton {
                 anchors.fill: parent
                 implicitWidth: height
                 radius: root.radius - root.verticalPadding
-                color: {
-                    const baseColor = root.toggled ? Appearance.colors.colPrimary : Appearance.colors.colLayer3
-                    const transparentizeAmount = (root.altAction && root.expandedSize) ? 0 : 1
-                    return ColorUtils.transparentize(baseColor, transparentizeAmount)
-                }
+                color: "transparent"
 
                 Behavior on radius {
                     animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
@@ -120,7 +121,9 @@ GroupButton {
                     anchors.centerIn: parent
                     fill: root.toggled ? 1 : 0
                     iconSize: root.expandedSize ? 22 : 24
-                    color: root.colIcon
+                    color: root.toggled
+                        ? (iconMouseArea.containsMouse ? root.iconStates.onHover : root.iconStates.on)
+                        : (iconMouseArea.containsMouse ? root.iconStates.offHover : root.iconStates.off)
                     text: root.buttonIcon
                 }
 
@@ -130,7 +133,7 @@ GroupButton {
                     active: (root.expandedSize && root.altAction)
                     sourceComponent: Rectangle {
                         radius: iconBackground.radius
-                        color: ColorUtils.transparentize(root.colIcon, iconMouseArea.containsPress ? 0.88 : iconMouseArea.containsMouse ? 0.95 : 1)
+                        color: "transparent"
                         Behavior on color {
                             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
                         }

@@ -52,6 +52,18 @@ Singleton {
 
     // Convenient stuff
 
+    function monitorHasFullscreen(screenName) {
+        const monitor = root.monitors.find(m => m.name === screenName);
+        if (!monitor) return false;
+        const visibleWorkspaces = [monitor.activeWorkspace?.id, monitor.specialWorkspace?.id]
+            .filter(id => Number.isFinite(id) && id !== 0);
+        return root.windowList.some(window => window.monitor === monitor.id
+            && window.mapped !== false && window.hidden !== true
+            && (window.pinned || visibleWorkspaces.includes(window.workspace?.id))
+            // Hyprland uses 1 for maximized and 2 for actual fullscreen.
+            && (window.fullscreen & 2) !== 0);
+    }
+
     function toplevelsForWorkspace(workspace) {
         return ToplevelManager.toplevels.values.filter(toplevel => {
             const address = `0x${toplevel.HyprlandToplevel?.address}`;

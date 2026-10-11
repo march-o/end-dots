@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -40,19 +41,19 @@ Item {
                         return `${minutes}:${seconds}`;
                     }
                     font.pixelSize: 40
-                    color: Appearance.m3colors.m3onSurface
+                    color: SidebarColors.m3colors.m3onSurface
                 }
                 StyledText {
                     Layout.alignment: Qt.AlignHCenter
                     text: TimerService.pomodoroLongBreak ? Translation.tr("Long break") : TimerService.pomodoroBreak ? Translation.tr("Break") : Translation.tr("Focus")
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    color: Appearance.colors.colSubtext
+                    color: SidebarColors.colors.colSubtext
                 }
             }
 
             Rectangle {
                 radius: Appearance.rounding.full
-                color: Appearance.colors.colLayer2
+                color: SidebarColors.colors.colLayer2
                 
                 anchors {
                     right: parent.right
@@ -64,7 +65,7 @@ Item {
                 StyledText {
                     id: cycleText
                     anchors.centerIn: parent
-                    color: Appearance.colors.colOnLayer2
+                    color: SidebarColors.colors.colOnLayer2
                     text: TimerService.pomodoroCycle + 1
                 }
             }
@@ -80,14 +81,14 @@ Item {
                     anchors.centerIn: parent
                     horizontalAlignment: Text.AlignHCenter
                     text: TimerService.pomodoroRunning ? Translation.tr("Pause") : (TimerService.pomodoroSecondsLeft === TimerService.focusTime) ? Translation.tr("Start") : Translation.tr("Resume")
-                    color: TimerService.pomodoroRunning ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colOnPrimary
+                    color: TimerService.pomodoroRunning ? SidebarColors.colors.colOnSecondaryContainer : SidebarColors.colors.colOnPrimary
                 }
                 implicitHeight: 35
                 implicitWidth: 90
                 font.pixelSize: Appearance.font.pixelSize.larger
                 onClicked: TimerService.togglePomodoro()
-                colBackground: TimerService.pomodoroRunning ? Appearance.colors.colSecondaryContainer : Appearance.colors.colPrimary
-                colBackgroundHover: TimerService.pomodoroRunning ? Appearance.colors.colSecondaryContainer : Appearance.colors.colPrimary
+                colBackground: TimerService.pomodoroRunning ? SidebarColors.colors.colSecondaryContainer : SidebarColors.colors.colPrimary
+                colBackgroundHover: TimerService.pomodoroRunning ? SidebarColors.colors.colSecondaryContainer : SidebarColors.colors.colPrimary
             }
 
             RippleButton {
@@ -98,15 +99,15 @@ Item {
                 enabled: (TimerService.pomodoroSecondsLeft < TimerService.pomodoroLapDuration) || TimerService.pomodoroCycle > 0 || TimerService.pomodoroBreak
 
                 font.pixelSize: Appearance.font.pixelSize.larger
-                colBackground: Appearance.colors.colErrorContainer
-                colBackgroundHover: Appearance.colors.colErrorContainerHover
-                colRipple: Appearance.colors.colErrorContainerActive
+                colBackground: SidebarColors.colors.colErrorContainer
+                colBackgroundHover: SidebarColors.colors.colErrorContainerHover
+                colRipple: SidebarColors.colors.colErrorContainerActive
 
                 contentItem: StyledText {
                     anchors.centerIn: parent
                     horizontalAlignment: Text.AlignHCenter
                     text: Translation.tr("Reset")
-                    color: Appearance.colors.colOnErrorContainer
+                    color: SidebarColors.colors.colOnErrorContainer
                 }
             }
         }

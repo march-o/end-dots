@@ -11,6 +11,8 @@ Rectangle {
         frameColors.sampledBackground, 2)
     readonly property color tintColor: BarGlassPalette.glassTint
     property var seams: []
+    property real wallpaperAmount: 0
+    property string wallpaperNamespace: "quickshell:bar"
     readonly property real edgeWidth: 1.25
     readonly property color reflectionColor: Qt.rgba(
         0.34 + outlineColor.r * (1 - 0.34),
@@ -20,6 +22,17 @@ Rectangle {
     radius: Math.min(height / 2, BarGeometry.cornerRadius)
     border.width: Config.options.bar.showBackground ? edgeWidth : 0
     border.color: "transparent"
+
+    Loader {
+        anchors.fill: parent
+        active: root.wallpaperAmount > 0 && Config.options.bar.showBackground
+        opacity: root.wallpaperAmount
+        sourceComponent: GlassWallpaperBackdrop {
+            radius: root.radius
+            tint: root.tintColor
+            layerNamespace: root.wallpaperNamespace
+        }
+    }
 
     // One continuous beveled edge; no separate bright horizontal streaks.
     Canvas {

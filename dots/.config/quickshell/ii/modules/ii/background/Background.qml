@@ -132,6 +132,8 @@ Variants {
             // Wallpaper
             StyledImage {
                 id: wallpaper
+                Component.onCompleted: WallpaperScene.registerImage(bgRoot.modelData.name, wallpaper)
+                Component.onDestruction: WallpaperScene.unregisterImage(bgRoot.modelData.name, wallpaper)
                 visible: opacity > 0 && !blurLoader.active
                 // StyledImage retains the old frame while the next source loads.
                 // Keep it visible during Loading instead of flashing the layer below.

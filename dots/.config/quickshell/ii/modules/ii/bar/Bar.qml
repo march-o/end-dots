@@ -24,8 +24,9 @@ Scope {
         }
         LazyLoader {
             id: barLoader
-            active: GlobalStates.barOpen && !GlobalStates.screenLocked
             required property ShellScreen modelData
+            readonly property bool fullscreen: HyprlandData.monitorHasFullscreen(modelData?.name ?? "")
+            active: GlobalStates.barOpen && !GlobalStates.screenLocked && !fullscreen
             component: PanelWindow { // Bar window
                 id: barRoot
                 screen: barLoader.modelData

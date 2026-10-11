@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
@@ -18,15 +19,15 @@ RippleButton {
 
     background.anchors.fill: button
     buttonRadius: Appearance.rounding.full
-    colBackground: Appearance.colors.colLayer2
-    colBackgroundHover: Appearance.colors.colLayer2Hover
-    colRipple: Appearance.colors.colLayer2Active
+    colBackground: SidebarColors.colors.colLayer2
+    colBackgroundHover: SidebarColors.colors.colLayer2Hover
+    colRipple: SidebarColors.colors.colLayer2Active
 
     contentItem: StyledText {
         text: buttonText
         horizontalAlignment: Text.AlignHCenter
         font.pixelSize: Appearance.font.pixelSize.larger
-        color: Appearance.colors.colOnLayer1
+        color: SidebarColors.colors.colOnLayer1
     }
 
     StyledToolTip {

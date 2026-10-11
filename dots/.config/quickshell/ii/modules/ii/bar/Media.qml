@@ -18,10 +18,7 @@ Item {
     readonly property bool canChangeVolume: !!(activePlayer?.volumeSupported && activePlayer?.canControl)
     readonly property real volumeLevel: Math.max(0, Math.min(1, activePlayer?.volume ?? 0))
     property Item glassFrame
-    readonly property color glassTint: BarGlassPalette.darkestTone
-    readonly property real glassTintOpacity: 0.72
     property bool expanded: false
-    property bool expansionPending: false
     property real expansionProgress: expanded ? 1 : 0
     Behavior on expansionProgress { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
     WallpaperIconColor { id: localColors; target: root }
@@ -33,9 +30,8 @@ Item {
     implicitWidth: 240
     implicitHeight: 30
     function setVolume(value) { if (canChangeVolume) activePlayer.volume = Math.max(0, Math.min(1, value)) }
-    function finishExpansion() { if (expansionPending) { expansionPending = false; expanded = true } }
-    function closeCard() { expansionPending = false; expanded = false; openTimer.stop(); closeTimer.stop() }
-    Timer { id: openTimer; interval: 180; onTriggered: { root.expansionPending = true; card.captureBackdrop() } }
+    function closeCard() { expanded = false; openTimer.stop(); closeTimer.stop() }
+    Timer { id: openTimer; interval: 180; onTriggered: root.expanded = true }
     Timer { id: closeTimer; interval: 350; onTriggered: { if (!nameHover.hovered && !card.hovered) root.expanded = false } }
     RowLayout {
         opacity: 1 - root.expansionProgress
@@ -56,7 +52,7 @@ Item {
                 id: nameHover
                 onHoveredChanged: {
                     if (hovered) { closeTimer.stop(); openTimer.restart() }
-                    else { root.expansionPending = false; openTimer.stop(); closeTimer.restart() }
+                    else { openTimer.stop(); closeTimer.restart() }
                 }
             }
             Layout.fillWidth: true

@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -122,7 +123,7 @@ Item {
         Rectangle { // Scrim
             anchors.fill: parent
             radius: Appearance.rounding.small
-            color: Appearance.colors.colScrim
+            color: SidebarColors.colors.colScrim
             MouseArea {
                 hoverEnabled: true
                 anchors.fill: parent
@@ -139,7 +140,7 @@ Item {
             anchors.margins: root.dialogMargins
             implicitHeight: dialogColumnLayout.implicitHeight
 
-            color: Appearance.m3colors.m3surfaceContainerHigh
+            color: SidebarColors.m3colors.m3surfaceContainerHigh
             radius: Appearance.rounding.normal
 
             function addTask() {
@@ -161,7 +162,7 @@ Item {
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
                     Layout.alignment: Qt.AlignLeft
-                    color: Appearance.m3colors.m3onSurface
+                    color: SidebarColors.m3colors.m3onSurface
                     font.pixelSize: Appearance.font.pixelSize.larger
                     text: Translation.tr("Add task")
                 }
@@ -172,12 +173,12 @@ Item {
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
                     padding: 10
-                    color: activeFocus ? Appearance.m3colors.m3onSurface : Appearance.m3colors.m3onSurfaceVariant
+                    color: activeFocus ? SidebarColors.m3colors.m3onSurface : SidebarColors.m3colors.m3onSurfaceVariant
                     renderType: Text.NativeRendering
-                    selectedTextColor: Appearance.m3colors.m3onSecondaryContainer
-                    selectionColor: Appearance.colors.colSecondaryContainer
+                    selectedTextColor: SidebarColors.m3colors.m3onSecondaryContainer
+                    selectionColor: SidebarColors.colors.colSecondaryContainer
                     placeholderText: Translation.tr("Task description")
-                    placeholderTextColor: Appearance.m3colors.m3outline
+                    placeholderTextColor: SidebarColors.m3colors.m3outline
                     focus: root.showAddDialog
                     onAccepted: dialog.addTask()
 
@@ -185,13 +186,13 @@ Item {
                         anchors.fill: parent
                         radius: Appearance.rounding.verysmall
                         border.width: 2
-                        border.color: todoInput.activeFocus ? Appearance.colors.colPrimary : Appearance.m3colors.m3outline
+                        border.color: todoInput.activeFocus ? SidebarColors.colors.colPrimary : SidebarColors.m3colors.m3outline
                         color: "transparent"
                     }
 
                     cursorDelegate: Rectangle {
                         width: 1
-                        color: todoInput.activeFocus ? Appearance.colors.colPrimary : "transparent"
+                        color: todoInput.activeFocus ? SidebarColors.colors.colPrimary : "transparent"
                         radius: 1
                     }
                 }

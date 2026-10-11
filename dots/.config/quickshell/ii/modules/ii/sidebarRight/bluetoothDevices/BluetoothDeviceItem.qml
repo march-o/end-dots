@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.modules.common
 import qs.modules.common.functions
 import qs.modules.common.widgets
@@ -15,10 +16,10 @@ DialogListItem {
     altAction: () => expanded = !expanded
     
     component ActionButton: DialogButton {
-        colBackground: Appearance.colors.colPrimary
-        colBackgroundHover: Appearance.colors.colPrimaryHover
-        colRipple: Appearance.colors.colPrimaryActive
-        colText: Appearance.colors.colOnPrimary
+        colBackground: SidebarColors.colors.colPrimary
+        colBackgroundHover: SidebarColors.colors.colPrimaryHover
+        colRipple: SidebarColors.colors.colPrimaryActive
+        colText: SidebarColors.colors.colOnPrimary
     }
 
     contentItem: ColumnLayout {
@@ -37,7 +38,7 @@ DialogListItem {
             MaterialSymbol {
                 iconSize: Appearance.font.pixelSize.larger
                 text: Icons.getBluetoothDeviceMaterialSymbol(root.device?.icon || "")
-                color: Appearance.colors.colOnSurfaceVariant
+                color: SidebarColors.colors.colOnSurfaceVariant
             }
 
             ColumnLayout {
@@ -45,7 +46,7 @@ DialogListItem {
                 Layout.fillWidth: true
                 StyledText {
                     Layout.fillWidth: true
-                    color: Appearance.colors.colOnSurfaceVariant
+                    color: SidebarColors.colors.colOnSurfaceVariant
                     elide: Text.ElideRight
                     text: root.device?.name || Translation.tr("Unknown device")
                     textFormat: Text.PlainText
@@ -54,7 +55,7 @@ DialogListItem {
                     visible: (root.device?.connected || root.device?.paired) ?? false
                     Layout.fillWidth: true
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: Appearance.colors.colSubtext
+                    color: SidebarColors.colors.colSubtext
                     elide: Text.ElideRight
                     text: {
                         if (!root.device?.paired) return "";
@@ -69,7 +70,7 @@ DialogListItem {
             MaterialSymbol {
                 text: "keyboard_arrow_down"
                 iconSize: Appearance.font.pixelSize.larger
-                color: Appearance.colors.colOnLayer3
+                color: SidebarColors.colors.colOnLayer3
                 rotation: root.expanded ? 180 : 0
                 Behavior on rotation {
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -85,10 +86,10 @@ DialogListItem {
             }
             ActionButton {
                 readonly property bool p: root.device?.paired ?? false
-                colBackground: p ? Appearance.colors.colError : ColorUtils.transparentize(Appearance.colors.colLayer3, 1)
-                colBackgroundHover: p ? Appearance.colors.colErrorHover : ColorUtils.transparentize(Appearance.colors.colLayer3, 1)
-                colRipple: p ? Appearance.colors.colErrorActive : Appearance.colors.colLayer3Hover
-                colText: p ? Appearance.colors.colOnError : Appearance.colors.colPrimary
+                colBackground: p ? SidebarColors.colors.colError : ColorUtils.transparentize(SidebarColors.colors.colLayer3, 1)
+                colBackgroundHover: p ? SidebarColors.colors.colErrorHover : ColorUtils.transparentize(SidebarColors.colors.colLayer3, 1)
+                colRipple: p ? SidebarColors.colors.colErrorActive : SidebarColors.colors.colLayer3Hover
+                colText: p ? SidebarColors.colors.colOnError : SidebarColors.colors.colPrimary
 
                 buttonText: p ? Translation.tr("Forget") : Translation.tr("Always connect")
                 onClicked: {

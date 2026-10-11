@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
@@ -14,10 +15,10 @@ GroupButton {
 
     buttonRadius: baseHeight / 2
     buttonRadiusPressed: Appearance.rounding.small
-    colBackground: Appearance.colors.colLayer2
-    colBackgroundHover: Appearance.colors.colLayer2Hover
-    colBackgroundActive: Appearance.colors.colLayer2Active
-    property color colText: toggled ? Appearance.m3colors.m3onPrimary : Appearance.colors.colOnLayer1
+    colBackground: SidebarColors.colors.colLayer2
+    colBackgroundHover: SidebarColors.colors.colLayer2Hover
+    colBackgroundActive: SidebarColors.colors.colLayer2Active
+    property color colText: toggled ? SidebarColors.m3colors.m3onPrimary : SidebarColors.colors.colOnLayer1
 
     contentItem: Item {
         id: content

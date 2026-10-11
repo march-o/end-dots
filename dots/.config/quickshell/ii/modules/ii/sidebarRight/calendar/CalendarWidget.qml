@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -66,7 +67,7 @@ Item {
                     text: "chevron_left"
                     iconSize: Appearance.font.pixelSize.larger
                     horizontalAlignment: Text.AlignHCenter
-                    color: Appearance.colors.colOnLayer1
+                    color: SidebarColors.colors.colOnLayer1
                 }
             }
             CalendarHeaderButton {
@@ -78,7 +79,7 @@ Item {
                     text: "chevron_right"
                     iconSize: Appearance.font.pixelSize.larger
                     horizontalAlignment: Text.AlignHCenter
-                    color: Appearance.colors.colOnLayer1
+                    color: SidebarColors.colors.colOnLayer1
                 }
             }
         }

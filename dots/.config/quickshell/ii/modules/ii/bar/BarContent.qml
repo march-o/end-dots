@@ -111,11 +111,7 @@ Item { // Bar content region
         glassWidth: width
         glassHeight: height + mediaWidget.expansionProgress * (438 - height)
         glassFrame.colorTarget: mediaWidget
-        glassFrame.color: Config.options.bar.showBackground ? Qt.rgba(
-            glassFrame.tintColor.r + (mediaWidget.glassTint.r - glassFrame.tintColor.r) * mediaWidget.expansionProgress,
-            glassFrame.tintColor.g + (mediaWidget.glassTint.g - glassFrame.tintColor.g) * mediaWidget.expansionProgress,
-            glassFrame.tintColor.b + (mediaWidget.glassTint.b - glassFrame.tintColor.b) * mediaWidget.expansionProgress,
-            glassFrame.tintColor.a + (mediaWidget.glassTintOpacity - glassFrame.tintColor.a) * mediaWidget.expansionProgress) : "transparent"
+        glassFrame.wallpaperAmount: mediaWidget.expansionProgress
         visible: root.useShortenedForm < 2
         anchors.verticalCenter: parent.verticalCenter
         x: (middleCenterGroup.x + middleCenterGroup.width + barRightSideMouseArea.x - width) / 2

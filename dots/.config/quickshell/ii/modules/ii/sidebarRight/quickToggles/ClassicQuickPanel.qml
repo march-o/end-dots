@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -18,7 +19,7 @@ AbstractQuickPanel {
         id: buttonGroup
         spacing: 5
         padding: 5
-        color: Appearance.colors.colLayer1
+        color: SidebarColors.colors.colLayer1
 
         NetworkToggle {
             altAction: () => {

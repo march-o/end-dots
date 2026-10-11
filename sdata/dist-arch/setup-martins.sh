@@ -92,10 +92,51 @@ configure_quickshell_shell() {
       modules/common/models/WorkspaceModel.qml \
       modules/common/panels/lock/LockScreen.qml \
       modules/common/panels/lock/LockContext.qml \
+      modules/common/widgets/DialogButton.qml \
+      modules/common/widgets/GroupButton.qml \
+      modules/common/widgets/MaterialShapeWrappedMaterialSymbol.qml \
+      modules/common/widgets/NotificationItem.qml \
+      modules/common/widgets/PagePlaceholder.qml \
+      modules/common/widgets/RippleButton.qml \
+      modules/common/widgets/StyledSlider.qml \
+      modules/common/widgets/StyledText.qml \
+      modules/common/widgets/StyledTextArea.qml \
+      modules/common/widgets/WindowDialog.qml \
+      modules/common/widgets/WindowDialogTitle.qml \
+      modules/ii/sidebarRight/BottomWidgetGroup.qml \
+      modules/ii/sidebarRight/CenterWidgetGroup.qml \
+      modules/ii/sidebarRight/QuickSliders.qml \
+      modules/ii/sidebarRight/SidebarRightContent.qml \
+      modules/ii/sidebarRight/bluetoothDevices/BluetoothDeviceItem.qml \
+      modules/ii/sidebarRight/calendar/CalendarDayButton.qml \
+      modules/ii/sidebarRight/calendar/CalendarHeaderButton.qml \
+      modules/ii/sidebarRight/calendar/CalendarWidget.qml \
+      modules/ii/sidebarRight/notifications/NotificationStatusButton.qml \
+      modules/ii/sidebarRight/pomodoro/PomodoroTimer.qml \
+      modules/ii/sidebarRight/pomodoro/Stopwatch.qml \
+      modules/ii/sidebarRight/quickToggles/AbstractQuickPanel.qml \
+      modules/ii/sidebarRight/quickToggles/AndroidQuickPanel.qml \
+      modules/ii/sidebarRight/quickToggles/ClassicQuickPanel.qml \
+      modules/ii/sidebarRight/quickToggles/androidStyle/AndroidQuickToggleButton.qml \
+      modules/ii/sidebarRight/quickToggles/classicStyle/CloudflareWarp.qml \
+      modules/ii/sidebarRight/quickToggles/classicStyle/QuickToggleButton.qml \
+      modules/ii/sidebarRight/todo/TaskList.qml \
+      modules/ii/sidebarRight/todo/TodoItemActionButton.qml \
+      modules/ii/sidebarRight/todo/TodoWidget.qml \
+      modules/ii/sidebarRight/volumeMixer/AudioDeviceSelectorButton.qml \
+      modules/ii/sidebarRight/volumeMixer/VolumeMixerEntry.qml \
+      modules/ii/sidebarRight/wifiNetworks/WifiNetworkItem.qml \
+      modules/common/ScopedColors.qml \
+      modules/common/widgets/NotificationAppIcon.qml \
+      modules/common/widgets/NotificationActionButton.qml \
+      modules/common/widgets/NotificationGroupExpandButton.qml \
+      modules/common/widgets/NotificationGroup.qml \
+      modules/ii/sidebarRight/SidebarColors.qml \
       modules/ii/bar/Bar.qml \
       modules/ii/bar/BarContent.qml \
       modules/ii/bar/BarGroup.qml \
       modules/ii/bar/BarGeometry.qml \
+      modules/ii/bar/GlassWallpaperBackdrop.qml \
       modules/ii/bar/BarGlassIsland.qml \
       modules/ii/bar/BarGlassPalette.qml \
       modules/ii/bar/GlassIcon.qml \
@@ -133,6 +174,7 @@ configure_quickshell_shell() {
       modules/ii/lock/LockSurface.qml \
       modules/ii/wallpaperSelector/WallpaperSelectorContent.qml \
       modules/waffle/lock/WaffleLock.qml \
+      services/WallpaperScene.qml \
       services/HyprlandData.qml \
       services/Ai.qml \
       services/ai/GeminiApiStrategy.qml \

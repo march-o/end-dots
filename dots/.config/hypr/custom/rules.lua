@@ -2,6 +2,13 @@
 -- transparent background; later matching rules take precedence in Hyprland.
 hl.window_rule({ match = { class = "^kitty$" }, no_blur = false })
 
+-- Subtle app glass; fullscreen content stays opaque.
+hl.window_rule({
+    match = { class = "^(google-chrome|Chatgpt|ChatGPT|chatgpt)$" },
+    opacity = "0.94 override 0.94 override 1.0 override",
+    no_blur = false
+})
+
 -- Computer-use activity in Chrome or ChatGPT should not interrupt other windows.
 -- Explicit clicks and Hyprland focus commands still focus Chrome normally.
 hl.window_rule({
@@ -21,6 +28,9 @@ hl.window_rule({
 
 -- Blur the nearly transparent glass bar, including its background surface.
 hl.layer_rule({ match = { namespace = "^quickshell:bar$" }, blur = true, ignore_alpha = 0.01 })
+
+-- The right control panel uses the same translucent palette glass.
+hl.layer_rule({ match = { namespace = "^quickshell:sidebarRight$" }, blur = true, ignore_alpha = 0.01 })
 
 if is_file_exists(HOME .. "/.config/hypr/custom/glass.lua") then
     require("custom.glass")

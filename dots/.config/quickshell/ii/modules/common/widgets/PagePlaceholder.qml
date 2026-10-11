@@ -45,7 +45,7 @@ Item {
                 pixelSize: Appearance.font.pixelSize.larger
                 variableAxes: Appearance.font.variableAxes.title
             }
-            color: Appearance.m3colors.m3outline
+            color: ScopedColors.m3ForItem(root).m3outline
             horizontalAlignment: Text.AlignHCenter
         }
         StyledText {
@@ -53,7 +53,7 @@ Item {
             visible: description !== ""
             Layout.fillWidth: true
             font.pixelSize: Appearance.font.pixelSize.small
-            color: Appearance.m3colors.m3outline
+            color: ScopedColors.m3ForItem(root).m3outline
             horizontalAlignment: Text.AlignLeft
             wrapMode: Text.Wrap
         }

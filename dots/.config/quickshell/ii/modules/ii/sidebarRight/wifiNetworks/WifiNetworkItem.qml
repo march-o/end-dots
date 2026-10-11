@@ -1,3 +1,4 @@
+import qs.modules.ii.sidebarRight
 import qs
 import qs.modules.common
 import qs.modules.common.widgets
@@ -33,11 +34,11 @@ DialogListItem {
                 iconSize: Appearance.font.pixelSize.larger
                 property int strength: root.wifiNetwork?.strength ?? 0
                 text: strength > 80 ? "signal_wifi_4_bar" : strength > 60 ? "network_wifi_3_bar" : strength > 40 ? "network_wifi_2_bar" : strength > 20 ? "network_wifi_1_bar" : "signal_wifi_0_bar"
-                color: Appearance.colors.colOnSurfaceVariant
+                color: SidebarColors.colors.colOnSurfaceVariant
             }
             StyledText {
                 Layout.fillWidth: true
-                color: Appearance.colors.colOnSurfaceVariant
+                color: SidebarColors.colors.colOnSurfaceVariant
                 elide: Text.ElideRight
                 text: root.wifiNetwork?.ssid ?? Translation.tr("Unknown")
                 textFormat: Text.PlainText
@@ -46,7 +47,7 @@ DialogListItem {
                 visible: (root.wifiNetwork?.isSecure || root.wifiNetwork?.active) ?? false
                 text: root.wifiNetwork?.active ? "check" : Network.wifiConnectTarget === root.wifiNetwork ? "settings_ethernet" : "lock"
                 iconSize: Appearance.font.pixelSize.larger
-                color: Appearance.colors.colOnSurfaceVariant
+                color: SidebarColors.colors.colOnSurfaceVariant
             }
         }
 
@@ -101,9 +102,9 @@ DialogListItem {
                 DialogButton {
                     Layout.fillWidth: true
                     buttonText: Translation.tr("Open network portal")
-                    colBackground: Appearance.colors.colLayer4
-                    colBackgroundHover: Appearance.colors.colLayer4Hover
-                    colRipple: Appearance.colors.colLayer4Active
+                    colBackground: SidebarColors.colors.colLayer4
+                    colBackgroundHover: SidebarColors.colors.colLayer4Hover
+                    colRipple: SidebarColors.colors.colLayer4Active
                     onClicked: {
                         Network.openPublicWifiPortal()
                         GlobalStates.sidebarRightOpen = false
