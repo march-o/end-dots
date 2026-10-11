@@ -1,48 +1,50 @@
 # Chrome Control
 
-This is a small Chrome extension and local Unix-socket command tool for OpenCode.
-It uses Chrome's `tabs`, `windows`, and `scripting` APIs. It does not use Playwright,
-Chrome remote debugging, or the ChatGPT browser connector.
+This local extension and Unix-socket bridge controls Chrome through its `tabs`,
+`windows`, and `scripting` APIs. It does not use remote debugging or Playwright.
 
-The bridge server listens on `127.0.0.1:49376` only for the extension and on
-`~/.local/share/end-dots-martins/chrome-control.sock` for local commands. The generated token
-is stored at `~/.local/share/end-dots-martins/chrome-control-token` and copied into the
-extension's ignored `config.js`. The local socket and token are mode 0600.
+The bridge serves personal and work independently. Personal uses
+`~/.local/share/end-dots-martins/chrome-control.sock`; work uses
+`~/.local/share/end-dots-martins/chrome-control-work.sock`. Both extensions
+connect to `127.0.0.1:49376`. Tokens are generated separately at runtime in
+`~/.local/share/end-dots-martins/` and never belong in source control. The
+personal unpacked extension remains at
+`~/.local/share/end-dots-martins/chrome-control/extension`; the generated work
+extension is at `~/.local/share/end-dots-martins/work-extension`.
 
-The Arch install and update process installs the bridge, its user service,
-`~/.local/bin/chrome-control`, and the `chrome-automation` and `hyprland-windows`
-skills. To install only these pieces from the repository, run
-`bash sdata/dist-arch/install-chrome-control.sh`.
+Chrome profile mapping is recorded in `profiles.json`: personal is `Profile 1`
+and work is `Default`. The work directory is generated mapping data, not a
+credential or a profile database. Install/update copies only the bridge, service
+definition, and CLI; activation is handled separately. Installing never signs
+into an account or restarts Chrome. Profile availability depends on Chrome
+being open with that profile and its corresponding bridge extension connected.
 
-The installer also permits OpenCode to access this installed tool directory
-without prompting, while denying edits there.
+Load the personal unpacked extension through `chrome://extensions` as usual.
+For work, enable Developer mode in the work profile's `chrome://extensions`,
+choose **Load unpacked**, and select
+`~/.local/share/end-dots-martins/work-extension`. The two extension entries have
+distinct names and independently generated tokens. Extension installation does
+not sign into either account.
 
-The user service is:
-
-```sh
-systemctl --user enable --now chrome-control.service
-```
-
-In the **personal Chrome profile**, load the unpacked extension at
-`~/.local/share/end-dots-martins/chrome-control/extension` through `chrome://extensions`
-with Developer mode enabled. Chrome will ask for access to all sites, which is
-needed for general browser tasks. Do not install it in the work profile unless
-work-browser access is separately intended.
-
-Use the CLI from OpenCode:
+The legacy personal URL `/extension?token=…` still authenticates as personal.
+Requests without a `profile` default to personal. Set `"profile":"work"` to
+route through work; unknown or disconnected profiles fail closed.
 
 ```sh
 ~/.local/bin/chrome-control '{"action":"status"}'
 ~/.local/bin/chrome-control '{"action":"list"}'
-~/.local/bin/chrome-control '{"action":"open","url":"https://example.com"}'
+~/.local/bin/chrome-control '{"action":"status","profile":"work"}'
+~/.local/bin/chrome-control '{"action":"open","profile":"work","url":"https://example.com"}'
 ~/.local/bin/chrome-control '{"action":"snapshot","tabId":123}'
 ```
 
-Other commands are `navigate`, `click`, `fill`, and `close_tab`. `click` and
-`fill` take a CSS `selector` from the current page. `fill` also takes `value`.
-For sensitive values, pass JSON on standard input instead of a process argument.
-Snapshots return the top frame by default; add `"allFrames":true` only when
-content needed for a task is inside an iframe.
-
-Chrome's branded builds ignore the `--load-extension` command-line flag, so the
-unpacked extension has to be loaded once through Chrome's extension page.
+Other commands are `navigate`, `click`, `fill`, `press`, `reload`, and `close_tab`. `click`,
+`fill`, and `press` take a CSS `selector`; `fill` also takes `value`. `press`
+accepts only `Enter`, `Tab`, `Escape`, `ArrowUp`, `ArrowDown`, or `Space`, and
+dispatches DOM keyboard events without activating a window or sending OS input.
+Snapshots include unique selectors and accessible state, never input values.
+They return the top frame by default; add `"allFrames":true` to include iframe
+content. Use `npm test` for isolated WebSocket/Unix-socket and page-action tests.
+`reload` acknowledges first, then reloads only the Chrome Control extension;
+its extension-owned `maintenance/reload.html` is the one-time bootstrap page for
+an older already-loaded copy.

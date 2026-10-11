@@ -1,12 +1,27 @@
-import { BRIDGE_TOKEN } from './config.js';
+import * as bridgeConfig from './config.js';
+import { pageAction } from './page-action.js';
+import { scheduleRuntimeReload } from './reload-scheduler.js';
+
+const BRIDGE_TOKEN = bridgeConfig.BRIDGE_TOKEN;
+const bridgeProfile = bridgeConfig.BRIDGE_PROFILE || 'personal';
+const bridgePort = bridgeConfig.BRIDGE_PORT || 49376;
 
 let socket;
 function connect() {
   if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) return;
-  socket = new WebSocket(`ws://127.0.0.1:49376/extension?token=${encodeURIComponent(BRIDGE_TOKEN)}`);
+  const profile = bridgeProfile;
+  socket = new WebSocket(`ws://127.0.0.1:${bridgePort}/extension?token=${encodeURIComponent(BRIDGE_TOKEN)}${profile === 'personal' ? '' : `&profile=${encodeURIComponent(profile)}`}`);
   socket.onmessage = async event => {
     let command;
     try { command = JSON.parse(event.data); } catch { return; }
+    if (command.action === 'reload') {
+      try {
+        scheduleRuntimeReload({ id: command.id, send: response => socket.send(JSON.stringify(response)), reload: () => chrome.runtime.reload() });
+      } catch (error) {
+        socket.send(JSON.stringify({ id: command.id, ok: false, error: String(error.message || error) }));
+      }
+      return;
+    }
     try {
       const result = await run(command);
       socket.send(JSON.stringify({ id: command.id, ok: true, result }));
@@ -45,41 +60,20 @@ async function run(command) {
     }
     case 'snapshot':
     case 'click':
-    case 'fill': {
+    case 'fill':
+    case 'press': {
       const results = await chrome.scripting.executeScript({
         target: { tabId: command.tabId, allFrames: command.action === 'snapshot' },
         func: pageAction,
         args: [command],
       });
-      return results.map(r => ({ frameId: r.frameId, result: r.result }));
+      if (!Array.isArray(results) || results.length === 0) throw new Error('Chrome returned no page execution results');
+      return results.map(r => {
+        if (r.error) throw new Error(String(r.error.message || r.error));
+        if (r.result === null || r.result === undefined) throw new Error(`Page ${command.action} returned no result`);
+        return { frameId: r.frameId, result: r.result };
+      });
     }
     default: throw new Error(`Unknown action: ${command.action}`);
-  }
-}
-
-function pageAction(command) {
-  if (command.action === 'snapshot') {
-    const elements = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"]')]
-      .slice(0, 500).map((el, index) => ({
-        index,
-        tag: el.tagName.toLowerCase(),
-        role: el.getAttribute('role') || undefined,
-        text: (el.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 180),
-        selector: el.id ? `#${CSS.escape(el.id)}` : el.getAttribute('data-testid') ? `[data-testid="${CSS.escape(el.getAttribute('data-testid'))}"]` : undefined,
-        href: el.getAttribute('href') || undefined,
-        type: el.getAttribute('type') || undefined,
-      }));
-    return { url: location.href, title: document.title, text: (document.body?.innerText || '').slice(0, command.maxText || 30000), elements };
-  }
-  const el = command.selector ? document.querySelector(command.selector) : undefined;
-  if (!el) throw new Error('Element not found; provide a CSS selector from the current page');
-  if (command.action === 'click') { el.click(); return { clicked: command.selector }; }
-  if (command.action === 'fill') {
-    if (!('value' in el)) throw new Error('Element is not fillable');
-    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
-    if (setter) setter.call(el, command.value); else el.value = command.value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    return { filled: command.selector };
   }
 }

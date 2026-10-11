@@ -18,7 +18,7 @@ Item {
     required property Item media
     readonly property bool hovered: cardHover.hovered
     property bool devicesOpen: false
-    property var connectDevices: []
+    property var connectDevices: ["Living Room"]
     property string connectSource: ""
     property string connectError: ""
     property string requestedSource: ""
@@ -31,7 +31,15 @@ Item {
     function selectDevice(source) {
         if (connect.running) return
         root.requestedSource = source
+        root.connectError = ""
         connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "select", source]
+        connect.running = true
+    }
+    function playInLivingRoom() {
+        if (connect.running) return
+        root.requestedSource = "Living Room"
+        root.connectError = ""
+        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "play-room"]
         connect.running = true
     }
     Process {
@@ -43,6 +51,7 @@ Item {
                     if (data.ok) { root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = "" }
                     else root.connectError = data.error
                 } catch (e) { root.connectError = "Device connection unavailable" }
+                if (root.connectError && root.requestedSource) root.devicesOpen = true
                 if (root.connectError || root.connectSource === root.requestedSource) root.requestedSource = ""
             }
         }
@@ -153,6 +162,13 @@ Item {
                 spacing: 14
                 Rectangle {
                     id: artwork
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Open Spotify workspace"
+                    Accessible.onPressAction: root.media.openSpotifyWorkspace()
+                    Keys.onReturnPressed: root.media.openSpotifyWorkspace()
+                    Keys.onEnterPressed: root.media.openSpotifyWorkspace()
+                    Keys.onSpacePressed: root.media.openSpotifyWorkspace()
                     Layout.preferredWidth: 220.8
                     Layout.maximumWidth: 220.8
                     Layout.minimumWidth: 220.8
@@ -167,6 +183,11 @@ Item {
                     layer.effect: OpacityMask { maskSource: Rectangle { width: artwork.width; height: artwork.height; radius: artwork.radius } }
                     StyledImage { anchors.fill: parent; source: root.media.activePlayer?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop }
                     MaterialSymbol { anchors.centerIn: parent; visible: !root.media.activePlayer?.trackArtUrl; text: "music_note"; iconSize: 60; color: root.statePalette.off }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.media.openSpotifyWorkspace()
+                    }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -221,6 +242,25 @@ Item {
                     GlassIcon { text: "skip_next"; iconSize: 26 }
                 }
                 Item { Layout.fillWidth: true }
+                Item {
+                    implicitWidth: livingRoomControl.implicitWidth
+                    implicitHeight: livingRoomControl.implicitHeight
+                    GlassButton {
+                        id: livingRoomControl
+                        anchors.fill: parent
+                        statePalette: root.statePalette
+                        toggled: root.connectSource === "Living Room"
+                        enabled: !connect.running
+                        Accessible.name: "Play in Living Room"
+                        onClicked: root.playInLivingRoom()
+                        GlassIcon { text: "speaker"; iconSize: 24 }
+                    }
+                    PopupToolTip {
+                        extraVisibleCondition: livingRoomControl.hovered
+                        anchorEdges: Edges.Bottom
+                        text: "Play in Living Room"
+                    }
+                }
                 GlassButton {
                     id: deviceControl
                     statePalette: root.statePalette
@@ -229,7 +269,7 @@ Item {
                     GlassIcon { text: "devices"; iconSize: 24 }
                 }
             }
-            StyledText { id: footerText; text: root.localPlayback ? "LIVE AUDIO · LOCAL OUTPUT" : "AMBIENT · " + (root.connectSource || "REMOTE PLAYBACK").toUpperCase(); font.pixelSize: 8; font.letterSpacing: 0.6; color: root.textColor }
+            StyledText { id: footerText; text: root.requestedSource ? "CONNECTING · " + root.requestedSource.toUpperCase() : root.localPlayback ? "LIVE AUDIO · LOCAL OUTPUT" : "AMBIENT · " + (root.connectSource || "REMOTE PLAYBACK").toUpperCase(); font.pixelSize: 8; font.letterSpacing: 0.6; color: root.textColor }
         }
         Rectangle {
             anchors.fill: parent

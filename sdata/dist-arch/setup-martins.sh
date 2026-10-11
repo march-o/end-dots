@@ -70,12 +70,6 @@ install_app_launchers() {
   command -v update-desktop-database >/dev/null && update-desktop-database "$applications_dir"
 }
 
-install_user_skills() {
-  local skills_dir="$HOME/.agents/skills"
-  mkdir -p "$skills_dir/quickshell"
-  rsync -a --delete "$repo_root/sdata/dist-arch/skills/quickshell/" "$skills_dir/quickshell/"
-}
-
 configure_quickshell_shell() {
   local config="$HOME/.config/illogical-impulse/config.json"
   if [[ ! -f "$config" && "${LAPTOP:-0}" != "1" ]]; then
@@ -294,7 +288,6 @@ sudo pacman -S --needed --noconfirm wireguard-tools python-pillow
 install_zsh_plugins
 install_user_config
 install_app_launchers
-install_user_skills
 bash "$repo_root/sdata/dist-arch/install-chrome-control.sh"
 configure_quickshell_shell
 configure_codex

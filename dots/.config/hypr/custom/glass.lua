@@ -61,3 +61,6 @@ local app_class = "^(google-chrome|Chatgpt|ChatGPT|chatgpt)$"
 hl.window_rule({ match = { class = app_class }, tag = "+hyprglass_enabled" })
 hl.window_rule({ match = { class = app_class }, tag = "+hyprglass_preset_app_frost", no_blur = true })
 hl.window_rule({ match = { class = app_class, fullscreen = true }, tag = "+hyprglass_disabled" })
+-- Explicitly clear the fullscreen opt-out on return: a dynamic tag can linger
+-- after its adding rule stops matching, leaving Chrome unblurred.
+hl.window_rule({ match = { class = app_class, fullscreen = false }, tag = "-hyprglass_disabled" })

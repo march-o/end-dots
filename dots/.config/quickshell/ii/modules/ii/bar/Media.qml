@@ -7,6 +7,7 @@ import qs.modules.common.functions
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.Mpris
 
@@ -31,6 +32,26 @@ Item {
     implicitHeight: 30
     function setVolume(value) { if (canChangeVolume) activePlayer.volume = Math.max(0, Math.min(1, value)) }
     function closeCard() { expanded = false; openTimer.stop(); closeTimer.stop() }
+    function openSpotifyWorkspace() {
+        root.closeCard()
+        spotifyWorkspace.running = true
+    }
+    Process {
+        id: spotifyWorkspace
+        command: ["hyprctl", "monitors", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const monitor = JSON.parse(text).find(m => m.focused)
+                    // Opening the cover must not toggle an already visible Spotify away.
+                    if (monitor && monitor.specialWorkspace?.name !== "special:spotify")
+                        Hyprland.dispatch('hl.dsp.workspace.toggle_special("spotify")')
+                } catch (e) {
+                    console.warn("Unable to open Spotify workspace:", e)
+                }
+            }
+        }
+    }
     Timer { id: openTimer; interval: 180; onTriggered: root.expanded = true }
     Timer { id: closeTimer; interval: 350; onTriggered: { if (!nameHover.hovered && !card.hovered) root.expanded = false } }
     RowLayout {
@@ -42,6 +63,18 @@ Item {
         anchors.rightMargin: 5
         spacing: 8
         StyledImage {
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: "Open Spotify workspace"
+            Accessible.onPressAction: root.openSpotifyWorkspace()
+            Keys.onReturnPressed: root.openSpotifyWorkspace()
+            Keys.onEnterPressed: root.openSpotifyWorkspace()
+            Keys.onSpacePressed: root.openSpotifyWorkspace()
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.openSpotifyWorkspace()
+            }
             Layout.preferredWidth: 26
             Layout.preferredHeight: 26
             source: root.activePlayer?.trackArtUrl ?? ""
