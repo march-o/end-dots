@@ -43,7 +43,7 @@ hg.layer("quickshell:bar", { mask_threshold = 0.01, mask_mode = "alpha" })
 
 -- A separate cached blur for browser/chat windows; other windows stay native.
 hg.preset("app_frost", {
-    blur_strength = 1.5,
+    blur_strength = 2.5,
     blur_iterations = 1,
     refraction_strength = 0.0,
     lens_distortion = 0.0,

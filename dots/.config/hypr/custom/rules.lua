@@ -5,7 +5,7 @@ hl.window_rule({ match = { class = "^kitty$" }, no_blur = false })
 -- Subtle app glass; fullscreen content stays opaque.
 hl.window_rule({
     match = { class = "^(google-chrome|Chatgpt|ChatGPT|chatgpt)$" },
-    opacity = "0.94 override 0.94 override 1.0 override",
+    opacity = "0.96 override 0.96 override 1.0 override",
     no_blur = false
 })
 
