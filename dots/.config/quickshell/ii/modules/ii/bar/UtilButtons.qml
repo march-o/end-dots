@@ -17,8 +17,8 @@ Item {
     WallpaperIconColor { id: localPalette; target: root; rightPadding: 40 }
 
     property bool borderless: Config.options.bar.borderless
-    implicitWidth: rowLayout.implicitWidth + rowLayout.spacing * 2
-    implicitHeight: rowLayout.implicitHeight
+    implicitWidth: rowLayout.implicitWidth
+    implicitHeight: BarGeometry.buttonSize
 
     component UtilityButton: GlassButton {
         statePalette: root.statePalette
@@ -27,10 +27,13 @@ Item {
     RowLayout {
         id: rowLayout
 
-        spacing: 4
+        spacing: BarGeometry.spacing
         anchors.centerIn: parent
 
         Loader {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: BarGeometry.buttonSize
+            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showScreenSnip
             visible: Config.options.bar.utilButtons.showScreenSnip
             sourceComponent: UtilityButton {
@@ -40,12 +43,15 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 1
                     text: "screenshot_region"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
         }
 
         Loader {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: BarGeometry.buttonSize
+            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showScreenRecord
             visible: Config.options.bar.utilButtons.showScreenRecord
             sourceComponent: UtilityButton {
@@ -55,12 +61,15 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 1
                     text: "videocam"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
         }
 
         Loader {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: BarGeometry.buttonSize
+            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showColorPicker
             visible: Config.options.bar.utilButtons.showColorPicker
             sourceComponent: UtilityButton {
@@ -70,7 +79,7 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 1
                     text: "colorize"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
         }
@@ -89,7 +98,7 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: WireGuard.active ? 1 : 0
                     text: "vpn_lock"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                     opacity: WireGuard.busy ? 0.5 : 1
                 }
             }
@@ -114,7 +123,7 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 0
                     text: "tv_off"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
 
@@ -125,6 +134,9 @@ Item {
         }
 
         Loader {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: BarGeometry.buttonSize
+            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showMicToggle
             visible: Config.options.bar.utilButtons.showMicToggle
             sourceComponent: UtilityButton {
@@ -135,12 +147,15 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 0
                     text: Pipewire.defaultAudioSource?.audio?.muted ? "mic_off" : "mic"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
         }
 
         Loader {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: BarGeometry.buttonSize
+            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showDarkModeToggle
             visible: Config.options.bar.utilButtons.showDarkModeToggle
             sourceComponent: UtilityButton {
@@ -157,12 +172,15 @@ Item {
                     horizontalAlignment: Qt.AlignHCenter
                     fill: 0
                     text: Appearance.m3colors.darkmode ? "light_mode" : "dark_mode"
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
         }
 
         Loader {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: BarGeometry.buttonSize
+            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showPerformanceProfileToggle
             visible: Config.options.bar.utilButtons.showPerformanceProfileToggle
             sourceComponent: UtilityButton {
@@ -190,7 +208,7 @@ Item {
                         case PowerProfile.Balanced: return "airwave"
                         case PowerProfile.Performance: return "local_fire_department"
                     }
-                    iconSize: Appearance.font.pixelSize.large * 1.25
+                    iconSize: BarGeometry.iconSize
                 }
             }
         }

@@ -38,3 +38,8 @@ hl.animation({
     bezier = "menu_decel",
     style = "slidevert"
 })
+
+-- Active laptop streaming geometry must survive generated theme config reparses.
+if is_file_exists(HOME .. "/.cache/laptop-monitor/monitors.lua") then
+    dofile(HOME .. "/.cache/laptop-monitor/monitors.lua")
+end

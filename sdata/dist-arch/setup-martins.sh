@@ -36,6 +36,11 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/kitty/ssh.conf" "$HOME/.config/kitty/ssh.conf"
   sed -i -E "s/^font_size[[:space:]]+[0-9.]+$/font_size $DEVICE_KITTY_FONT_SIZE/" "$HOME/.config/kitty/kitty.conf"
   install -Dm644 "$repo_root/sdata/dist-arch/config/swappy.conf" "$HOME/.config/swappy/config"
+  install -Dm755 "$repo_root/sdata/dist-arch/bin/laptop-monitor" "$HOME/.local/bin/laptop-monitor"
+  if [[ ! -f "$HOME/.config/laptop-monitor/config.json" ]]; then
+    install -Dm644 "$repo_root/sdata/dist-arch/config/laptop-monitor.json" "$HOME/.config/laptop-monitor/config.json"
+  fi
+  "$HOME/.local/bin/laptop-monitor" configure-host
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/ash-desktop-state" "$HOME/.local/bin/ash-desktop-state"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
@@ -90,10 +95,12 @@ configure_quickshell_shell() {
       modules/ii/bar/Bar.qml \
       modules/ii/bar/BarContent.qml \
       modules/ii/bar/BarGroup.qml \
+      modules/ii/bar/BarGeometry.qml \
       modules/ii/bar/BarGlassIsland.qml \
       modules/ii/bar/BarGlassPalette.qml \
       modules/ii/bar/GlassIcon.qml \
       modules/ii/bar/GlassButton.qml \
+      modules/ii/bar/LaptopMonitorButton.qml \
       modules/ii/bar/WallpaperIconColor.qml \
       modules/ii/bar/ActiveWindow.qml \
       modules/ii/bar/LeftTimeWidget.qml \
@@ -163,6 +170,8 @@ configure_quickshell_shell() {
       .lock.security.unlockKeyring = false |
       .lock.blur.radius = 50 |
       .bar.cornerStyle = 1 |
+      .background.widgets.clock.style = "digital" |
+      .background.widgets.clock.styleLocked = "digital" |
       .appearance.fontScale = $quickshell_font_scale |
       if $launch_on_startup then
         .lock.launchOnStartup = true

@@ -14,7 +14,7 @@ MouseArea {
     required property SystemTrayItem item
     property bool targetMenuOpen: false
     property color sampledBackground: BarGlassPalette.dominant
-    property var statePalette: BarGlassPalette.buttonColors(BarGlassPalette.dominant)
+    property var statePalette: BarGlassPalette.islandButtonColors(BarGlassPalette.glassTint)
     property color iconColor: targetMenuOpen
         ? (containsMouse ? statePalette.onHover : statePalette.on)
         : (containsMouse ? statePalette.offHover : statePalette.off)

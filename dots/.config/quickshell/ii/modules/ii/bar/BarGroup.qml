@@ -9,7 +9,7 @@ Item {
     property real glassWidth: width
     property real glassHeight: height
     property alias glassFrame: background
-    property real padding: 5
+    property real padding: BarGeometry.groupPadding
     property color colBackground: "transparent"
     implicitWidth: vertical ? Appearance.sizes.baseVerticalBarWidth : (gridLayout.implicitWidth + padding * 2)
     implicitHeight: vertical ? (gridLayout.implicitHeight + padding * 2) : Appearance.sizes.baseBarHeight
@@ -22,9 +22,9 @@ Item {
         y: root.glass || root.vertical ? 0 : 4
         width: root.glass ? root.glassWidth : root.width - (root.vertical ? 8 : 0)
         height: root.glass ? root.glassHeight : root.height - (root.vertical ? 0 : 8)
-        color: root.glass && Config.options.bar.showBackground ? Qt.rgba(1, 1, 1, 0.035) : root.colBackground
-        radius: root.glass ? Math.min(height / 2, Appearance.rounding.windowRounding) : Appearance.rounding.small
-        border.width: root.glass && Config.options.bar.showBackground ? 2 : 0
+        color: root.glass && Config.options.bar.showBackground ? background.tintColor : root.colBackground
+        radius: root.glass ? Math.min(height / 2, BarGeometry.cornerRadius) : Appearance.rounding.small
+        border.width: root.glass && Config.options.bar.showBackground ? background.edgeWidth : 0
     }
 
     GridLayout {
@@ -39,7 +39,7 @@ Item {
             bottom: root.vertical ? parent.bottom : undefined
             margins: root.padding
         }
-        columnSpacing: 4
+        columnSpacing: BarGeometry.spacing
         rowSpacing: 12
     }
 }

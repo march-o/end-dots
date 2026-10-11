@@ -7,24 +7,20 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    implicitWidth: clockRow.implicitWidth + 20
+    implicitWidth: clockRow.implicitWidth
     implicitHeight: Appearance.sizes.baseBarHeight
+    readonly property real seamX: timeText.width + clockRow.spacing / 2
 
-    WallpaperIconColor { id: timeColors; target: timeText }
-    WallpaperIconColor { id: dateColors; target: dateText }
+    WallpaperIconColor { id: clockColors; target: root }
     property color textColor: GlobalStates.sidebarLeftOpen
-        ? (mouseArea.containsMouse ? timeColors.textStatePalette.onHover : timeColors.textStatePalette.on)
-        : (mouseArea.containsMouse ? timeColors.textStatePalette.offHover : timeColors.textStatePalette.off)
-    property color dateColor: GlobalStates.sidebarLeftOpen
-        ? (mouseArea.containsMouse ? dateColors.textStatePalette.onHover : dateColors.textStatePalette.on)
-        : (mouseArea.containsMouse ? dateColors.textStatePalette.offHover : dateColors.textStatePalette.off)
+        ? (mouseArea.containsMouse ? clockColors.textStatePalette.onHover : clockColors.textStatePalette.on)
+        : (mouseArea.containsMouse ? clockColors.textStatePalette.offHover : clockColors.textStatePalette.off)
     Behavior on textColor { ColorAnimation { duration: 120 } }
-    Behavior on dateColor { ColorAnimation { duration: 120 } }
 
     RowLayout {
         id: clockRow
         anchors.centerIn: parent
-        spacing: 0
+        spacing: 20
         StyledText {
             id: timeText
             Layout.alignment: Qt.AlignVCenter
@@ -36,10 +32,10 @@ Item {
         StyledText {
             id: dateText
             Layout.alignment: Qt.AlignVCenter
-            text: "  |  " + Qt.locale().toString(DateTime.clock.date, "MMM d").toUpperCase()
+            text: Qt.locale().toString(DateTime.clock.date, "MMM d").toUpperCase()
             font.pixelSize: Appearance.font.pixelSize.huge
             font.weight: Font.Medium
-            color: root.dateColor
+            color: root.textColor
         }
     }
 

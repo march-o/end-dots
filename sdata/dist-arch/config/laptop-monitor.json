@@ -1,0 +1,11 @@
+{
+  "laptopIp": "192.168.8.2",
+  "sshUser": "martins",
+  "desktopIp": "192.168.8.33",
+  "position": "left",
+  "resolution": { "width": 2880, "height": 1800 },
+  "fps": 60,
+  "bitrateKbps": 30000,
+  "output": "sunshine",
+  "app": "Desktop"
+}

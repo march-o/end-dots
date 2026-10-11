@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""Toggle a Sunshine virtual display streamed fullscreen to the paired laptop."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+import time
+
+HOME_DIR = Path.home()
+CONFIG = HOME_DIR / '.config/laptop-monitor/config.json'
+CACHE = HOME_DIR / '.cache/laptop-monitor'
+CACHE.mkdir(parents=True, exist_ok=True)
+STATE = CACHE / 'state.json'
+
+
+def command(args, timeout=15, check=True):
+    p = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    if check and p.returncode:
+        raise RuntimeError(p.stderr.strip() or p.stdout.strip() or f'{args[0]} failed')
+    return p.stdout.strip()
+
+
+def session_environment():
+    runtime = Path(f'/run/user/{os.getuid()}')
+    os.environ['XDG_RUNTIME_DIR'] = str(runtime)
+    os.environ['LANG'] = 'C.UTF-8'
+    instances = list((runtime / 'hypr').glob('*'))
+    if not instances:
+        raise RuntimeError('No active Hyprland session')
+    os.environ.setdefault('HYPRLAND_INSTANCE_SIGNATURE', instances[0].name)
+    os.environ.setdefault('WAYLAND_DISPLAY', 'wayland-1')
+
+
+def guard():
+    if command(['qs', '-c', 'ii', 'ipc', 'call', 'lock', 'isActive'], timeout=20) != 'false':
+        raise RuntimeError('Unlock the display before connecting')
+    if not all(m['dpmsStatus'] for m in monitors()):
+        raise RuntimeError('Wake the display before connecting')
+
+
+def monitors():
+    return json.loads(command(['hyprctl', 'monitors', '-j']))
+
+
+def config():
+    c = json.loads(sys.argv[2]) if len(sys.argv) > 2 else json.loads(CONFIG.read_text())
+    if c['position'] not in ('left', 'right'):
+        raise ValueError('position must be left or right')
+    for key in ('width', 'height'):
+        value = c['resolution'][key]
+        if not isinstance(value, int) or not 320 <= value <= 7680:
+            raise ValueError('Invalid resolution')
+    return c
+
+
+def active(c):
+    return any(m['name'] == c['output'] for m in monitors())
+
+
+def remote(c, action):
+    remote_command = '~/.local/bin/laptop-monitor ' + shlex.quote(action) + ' ' + shlex.quote(json.dumps(c))
+    return command(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
+                    f"{c['sshUser']}@{c['laptopIp']}",
+                    remote_command], timeout=45)
+
+
+def prepare(c):
+    guard()
+    physical = next(m for m in monitors() if m['name'] != c['output'])
+    # Pin the physical output before adding a virtual one; automatic placement
+    # otherwise shifts the desktop whenever the stream starts or closes.
+    rule = {'output': physical['name'], 'mode': f"{physical['width']}x{physical['height']}@{physical['refreshRate']}",
+            'position': f"{physical['x']}x{physical['y']}", 'scale': physical['scale']}
+    w, h = c['resolution']['width'], c['resolution']['height']
+    x = physical['x'] - w if c['position'] == 'left' else physical['x'] + round(physical['width'] / physical['scale'])
+    virtual = {'output': c['output'], 'mode': f"{w}x{h}@{c['fps']}",
+               'position': f"{x}x{physical['y']}", 'scale': 1}
+    # Generated palette files trigger compositor reparses. Persist the managed
+    # rules for those parses rather than letting the headless output auto-place.
+    option = json.loads(command(['hyprctl', 'getoption', 'misc:disable_autoreload', '-j']))
+    old = option.get('bool', option.get('int', 0))
+    command(['hyprctl', 'eval', 'hl.config({misc={disable_autoreload=true}})'])
+    try:
+        (CACHE / 'monitors.lua').write_text(monitor_lua(rule) + '\n' + monitor_lua(virtual) + '\n')
+        lua_monitor(rule)
+        if not active(c):
+            command(['hyprctl', 'output', 'create', 'headless', c['output']])
+        lua_monitor(virtual)
+    finally:
+        command(['hyprctl', 'eval', 'hl.config({misc={disable_autoreload=' + ('true' if old else 'false') + '}})'])
+
+
+def cleanup(c):
+    option = json.loads(command(['hyprctl', 'getoption', 'misc:disable_autoreload', '-j']))
+    old = option.get('bool', option.get('int', 0))
+    command(['hyprctl', 'eval', 'hl.config({misc={disable_autoreload=true}})'])
+    try:
+        (CACHE / 'monitors.lua').unlink(missing_ok=True)
+        command(['hyprctl', 'output', 'remove', c['output']], check=False)
+    finally:
+        command(['hyprctl', 'eval', 'hl.config({misc={disable_autoreload=' + ('true' if old else 'false') + '}})'])
+
+
+def monitor_lua(values):
+    fields = ', '.join(f'{k} = {json.dumps(v)}' for k, v in values.items())
+    return 'hl.monitor({ ' + fields + ' })'
+
+
+def lua_monitor(values):
+    command(['hyprctl', 'eval', monitor_lua(values)])
+
+
+def client_windows():
+    return [w for w in json.loads(command(['hyprctl', 'clients', '-j']))
+            if 'moonlight' in w['class'].lower()]
+
+
+def client_start(c):
+    guard()
+    if client_windows():
+        raise RuntimeError('Close the existing Moonlight window before connecting')
+    args = ['moonlight', 'stream', c['desktopIp'], c['app'], '--resolution',
+            f"{c['resolution']['width']}x{c['resolution']['height']}", '--fps', str(c['fps']),
+            '--bitrate', str(c['bitrateKbps']), '--display-mode', 'fullscreen',
+            '--audio-on-host', '--no-game-optimization', '--no-absolute-mouse',
+            '--capture-system-keys', 'never', '--quit-after', '--keep-awake']
+    shell = f'echo $$ > {shlex.quote(str(CACHE / "client.pid"))}; exec {shlex.join(args)} > {shlex.quote(str(CACHE / "client.log"))} 2>&1'
+    launch = 'hl.dsp.exec_cmd(' + json.dumps(shlex.join(['sh', '-c', shell])) + ')'
+    (CACHE / 'client.log').unlink(missing_ok=True)
+    command(['hyprctl', 'eval', 'laptop_monitor_fullscreen = hl.window_rule({ name = "laptop-monitor-fullscreen", match = { class = "^com[.]moonlight_stream[.]Moonlight$" }, fullscreen = true, suppress_event = "fullscreen fullscreenoutput" })'])
+    command(['hyprctl', 'dispatch', launch])
+    for _ in range(100):
+        time.sleep(0.25)
+        windows = client_windows()
+        log_file = CACHE / 'client.log'
+        ready = log_file.exists() and 'Decoded frame' in log_file.read_text(errors='replace')
+        if windows and ready:
+            # Also enforce compositor fullscreen: the client request alone can
+            # leave an SDL stream tiled on this desktop.
+            address = windows[0]['address']
+            command(['hyprctl', 'dispatch', 'hl.dsp.window.fullscreen({ mode = "fullscreen", action = "set", window = ' + json.dumps('address:' + address) + ' })'])
+            time.sleep(1)
+            if not any(w['fullscreen'] == 2 for w in client_windows()):
+                continue
+            return
+    command(['hyprctl', 'eval', 'laptop_monitor_fullscreen:set_enabled(false)'], check=False)
+    raise RuntimeError('Moonlight did not open; check ~/.cache/laptop-monitor/client.log')
+
+
+def client_stop(c):
+    pidfile = CACHE / 'client.pid'
+    if pidfile.exists():
+        pid = int(pidfile.read_text().strip())
+        cmdline = Path(f'/proc/{pid}/cmdline')
+        if cmdline.exists() and b'moonlight\x00stream\x00' in cmdline.read_bytes():
+            for w in client_windows():
+                if w['pid'] == pid:
+                    command(['hyprctl', 'dispatch', 'hl.dsp.window.close({ window = ' + json.dumps('address:' + w['address']) + ' })'])
+            # Closing a streaming window runs Moonlight's --quit-after cleanup.
+            for _ in range(30):
+                if not cmdline.exists():
+                    break
+                time.sleep(0.1)
+            if cmdline.exists():
+                os.kill(pid, 15)
+        pidfile.unlink(missing_ok=True)
+    command(['hyprctl', 'eval', 'if laptop_monitor_fullscreen then laptop_monitor_fullscreen:set_enabled(false) end'], check=False)
+
+
+def save(**values):
+    STATE.write_text(json.dumps(values))
+
+
+def main():
+    c = config()
+    action = sys.argv[1] if len(sys.argv) > 1 else 'toggle'
+    if action == 'configure-host':
+        apps_file = HOME_DIR / '.config/sunshine/apps.json'
+        if apps_file.exists():
+            apps = json.loads(apps_file.read_text())
+            for app in apps.get('apps', []):
+                if app.get('name') == c['app']:
+                    app['prep-cmd'] = [{'do': 'laptop-monitor prepare', 'undo': 'laptop-monitor cleanup'}]
+            apps_file.write_text(json.dumps(apps, indent=2) + '\n')
+        return
+    session_environment()
+    if action == 'status':
+        state = json.loads(STATE.read_text()) if STATE.exists() else {}
+        with (CACHE / 'operation.lock').open('a') as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                busy = False
+            except BlockingIOError:
+                busy = True
+        print(json.dumps({'active': active(c), 'busy': busy, 'error': state.get('error', '')}))
+        return
+    if action == 'prepare':
+        prepare(c)
+        return
+    if action == 'cleanup':
+        cleanup(c)
+        return
+    if action == 'client-start':
+        client_start(c)
+        return
+    if action == 'client-stop':
+        client_stop(c)
+        return
+    with (CACHE / 'operation.lock').open('w') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        save(busy=True, error='')
+        starting = not active(c)
+        try:
+            if starting:
+                # Check the laptop before changing local display geometry.
+                remote(c, 'check')
+                prepare(c)
+                command(['systemctl', '--user', 'start', 'sunshine'], timeout=30)
+                remote(c, 'client-start')
+            else:
+                remote(c, 'client-stop')
+                cleanup(c)
+            save(busy=False, error='')
+        except Exception as e:
+            if starting:
+                try:
+                    remote(c, 'client-stop')
+                except Exception:
+                    pass
+                cleanup(c)
+            save(busy=False, error=str(e))
+            raise
+
+
+if __name__ == '__main__':
+    try:
+        if len(sys.argv) > 1 and sys.argv[1] == 'check':
+            session_environment()
+            guard()
+        else:
+            main()
+    except Exception as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

@@ -19,7 +19,7 @@ MouseArea {
         : isCharging ? (containsMouse ? localColors.textStatePalette.onHover : localColors.textStatePalette.on)
         : (containsMouse ? localColors.textStatePalette.offHover : localColors.textStatePalette.off)
     implicitWidth: row.implicitWidth
-    implicitHeight: Appearance.sizes.barHeight
+    implicitHeight: BarGeometry.buttonSize
     hoverEnabled: !Config.options.bar.tooltips.clickToShow
     RowLayout {
         id: row
@@ -27,7 +27,7 @@ MouseArea {
         spacing: 3
         MaterialSymbol {
             text: root.isCharging ? "battery_charging_full" : "battery_full"
-            iconSize: Appearance.font.pixelSize.large * 1.25
+            iconSize: BarGeometry.iconSize
             color: root.iconColor
             fill: 0
         }
