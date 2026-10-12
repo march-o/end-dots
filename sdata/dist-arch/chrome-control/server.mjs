@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
+import { normalizePageResponse } from './normalize-page-response.mjs';
 
 const sourceDir = path.dirname(fileURLToPath(import.meta.url));
 const profiles = ['personal', 'work'];
@@ -30,6 +31,7 @@ export function startChromeControl({ runtimeDir = path.join(os.homedir(), '.loca
   fs.writeFileSync(path.join(workExtension, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
   const connections = { personal: null, work: null };
+  const connectionInfo = { personal: null, work: null };
   const pending = new Map();
   const clients = new Set();
   const keepaliveTimers = new Map();
@@ -52,6 +54,11 @@ export function startChromeControl({ runtimeDir = path.join(os.homedir(), '.loca
       let message;
       try { message = JSON.parse(data.toString()); } catch { ws.close(1007, 'Invalid JSON'); return; }
       if (!message || typeof message !== 'object' || Array.isArray(message) || typeof message.id !== 'string' || message.id.length > 128) { ws.close(1008, 'Invalid response'); return; }
+      if (message.action === 'handshake' && message.id === 'handshake') {
+        if (message.protocol !== 'chrome-control' || message.protocolVersion !== 2 || message.implementationVersion !== '1.2.0' || !Array.isArray(message.capabilities)) { ws.close(1008, 'Invalid handshake'); return; }
+        connectionInfo[profile] = { protocol: message.protocol, protocolVersion: message.protocolVersion, implementationVersion: message.implementationVersion, capabilities: message.capabilities.filter(value => typeof value === 'string').slice(0, 64) };
+        ws.send(JSON.stringify({ id: 'handshake', ok: true, result: { accepted: true } })); return;
+      }
       const item = pending.get(message.id);
       if (!item || item.profile !== profile || item.socket !== ws) return;
       pending.delete(message.id);
@@ -61,7 +68,7 @@ export function startChromeControl({ runtimeDir = path.join(os.homedir(), '.loca
     ws.on('close', () => {
       clearInterval(keepalive);
       if (keepaliveTimers.get(profile) === keepalive) keepaliveTimers.delete(profile);
-      if (connections[profile] === ws) connections[profile] = null;
+      if (connections[profile] === ws) { connections[profile] = null; connectionInfo[profile] = null; }
       for (const [id, item] of pending) if (item.profile === profile && item.socket === ws) {
         pending.delete(id); clearTimeout(item.timeout);
         item.finish({ ok: false, profile, code: 'BRIDGE_DISCONNECTED', uncertain: true, error: 'Chrome bridge disconnected; action outcome is uncertain' });
@@ -98,12 +105,20 @@ export function startChromeControl({ runtimeDir = path.join(os.homedir(), '.loca
       if (!command || typeof command !== 'object' || Array.isArray(command)) { finish({ ok: false, profile, code: 'INVALID_COMMAND', error: 'Command must be a JSON object' }); return; }
       if (typeof command.action !== 'string' || command.action.length < 1 || command.action.length > 64 || !ACTIONS.has(command.action)) { finish({ ok: false, profile, code: 'INVALID_ACTION', error: 'Invalid action' }); return; }
       if (command.action === 'press' && !['Enter', 'Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'Space'].includes(command.key)) { finish({ ok: false, profile, code: 'INVALID_KEY', error: 'Unsupported key; allowed keys are Enter, Tab, Escape, ArrowUp, ArrowDown, and Space' }); return; }
+      if (command.frameId !== undefined && (!Number.isInteger(command.frameId) || command.frameId < 0)) { finish({ ok: false, profile, code: 'INVALID_FRAME', error: 'frameId must be a non-negative integer' }); return; }
+      if (command.allFrames !== undefined && typeof command.allFrames !== 'boolean') { finish({ ok: false, profile, code: 'INVALID_FRAMES', error: 'allFrames must be boolean' }); return; }
+      if (command.allFrames === true && command.action !== 'snapshot') { finish({ ok: false, profile, code: 'INVALID_FRAMES', error: 'Mutations require a single frame' }); return; }
+      if (command.allFrames === true && command.frameId !== undefined) { finish({ ok: false, profile, code: 'INVALID_FRAMES', error: 'Cannot combine frameId and allFrames' }); return; }
+      if (command.timeoutMs !== undefined && (!Number.isInteger(command.timeoutMs) || command.timeoutMs < 1 || command.timeoutMs > 5000)) { finish({ ok: false, profile, code: 'INVALID_TIMEOUT', error: 'timeoutMs must be between 1 and 5000' }); return; }
+      if (command.inputMode !== undefined && !['activation', 'pointer-sequence'].includes(command.inputMode)) { finish({ ok: false, profile, code: 'INVALID_INPUT_MODE', error: 'Unsupported inputMode' }); return; }
+      if (command.inputMode === 'pointer-sequence' && command.action !== 'click') { finish({ ok: false, profile, code: 'INVALID_INPUT_MODE', error: 'pointer-sequence is supported only for click' }); return; }
+      if (command.expect !== undefined && (!command.expect || typeof command.expect !== 'object' || typeof command.expect.selector !== 'string' || !['visible', 'hidden', 'checked', 'unchecked'].includes(command.expect.state))) { finish({ ok: false, profile, code: 'INVALID_EXPECTATION', error: 'expect must include selector and a supported state' }); return; }
       if (command.id !== undefined && (typeof command.id !== 'string' || command.id.length > 128)) { finish({ ok: false, profile, code: 'INVALID_ID', error: 'Invalid request id' }); return; }
       const selected = command.profile === undefined ? 'personal' : command.profile;
       if (typeof selected !== 'string' || !profiles.includes(selected)) { finish({ ok: false, profile: selected, code: 'UNKNOWN_PROFILE', error: 'Unknown profile' }); return; }
       if (selected !== profile) { finish({ ok: false, profile: selected, code: 'WRONG_SOCKET', error: 'Request sent to wrong profile socket' }); return; }
       if (command.action === 'status') {
-        const state = Object.fromEntries(profiles.map(p => [p, { connected: connections[p]?.readyState === 1 }]));
+        const state = Object.fromEntries(profiles.map(p => [p, { connected: connections[p]?.readyState === 1, ...(connectionInfo[p] || {}) }]));
         finish({ ok: true, profile, connected: state[profile].connected, profiles: state }); return;
       }
       const ws = connections[profile];
@@ -115,18 +130,7 @@ export function startChromeControl({ runtimeDir = path.join(os.homedir(), '.loca
         finish({ ok: false, profile, code: 'ACTION_TIMEOUT', uncertain: true, error: 'Chrome action timed out; action outcome is uncertain' });
       }, actionTimeoutMs);
       pending.set(id, { profile, socket: ws, client, timeout, finish: response => {
-        if (['snapshot', 'click', 'fill', 'press'].includes(command.action) && response.ok !== true) {
-          finish({ ok: false, profile, code: 'PAGE_EXCEPTION', error: String(response.error || `Chrome ${command.action} failed`).slice(0, 1000) }); return;
-        }
-        if (response.ok && ['snapshot', 'click', 'fill', 'press'].includes(command.action)) {
-          if (!Array.isArray(response.result) || response.result.some(frame => !frame || frame.result === null || frame.result === undefined)) {
-            finish({ ok: false, profile, code: 'INVALID_PAGE_RESULT', error: `Chrome ${command.action} returned no page result` }); return;
-          }
-          if (response.result.some(frame => frame.error)) {
-            finish({ ok: false, profile, code: 'PAGE_EXCEPTION', error: 'Page script failed', details: response.result.filter(frame => frame.error).map(frame => String(frame.error).slice(0, 500)) }); return;
-          }
-        }
-        if (command.action === 'snapshot' && command.allFrames !== true && Array.isArray(response.result)) response.result = response.result.filter(frame => frame.frameId === 0);
+        if (['snapshot', 'click', 'fill', 'press'].includes(command.action)) { finish(normalizePageResponse(command, response, profile)); return; }
         finish(response);
       } });
       const { id: _ignored, profile: _profile, ...fields } = command;

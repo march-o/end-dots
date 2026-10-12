@@ -40,11 +40,23 @@ route through work; unknown or disconnected profiles fail closed.
 
 Other commands are `navigate`, `click`, `fill`, `press`, `reload`, and `close_tab`. `click`,
 `fill`, and `press` take a CSS `selector`; `fill` also takes `value`. `press`
-accepts only `Enter`, `Tab`, `Escape`, `ArrowUp`, `ArrowDown`, or `Space`, and
+accepts only `Enter`, `Escape`, `ArrowUp`, `ArrowDown`, or `Space`, and
 dispatches DOM keyboard events without activating a window or sending OS input.
 Snapshots include unique selectors and accessible state, never input values.
 They return the top frame by default; add `"allFrames":true` to include iframe
-content. Use `npm test` for isolated WebSocket/Unix-socket and page-action tests.
+content. Mutation commands require an `expect` object to confirm success, for example
+`"expect":{"selector":"#menu","state":"visible"}`. States are `visible`,
+`hidden`, `checked`, and `unchecked`; the condition must change from false to
+true. Without confirmation, the response is unsuccessful and marked uncertain:
+inspect a fresh snapshot before deciding what to do next, rather than replaying
+input automatically. `timeoutMs` defaults to 1500 (maximum 5000).
+DOM events are synthetic; Tab traversal and implicit form submission are unsupported.
+An explicit `inputMode:"pointer-sequence"` can be used for click; it is never
+retried after another input method.
+
+Use `npm test` for isolated WebSocket/Unix-socket and page-action tests. The live
+browser test is opt-in: `CHROME_CONTROL_LIVE_TEST=1 CHROME_BIN=/path/to/chrome npm test`.
+It uses a disposable profile; choose a build that supports loading unpacked extensions.
 `reload` acknowledges first, then reloads only the Chrome Control extension;
 its extension-owned `maintenance/reload.html` is the one-time bootstrap page for
 an older already-loaded copy.

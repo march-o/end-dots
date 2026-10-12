@@ -235,3 +235,17 @@ run('reload is forwarded as a native action and resolves from its acknowledgemen
   assert.deepEqual((await result).result, { reloading: true });
   personal.close();
 });
+
+run('handshake exposes implementation metadata and rejects incompatible versions', async t => {
+  const f = await fixture(t);
+  const ws = f.connect('personal'); await once(ws, 'open');
+  const acknowledgement = once(ws, 'message');
+  ws.send(JSON.stringify({ id: 'handshake', action: 'handshake', protocol: 'chrome-control', protocolVersion: 2, implementationVersion: '1.2.0', capabilities: ['verified-page-outcomes'] }));
+  assert.equal(JSON.parse((await acknowledgement)[0]).ok, true);
+  const status = await f.request('personal', { action: 'status' });
+  assert.equal(status.profiles.personal.implementationVersion, '1.2.0');
+  const work = f.connect('work'); await once(work, 'open');
+  const closed = once(work, 'close');
+  work.send(JSON.stringify({ id: 'handshake', action: 'handshake', protocol: 'chrome-control', protocolVersion: 99, implementationVersion: '1.2.0', capabilities: [] }));
+  assert.equal((await closed)[0], 1008);
+});
