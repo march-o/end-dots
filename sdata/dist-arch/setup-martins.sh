@@ -146,6 +146,7 @@ configure_quickshell_shell() {
       modules/ii/overview/OverviewWidget.qml \
       scripts/cava/media_card_config.txt \
       scripts/media/spotify-connect.py \
+      scripts/media/spotify-authorize.py \
       scripts/media/sample-card-backdrop.py \
       modules/ii/bar/Resource.qml \
       modules/ii/bar/Resources.qml \

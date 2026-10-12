@@ -14,10 +14,53 @@ import Quickshell.Services.Mpris
 Item {
     id: root
     readonly property MprisPlayer spotifyPlayer: Mpris.players.values.find(p => p.dbusName?.toLowerCase().includes("spotify")) ?? null
-    readonly property MprisPlayer activePlayer: spotifyPlayer ?? MprisController.activePlayer
+    readonly property var activePlayer: roomPlayback.active ? roomPlayer : (spotifyPlayer ?? MprisController.activePlayer)
     readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || Translation.tr("No media")
     readonly property bool canChangeVolume: !!(activePlayer?.volumeSupported && activePlayer?.canControl)
     readonly property real volumeLevel: Math.max(0, Math.min(1, activePlayer?.volume ?? 0))
+    property var roomPlayback: ({})
+    property real roomUpdatedAt: 0
+    property real positionClock: Date.now()
+    Timer { interval: 1000; running: root.expanded && !!root.roomPlayback.playing; repeat: true; onTriggered: root.positionClock = Date.now() }
+    QtObject {
+        id: roomPlayer
+        readonly property string trackTitle: root.roomPlayback.title ?? ""
+        readonly property string trackArtist: root.roomPlayback.artist ?? ""
+        readonly property string trackArtUrl: root.roomPlayback.art || (root.spotifyPlayer?.trackTitle === trackTitle ? (root.spotifyPlayer?.trackArtUrl ?? "") : "")
+        readonly property bool isPlaying: root.roomPlayback.playing ?? false
+        readonly property bool canControl: !!root.roomPlayback.available
+        readonly property bool canGoNext: canControl && !!root.roomPlayback.can_next
+        readonly property bool canGoPrevious: canControl && !!root.roomPlayback.can_previous
+        readonly property bool canSeek: canControl && !!root.roomPlayback.can_seek && length > 0
+        readonly property bool volumeSupported: canControl
+        readonly property real volume: root.roomPlayback.volume ?? 0
+        readonly property bool lengthSupported: length > 0
+        readonly property real length: root.roomPlayback.duration ?? 0
+        readonly property bool positionSupported: true
+        readonly property real position: Math.min(length, (root.roomPlayback.position ?? 0) + (isPlaying ? Math.max(0, root.positionClock - root.roomUpdatedAt) / 1000 : 0))
+    }
+    function controlRoom(action, value) {
+        if (connect.running) {
+            // Keep clicks made during a status poll; coalesce slider updates.
+            let queue = root.pendingControls.slice()
+            if (action === "volume" || action === "seek") queue = queue.filter(c => c.action !== action)
+            queue.push({ action: action, value: value })
+            root.pendingControls = queue
+            return
+        }
+        root.requestedSource = "Living Room"
+        root.connectError = ""
+        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "room-control", action]
+        if (value !== undefined) connect.command = [...connect.command, String(value)]
+        connect.running = true
+    }
+    function togglePlayback() {
+        if (roomPlayback.active) controlRoom(roomPlayback.playing ? "pause" : "play")
+        else activePlayer?.togglePlaying()
+    }
+    function nextTrack() { if (roomPlayback.active) controlRoom("next"); else activePlayer?.next() }
+    function previousTrack() { if (roomPlayback.active) controlRoom("previous"); else activePlayer?.previous() }
+    function seekRoom(position) { controlRoom("seek", position) }
     property Item glassFrame
     property bool expanded: false
     property real expansionProgress: expanded ? 1 : 0
@@ -30,8 +73,67 @@ Item {
     Layout.minimumWidth: 100
     implicitWidth: 240
     implicitHeight: 30
-    function setVolume(value) { if (canChangeVolume) activePlayer.volume = Math.max(0, Math.min(1, value)) }
+    function setVolume(value) { if (!canChangeVolume) return; if (roomPlayback.active) controlRoom("volume", value); else activePlayer.volume = Math.max(0, Math.min(1, value)) }
     function closeCard() { expanded = false; openTimer.stop(); closeTimer.stop() }
+    property var connectDevices: ["Living Room"]
+    property string connectSource: ""
+    property string connectError: ""
+    property string requestedSource: ""
+    property bool pendingRoomPlay: false
+    property var pendingControls: []
+    function refreshDevices() {
+        if (!connect.running) {
+            connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "status"]
+            connect.running = true
+        }
+    }
+    function selectDevice(source) {
+        if (connect.running) return
+        root.requestedSource = source
+        root.connectError = ""
+        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "select", source]
+        connect.running = true
+    }
+    function playInLivingRoom() {
+        if (connect.running) { root.pendingRoomPlay = true; return }
+        root.requestedSource = "Living Room"
+        root.connectError = ""
+        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "play-room"]
+        connect.running = true
+    }
+    readonly property bool connectBusy: connect.running
+    Process {
+        id: connect
+        onRunningChanged: {
+            if (!running) Qt.callLater(() => {
+                if (connect.running) return
+                if (root.pendingRoomPlay) { root.pendingRoomPlay = false; root.playInLivingRoom() }
+                else if (root.pendingControls.length) {
+                    const queue = root.pendingControls.slice()
+                    const control = queue.shift()
+                    root.pendingControls = queue
+                    root.controlRoom(control.action, control.value)
+                }
+            })
+        }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text)
+                    if (data.ok) { root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = ""; root.roomPlayback = data.room ?? {}; root.roomUpdatedAt = Date.now(); root.positionClock = root.roomUpdatedAt }
+                    else root.connectError = data.error
+                } catch (e) { root.connectError = "Device connection unavailable" }
+                if (root.connectError && root.roomPlayback.active) {
+                    root.roomPlayback = Object.assign({}, root.roomPlayback, { playing: false, available: false })
+                    root.pendingControls = []
+                }
+                if (root.connectError && root.requestedSource) card.devicesOpen = true
+                if (root.connectError || root.connectSource === root.requestedSource) root.requestedSource = ""
+            }
+        }
+    }
+    Timer { interval: root.roomPlayback.active ? 5000 : 15000; running: root.expanded || !!root.roomPlayback.active; repeat: true; onTriggered: root.refreshDevices() }
+    Component.onCompleted: refreshDevices()
     function openSpotifyWorkspace() {
         root.closeCard()
         spotifyWorkspace.running = true
@@ -100,7 +202,7 @@ Item {
             implicitWidth: 25
             implicitHeight: 30
             enabled: root.activePlayer?.canGoPrevious ?? false
-            onClicked: root.activePlayer?.previous()
+            onClicked: root.previousTrack()
             GlassIcon { text: "skip_previous"; iconSize: 21 }
         }
         GlassButton {
@@ -109,7 +211,7 @@ Item {
             implicitHeight: 30
             toggled: root.activePlayer?.isPlaying ?? false
             enabled: root.activePlayer?.canControl ?? false
-            onClicked: root.activePlayer?.togglePlaying()
+            onClicked: root.togglePlayback()
             GlassIcon { text: root.activePlayer?.isPlaying ? "pause" : "play_arrow"; iconSize: 22 }
         }
         GlassButton {
@@ -117,7 +219,7 @@ Item {
             implicitWidth: 25
             implicitHeight: 30
             enabled: root.activePlayer?.canGoNext ?? false
-            onClicked: root.activePlayer?.next()
+            onClicked: root.nextTrack()
             GlassIcon { text: "skip_next"; iconSize: 21 }
         }
     }

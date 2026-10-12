@@ -8,6 +8,7 @@ Item {
     id: root
     required property var player
     property bool active: false
+    property var seekHandler: null
     property color foreground: elapsedColors.textColor
     property color accent: railColors.statePalette.on
     readonly property real duration: player?.lengthSupported ? Math.max(0, player.length) : 0
@@ -24,7 +25,10 @@ Item {
         return Math.floor(value / 60) + ":" + String(value % 60).padStart(2, "0")
     }
     function seek(mouse) {
-        if (seekable) player.position = Math.max(0, Math.min(duration, mouse.x / width * duration))
+        if (!seekable) return
+        const position = Math.max(0, Math.min(duration, mouse.x / width * duration))
+        if (seekHandler) seekHandler(position)
+        else player.position = position
     }
     Timer {
         interval: 1000

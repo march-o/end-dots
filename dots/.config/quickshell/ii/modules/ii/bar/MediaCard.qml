@@ -18,45 +18,13 @@ Item {
     required property Item media
     readonly property bool hovered: cardHover.hovered
     property bool devicesOpen: false
-    property var connectDevices: ["Living Room"]
-    property string connectSource: ""
-    property string connectError: ""
-    property string requestedSource: ""
-    function refreshDevices() {
-        if (!connect.running) {
-            connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "status"]
-            connect.running = true
-        }
-    }
-    function selectDevice(source) {
-        if (connect.running) return
-        root.requestedSource = source
-        root.connectError = ""
-        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "select", source]
-        connect.running = true
-    }
-    function playInLivingRoom() {
-        if (connect.running) return
-        root.requestedSource = "Living Room"
-        root.connectError = ""
-        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "play-room"]
-        connect.running = true
-    }
-    Process {
-        id: connect
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const data = JSON.parse(text)
-                    if (data.ok) { root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = "" }
-                    else root.connectError = data.error
-                } catch (e) { root.connectError = "Device connection unavailable" }
-                if (root.connectError && root.requestedSource) root.devicesOpen = true
-                if (root.connectError || root.connectSource === root.requestedSource) root.requestedSource = ""
-            }
-        }
-    }
-    Timer { interval: root.requestedSource ? 3000 : 15000; running: root.visible; repeat: true; onTriggered: root.refreshDevices() }
+    readonly property var connectDevices: root.media.connectDevices
+    readonly property string connectSource: root.media.connectSource
+    readonly property string connectError: root.media.connectError
+    readonly property string requestedSource: root.media.requestedSource
+    function refreshDevices() { root.media.refreshDevices() }
+    function selectDevice(source) { root.media.selectDevice(source) }
+    function playInLivingRoom() { root.media.playInLivingRoom() }
     onDevicesOpenChanged: {
         if (devicesOpen) {
             if (deviceScroll.contentItem) deviceScroll.contentItem.contentY = 0;
@@ -64,7 +32,7 @@ Item {
         }
     }
     readonly property var localStreams: Audio.outputAppNodes.filter(n => /spotify/i.test(Audio.appNodeDisplayName(n)))
-    readonly property bool localPlayback: localStreams.length > 0
+    readonly property bool localPlayback: !root.media.roomPlayback.active && localStreams.length > 0
     property list<real> levels: []
     property real phase: 0
     // Share the bar's palette-colored glass and backdrop-bound contrast checks.
@@ -212,6 +180,7 @@ Item {
             MediaProgress {
                 id: songProgress
                 player: root.media.activePlayer
+                seekHandler: root.media.roomPlayback.active ? root.media.seekRoom : null
                 foreground: root.textColor
                 accent: root.statePalette.on
                 active: root.visible && !!root.media.activePlayer?.isPlaying
@@ -223,7 +192,7 @@ Item {
                     id: previousControl
                     statePalette: root.statePalette
                     enabled: root.media.activePlayer?.canGoPrevious ?? false
-                    onClicked: root.media.activePlayer?.previous()
+                    onClicked: root.media.previousTrack()
                     GlassIcon { text: "skip_previous"; iconSize: 26 }
                 }
                 GlassButton {
@@ -231,14 +200,14 @@ Item {
                     statePalette: root.statePalette
                     toggled: root.media.activePlayer?.isPlaying ?? false
                     enabled: root.media.activePlayer?.canControl ?? false
-                    onClicked: root.media.activePlayer?.togglePlaying()
+                    onClicked: root.media.togglePlayback()
                     GlassIcon { text: root.media.activePlayer?.isPlaying ? "pause" : "play_arrow"; iconSize: 32 }
                 }
                 GlassButton {
                     id: nextControl
                     statePalette: root.statePalette
                     enabled: root.media.activePlayer?.canGoNext ?? false
-                    onClicked: root.media.activePlayer?.next()
+                    onClicked: root.media.nextTrack()
                     GlassIcon { text: "skip_next"; iconSize: 26 }
                 }
                 Item { Layout.fillWidth: true }
@@ -250,7 +219,7 @@ Item {
                         anchors.fill: parent
                         statePalette: root.statePalette
                         toggled: root.connectSource === "Living Room"
-                        enabled: !connect.running
+                        enabled: !root.media.pendingRoomPlay
                         Accessible.name: "Play in Living Room"
                         onClicked: root.playInLivingRoom()
                         GlassIcon { text: "speaker"; iconSize: 24 }
@@ -296,11 +265,11 @@ Item {
                         label: modelData
                         selected: root.connectSource === modelData
                         symbol: /pc|computer|laptop/i.test(modelData) ? "computer" : /phone/i.test(modelData) ? "smartphone" : "speaker"
-                        enabled: !connect.running
+                        enabled: !root.media.connectBusy
                         onClicked: { if (root.connectSource !== modelData) root.selectDevice(modelData) }
                     }
                 }
-                StyledText { Layout.fillWidth: true; visible: connect.running || !!root.connectError || !!root.requestedSource; text: root.connectError || (root.requestedSource ? "Switching to " + root.requestedSource + "…" : "Refreshing devices…"); wrapMode: Text.Wrap; font.pixelSize: 11; color: root.textColor }
+                StyledText { Layout.fillWidth: true; visible: root.media.connectBusy || !!root.connectError || !!root.requestedSource; text: root.connectError || (root.requestedSource ? "Switching to " + root.requestedSource + "…" : "Refreshing devices…"); wrapMode: Text.Wrap; font.pixelSize: 11; color: root.textColor }
                 StyledText { id: outputsHeading; text: "THIS COMPUTER"; font.pixelSize: 10; color: root.textColor }
                 Repeater {
                     model: Audio.outputDevices
@@ -316,7 +285,7 @@ Item {
                 DeviceChoice {
                     label: "Refresh devices"
                     symbol: "refresh"
-                    enabled: !connect.running
+                    enabled: !root.media.connectBusy
                     onClicked: root.refreshDevices()
                 }
                 StyledText { Layout.fillWidth: true; text: "Spotify Connect"; font.pixelSize: 11; color: root.textColor; horizontalAlignment: Text.AlignHCenter }
