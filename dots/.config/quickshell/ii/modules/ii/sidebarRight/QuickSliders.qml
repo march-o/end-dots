@@ -18,7 +18,7 @@ Rectangle {
     implicitWidth: contentItem.implicitWidth + root.horizontalPadding * 2
     implicitHeight: contentItem.implicitHeight + root.verticalPadding * 2
     radius: Appearance.rounding.normal
-    color: SidebarColors.colors.colLayer1
+    color: GlassColors.colors.colLayer1
     property real verticalPadding: 4
     property real horizontalPadding: 12
 
@@ -113,7 +113,7 @@ Rectangle {
                 rightMargin: nearFull ? 14 : 8
             }
             iconSize: 20
-            color: nearFull ? SidebarColors.colors.colOnPrimary : SidebarColors.colors.colOnSecondaryContainer
+            color: nearFull ? GlassColors.colors.colOnPrimary : GlassColors.colors.colOnSecondaryContainer
             text: quickSlider.materialSymbol
 
             Behavior on color {
@@ -135,7 +135,7 @@ Rectangle {
                 rightMargin: nearIcon ? 14 : (1 - iconLocation) * quickSlider.effectiveDraggingWidth + quickSlider.rightPadding + 8
             }
             iconSize: 20
-            color: quickSlider.value >= iconLocation - 0.1 ? SidebarColors.colors.colOnPrimary : SidebarColors.colors.colOnSecondaryContainer
+            color: quickSlider.value >= iconLocation - 0.1 ? GlassColors.colors.colOnPrimary : GlassColors.colors.colOnSecondaryContainer
             text: secondaryMaterialSymbol
 
             Behavior on color {

@@ -26,7 +26,7 @@ RippleButton {
         height: 2
         radius: 1
         visible: button.toggled
-        color: SidebarColors.states.on
+        color: GlassColors.states.on
     }
 
     contentItem: StyledText {
@@ -35,8 +35,8 @@ RippleButton {
         horizontalAlignment: Text.AlignHCenter
         font.weight: bold ? Font.DemiBold : Font.Normal
         color: button.toggled
-            ? (button.hovered ? SidebarColors.textStates.onHover : SidebarColors.textStates.on)
-            : (button.hovered ? SidebarColors.textStates.offHover : SidebarColors.textStates.off)
+            ? (button.hovered ? GlassColors.textStates.onHover : GlassColors.textStates.on)
+            : (button.hovered ? GlassColors.textStates.offHover : GlassColors.textStates.off)
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)

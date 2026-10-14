@@ -32,17 +32,25 @@ Item {
         // actual layer placement, including the right anchor and reserved bar.
         const p = root.mapToItem(root.window.contentItem, 0, 0);
         const reserved = root.monitor.reserved ?? [0, 0, 0, 0];
-        const sidebar = root.layerNamespace === "quickshell:sidebarRight";
-        const fallbackX = sidebar ? root.screen.width - root.window.width - reserved[2] : 0;
+        const sidebar = root.layerNamespace.endsWith("sidebarRight");
+        const gallery = root.layerNamespace.endsWith("wallpaperSelector");
+        const fallbackX = sidebar ? root.screen.width - root.window.width - reserved[2]
+            : gallery ? (root.screen.width - root.window.width) / 2 : 0;
         const fallbackY = sidebar ? reserved[1]
-            : (root.window.anchors.bottom && !root.window.anchors.top ? root.screen.height - root.window.height : 0);
+            : gallery ? (root.window.margins?.top ?? 0)
+            : (root.window.anchors?.bottom && !root.window.anchors?.top ? root.screen.height - root.window.height : 0);
         root.origin = Qt.point((root.surface ? root.surface.x - root.monitor.x : fallbackX) + p.x,
                               (root.surface ? root.surface.y - root.monitor.y : fallbackY) + p.y);
     }
     onWidthChanged: updateOrigin()
     onHeightChanged: updateOrigin()
     Component.onCompleted: { updateOrigin(); HyprlandData.updateLayers(); }
-    Timer { interval: 50; running: root.visible; repeat: true; onTriggered: root.updateOrigin() }
+    // A compositor slide moves a cached surface without updating QML coordinates.
+    // GlassPanelWindow keeps that surface fixed; track its animated child each frame.
+    FrameAnimation {
+        running: root.visible && (root.window?.visible ?? false)
+        onTriggered: root.updateOrigin()
+    }
 
     Image {
         id: wallpaper

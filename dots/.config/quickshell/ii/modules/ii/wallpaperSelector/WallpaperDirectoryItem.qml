@@ -1,4 +1,5 @@
 import qs.services
+import qs.modules.ii.bar
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
@@ -9,8 +10,10 @@ import Qt5Compat.GraphicalEffects
 MouseArea {
     id: root
     required property var fileModelData
+    property bool keyboardSelected: false
     property bool isDirectory: fileModelData.fileIsDir
-    property bool useThumbnail: Images.isValidImageByName(fileModelData.fileName)
+    readonly property bool isCurrent: !isDirectory && fileModelData.filePath === Config.options.background.wallpaperPath
+    property bool useThumbnail: !isDirectory && Wallpapers.extensions.some(ext => fileModelData.fileName.toLowerCase().endsWith(`.${ext}`))
 
     property alias colBackground: background.color
     property alias colText: wallpaperItemName.color
@@ -20,9 +23,13 @@ MouseArea {
     margins: Appearance.sizes.wallpaperSelectorItemMargins
     padding: Appearance.sizes.wallpaperSelectorItemPadding
 
+    Accessible.role: Accessible.Button
+    Accessible.name: `${fileModelData.title ?? Wallpapers.displayName(fileModelData.filePath, isDirectory)}${isCurrent ? ", " + Translation.tr("Current wallpaper") : ""}`
+    Accessible.onPressAction: root.activated()
     signal activated()
 
     hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
     onClicked: root.activated()
 
     Rectangle {
@@ -31,6 +38,14 @@ MouseArea {
         radius: Appearance.rounding.normal
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        }
+
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
+            height: 2
+            radius: 1
+            color: root.colText
+            visible: root.keyboardSelected
         }
 
         ColumnLayout {
@@ -42,17 +57,6 @@ MouseArea {
                 id: wallpaperItemImageContainer
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-
-                Loader {
-                    id: thumbnailShadowLoader
-                    active: thumbnailImageLoader.active && thumbnailImageLoader.item.status === Image.Ready
-                    anchors.fill: thumbnailImageLoader
-                    sourceComponent: StyledRectangularShadow {
-                        target: thumbnailImageLoader
-                        anchors.fill: undefined
-                        radius: Appearance.rounding.small
-                    }
-                }
 
                 Loader {
                     id: thumbnailImageLoader
@@ -94,6 +98,24 @@ MouseArea {
                     }
                 }
 
+                Rectangle {
+                    z: 1
+                    visible: root.isCurrent
+                    anchors { right: parent.right; top: parent.top; margins: 8 }
+                    width: currentLabel.implicitWidth + 18
+                    height: currentLabel.implicitHeight + 10
+                    radius: height / 2
+                    color: BarGlassPalette.glassTint
+                    StyledText {
+                        id: currentLabel
+                        anchors.centerIn: parent
+                        text: Translation.tr("Current")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.weight: Font.Medium
+                        color: BarGlassPalette.glassTextTone
+                    }
+                }
+
                 Loader {
                     id: iconLoader
                     active: !root.useThumbnail
@@ -110,13 +132,14 @@ MouseArea {
                 Layout.leftMargin: 10
                 Layout.rightMargin: 10
 
-                horizontalAlignment: Text.AlignHCenter
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: Appearance.font.pixelSize.small
+                font.weight: Font.Medium
                 Behavior on color {
                     animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
                 }
-                text: fileModelData.fileName
+                text: fileModelData.title ?? Wallpapers.displayName(fileModelData.filePath, root.isDirectory)
             }
         }
     }

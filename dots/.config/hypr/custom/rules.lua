@@ -29,8 +29,9 @@ hl.window_rule({
 -- Blur the nearly transparent glass bar, including its background surface.
 hl.layer_rule({ match = { namespace = "^quickshell:bar$" }, blur = true, ignore_alpha = 0.01 })
 
--- The right control panel uses the same translucent palette glass.
-hl.layer_rule({ match = { namespace = "^quickshell:sidebarRight$" }, blur = true, ignore_alpha = 0.01 })
+-- GlassPanelWindow owns movement inside a fixed surface, keeping wallpaper
+-- sampling aligned throughout animations for every shared glass widget.
+hl.layer_rule({ match = { namespace = "^quickshell:glass-.*$" }, no_anim = true, blur = true, ignore_alpha = 0.01 })
 
 if is_file_exists(HOME .. "/.config/hypr/custom/glass.lua") then
     require("custom.glass")

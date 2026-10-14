@@ -79,6 +79,12 @@ configure_quickshell_shell() {
   if [[ -d "$quickshell" ]]; then
     local relative mode source target
     for relative in \
+      modules/common/GlassColors.qml \
+      modules/common/widgets/GlassPanel.qml \
+      modules/common/widgets/GlassPanelWindow.qml \
+      modules/common/widgets/PanelSlide.qml \
+      modules/common/widgets/GlassTextField.qml \
+      assets/wallpaper-titles.json \
       modules/common/Appearance.qml \
       modules/common/Config.qml \
       modules/common/utils/TempScreenshotProcess.qml \
@@ -101,6 +107,7 @@ configure_quickshell_shell() {
       modules/ii/sidebarRight/CenterWidgetGroup.qml \
       modules/ii/sidebarRight/QuickSliders.qml \
       modules/ii/sidebarRight/SidebarRightContent.qml \
+      modules/ii/sidebarRight/SidebarRight.qml \
       modules/ii/sidebarRight/bluetoothDevices/BluetoothDeviceItem.qml \
       modules/ii/sidebarRight/calendar/CalendarDayButton.qml \
       modules/ii/sidebarRight/calendar/CalendarHeaderButton.qml \
@@ -125,7 +132,6 @@ configure_quickshell_shell() {
       modules/common/widgets/NotificationActionButton.qml \
       modules/common/widgets/NotificationGroupExpandButton.qml \
       modules/common/widgets/NotificationGroup.qml \
-      modules/ii/sidebarRight/SidebarColors.qml \
       modules/ii/bar/Bar.qml \
       modules/ii/bar/BarContent.qml \
       modules/ii/bar/BarGroup.qml \
@@ -167,7 +173,9 @@ configure_quickshell_shell() {
       modules/ii/sidebarLeft/aiChat/MessageTextBlock.qml \
       modules/ii/lock/Lock.qml \
       modules/ii/lock/LockSurface.qml \
+      modules/ii/wallpaperSelector/WallpaperSelector.qml \
       modules/ii/wallpaperSelector/WallpaperSelectorContent.qml \
+      modules/ii/wallpaperSelector/WallpaperDirectoryItem.qml \
       modules/waffle/lock/WaffleLock.qml \
       services/WallpaperScene.qml \
       services/HyprlandData.qml \
@@ -190,6 +198,8 @@ configure_quickshell_shell() {
         install -Dm"$mode" "$source" "$target"
       fi
     done
+    # Palette consumers now share modules/common/GlassColors.qml.
+    rm -f "$quickshell/modules/ii/sidebarRight/SidebarColors.qml"
   fi
   local updated input_file="$config" launch_on_startup=false
   [[ -f "$input_file" ]] || input_file=/dev/null

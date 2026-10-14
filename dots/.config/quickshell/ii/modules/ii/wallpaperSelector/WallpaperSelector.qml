@@ -13,52 +13,29 @@ import Quickshell.Hyprland
 Scope {
     id: root
 
-    Loader {
-        id: wallpaperSelectorLoader
-        active: GlobalStates.wallpaperSelectorOpen
+    GlassPanelWindow {
+        id: panelWindow
+        screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
 
-        sourceComponent: PanelWindow {
-            id: panelWindow
-            readonly property HyprlandMonitor monitor: Hyprland.monitorFor(panelWindow.screen)
-            property bool monitorIsFocused: (Hyprland.focusedMonitor?.id == monitor?.id)
+        exclusionMode: ExclusionMode.Ignore
+        panelName: "wallpaperSelector"
+        shown: GlobalStates.wallpaperSelectorOpen
+        slideFrom: "top"
+        onDismissRequested: GlobalStates.wallpaperSelectorOpen = false
+        WlrLayershell.layer: WlrLayer.Overlay
 
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.namespace: "quickshell:wallpaperSelector"
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-            color: "transparent"
+        anchors.top: true
+        margins {
+            top: Config?.options.bar.vertical ? Appearance.sizes.hyprlandGapsOut : Appearance.sizes.barHeight + Appearance.sizes.hyprlandGapsOut
+        }
 
-            anchors.top: true
-            margins {
-                top: Config?.options.bar.vertical ? Appearance.sizes.hyprlandGapsOut : Appearance.sizes.barHeight + Appearance.sizes.hyprlandGapsOut
-            }
+        implicitHeight: Math.min(690, (screen?.height ?? 800) - margins.top - 24)
+        implicitWidth: Math.min(1100, (screen?.width ?? 1200) - 32)
 
-            mask: Region {
-                item: content
-            }
-
-            implicitHeight: Appearance.sizes.wallpaperSelectorHeight
-            implicitWidth: Appearance.sizes.wallpaperSelectorWidth
-
-            Component.onCompleted: {
-                GlobalFocusGrab.addDismissable(panelWindow);
-            }
-            Component.onDestruction: {
-                GlobalFocusGrab.removeDismissable(panelWindow);
-            }
-            Connections {
-                target: GlobalFocusGrab
-                function onDismissed() {
-                    GlobalStates.wallpaperSelectorOpen = false;
-                }
-            }
-
-            WallpaperSelectorContent {
-                id: content
-                anchors {
-                    fill: parent
-                }
-            }
+        Loader {
+            anchors.fill: parent
+            active: panelWindow.visible
+            sourceComponent: WallpaperSelectorContent {}
         }
     }
 

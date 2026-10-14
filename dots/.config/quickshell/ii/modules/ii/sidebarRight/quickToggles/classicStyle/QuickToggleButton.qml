@@ -5,7 +5,7 @@ import QtQuick
 
 GroupButton {
     id: button
-    readonly property var colorStates: SidebarColors.states
+    readonly property var colorStates: GlassColors.states
     readonly property color foreground: toggled
         ? (hovered ? colorStates.onHover : colorStates.on)
         : (hovered ? colorStates.offHover : colorStates.off)

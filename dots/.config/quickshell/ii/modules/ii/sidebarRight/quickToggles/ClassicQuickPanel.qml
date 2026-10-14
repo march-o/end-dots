@@ -19,7 +19,7 @@ AbstractQuickPanel {
         id: buttonGroup
         spacing: 5
         padding: 5
-        color: SidebarColors.colors.colLayer1
+        color: GlassColors.colors.colLayer1
 
         NetworkToggle {
             altAction: () => {

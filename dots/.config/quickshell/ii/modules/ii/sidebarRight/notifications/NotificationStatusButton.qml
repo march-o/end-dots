@@ -15,10 +15,10 @@ GroupButton {
 
     buttonRadius: baseHeight / 2
     buttonRadiusPressed: Appearance.rounding.small
-    colBackground: SidebarColors.colors.colLayer2
-    colBackgroundHover: SidebarColors.colors.colLayer2Hover
-    colBackgroundActive: SidebarColors.colors.colLayer2Active
-    property color colText: toggled ? SidebarColors.m3colors.m3onPrimary : SidebarColors.colors.colOnLayer1
+    colBackground: GlassColors.colors.colLayer2
+    colBackgroundHover: GlassColors.colors.colLayer2Hover
+    colBackgroundActive: GlassColors.colors.colLayer2Active
+    property color colText: toggled ? GlassColors.m3colors.m3onPrimary : GlassColors.colors.colOnLayer1
 
     contentItem: Item {
         id: content

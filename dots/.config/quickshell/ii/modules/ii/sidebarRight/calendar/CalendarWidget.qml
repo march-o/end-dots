@@ -67,7 +67,7 @@ Item {
                     text: "chevron_left"
                     iconSize: Appearance.font.pixelSize.larger
                     horizontalAlignment: Text.AlignHCenter
-                    color: SidebarColors.colors.colOnLayer1
+                    color: GlassColors.colors.colOnLayer1
                 }
             }
             CalendarHeaderButton {
@@ -79,7 +79,7 @@ Item {
                     text: "chevron_right"
                     iconSize: Appearance.font.pixelSize.larger
                     horizontalAlignment: Text.AlignHCenter
-                    color: SidebarColors.colors.colOnLayer1
+                    color: GlassColors.colors.colOnLayer1
                 }
             }
         }

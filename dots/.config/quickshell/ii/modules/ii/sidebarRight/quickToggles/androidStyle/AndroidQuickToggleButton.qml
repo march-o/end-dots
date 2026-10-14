@@ -66,8 +66,8 @@ GroupButton {
     colBackgroundToggledActive: "transparent"
     buttonRadius: toggled ? Appearance.rounding.large : height / 2
     buttonRadiusPressed: Appearance.rounding.normal
-    readonly property var iconStates: SidebarColors.states
-    readonly property var colorStates: SidebarColors.textStates
+    readonly property var iconStates: GlassColors.states
+    readonly property var colorStates: GlassColors.textStates
     property color colText: toggled
         ? (hovered ? colorStates.onHover : colorStates.on)
         : (hovered ? colorStates.offHover : colorStates.off)

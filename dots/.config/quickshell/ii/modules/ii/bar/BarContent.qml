@@ -330,10 +330,16 @@ Item { // Bar content region
                     GlassButton {
                         statePalette: utilityButtons.statePalette
                         Layout.alignment: Qt.AlignVCenter
-                        onClicked: Quickshell.execDetached([`${FileUtils.trimFileProtocol(Directories.home)
-                                                            }/.local/bin/wallpaper-next`])
+                        toggled: GlobalStates.wallpaperSelectorOpen
+                        onClicked: {
+                            if (!GlobalStates.wallpaperSelectorOpen) {
+                                Wallpapers.searchQuery = "";
+                                Wallpapers.setDirectory(Wallpapers.defaultFolder.toString());
+                            }
+                            GlobalStates.wallpaperSelectorOpen = !GlobalStates.wallpaperSelectorOpen;
+                        }
                         GlassIcon {
-                            text: "wallpaper_slideshow"
+                            text: "wallpaper"
                             iconSize: BarGeometry.iconSize
                         }
                     }

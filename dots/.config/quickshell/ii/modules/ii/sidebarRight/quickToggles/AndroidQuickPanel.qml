@@ -123,7 +123,7 @@ AbstractQuickPanel {
             }
             sourceComponent: Rectangle {
                 implicitHeight: 1
-                color: SidebarColors.colors.colOutlineVariant
+                color: GlassColors.colors.colOutlineVariant
             }
         }
 

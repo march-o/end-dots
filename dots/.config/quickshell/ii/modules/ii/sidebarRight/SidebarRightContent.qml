@@ -20,8 +20,8 @@ import qs.modules.ii.sidebarRight.wifiNetworks
 
 Item {
     id: root
-    readonly property var glassColors: SidebarColors.colors
-    readonly property var glassM3Colors: SidebarColors.m3colors
+    readonly property var glassColors: GlassColors.colors
+    readonly property var glassM3Colors: GlassColors.m3colors
     property int sidebarWidth: Appearance.sizes.sidebarWidth
     property int sidebarPadding: 10
     property string settingsQmlPath: Quickshell.shellPath("settings.qml")
@@ -47,10 +47,9 @@ Item {
     implicitHeight: sidebarRightBackground.implicitHeight
     implicitWidth: sidebarRightBackground.implicitWidth
 
-    BarGlassIsland {
+    GlassPanel {
         id: sidebarRightBackground
-        wallpaperAmount: 1
-        wallpaperNamespace: "quickshell:sidebarRight"
+        contentPadding: root.sidebarPadding
 
         anchors.fill: parent
         implicitHeight: parent.height - Appearance.sizes.hyprlandGapsOut * 2
@@ -59,7 +58,6 @@ Item {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: sidebarPadding
             spacing: sidebarPadding
 
             SystemButtonRow {
@@ -216,7 +214,7 @@ Item {
                 bottom: parent.bottom
                 left: parent.left
             }
-            color: SidebarColors.colors.colLayer1
+            color: GlassColors.colors.colLayer1
             radius: height / 2
             implicitWidth: uptimeRow.implicitWidth + 24
             implicitHeight: uptimeRow.implicitHeight + 8
@@ -232,12 +230,12 @@ Item {
                     height: 25
                     source: SystemInfo.distroIcon
                     colorize: true
-                    color: SidebarColors.colors.colOnLayer0
+                    color: GlassColors.colors.colOnLayer0
                 }
                 StyledText {
                     anchors.verticalCenter: parent.verticalCenter
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    color: SidebarColors.colors.colOnLayer0
+                    color: GlassColors.colors.colOnLayer0
                     text: Translation.tr("Up %1").arg(DateTime.uptime)
                     textFormat: Text.MarkdownText
                 }
@@ -251,7 +249,7 @@ Item {
                 bottom: parent.bottom
                 right: parent.right
             }
-            color: SidebarColors.colors.colLayer1
+            color: GlassColors.colors.colLayer1
             padding: 4
 
             QuickToggleButton {

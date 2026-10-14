@@ -75,7 +75,7 @@ Item {
                 visible: root.node?.audio.muted ?? false
                 text: root.node?.isSink ? "volume_off" : "mic_off"
                 iconSize: 22
-                color: SidebarColors.colors.colOnLayer1
+                color: GlassColors.colors.colOnLayer1
             }
         }
 
@@ -86,7 +86,7 @@ Item {
             StyledText {
                 Layout.fillWidth: true
                 font.pixelSize: Appearance.font.pixelSize.small
-                color: SidebarColors.colors.colSubtext
+                color: GlassColors.colors.colSubtext
                 elide: Text.ElideRight
                 text: {
                     // application.name -> description -> name

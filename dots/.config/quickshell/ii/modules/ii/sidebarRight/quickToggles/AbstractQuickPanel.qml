@@ -6,7 +6,7 @@ Rectangle {
     id: root
 
     radius: Appearance.rounding.normal
-    color: SidebarColors.colors.colLayer1
+    color: GlassColors.colors.colLayer1
 
     signal openAudioOutputDialog()
     signal openAudioInputDialog()

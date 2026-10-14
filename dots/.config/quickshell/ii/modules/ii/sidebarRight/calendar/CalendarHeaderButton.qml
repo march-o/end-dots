@@ -19,15 +19,15 @@ RippleButton {
 
     background.anchors.fill: button
     buttonRadius: Appearance.rounding.full
-    colBackground: SidebarColors.colors.colLayer2
-    colBackgroundHover: SidebarColors.colors.colLayer2Hover
-    colRipple: SidebarColors.colors.colLayer2Active
+    colBackground: GlassColors.colors.colLayer2
+    colBackgroundHover: GlassColors.colors.colLayer2Hover
+    colRipple: GlassColors.colors.colLayer2Active
 
     contentItem: StyledText {
         text: buttonText
         horizontalAlignment: Text.AlignHCenter
         font.pixelSize: Appearance.font.pixelSize.larger
-        color: SidebarColors.colors.colOnLayer1
+        color: GlassColors.colors.colOnLayer1
     }
 
     StyledToolTip {

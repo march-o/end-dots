@@ -11,9 +11,9 @@ RippleButton {
     required property bool input
 
     buttonRadius: Appearance.rounding.small
-    colBackground: SidebarColors.colors.colLayer2
-    colBackgroundHover: SidebarColors.colors.colLayer2Hover
-    colRipple: SidebarColors.colors.colLayer2Active
+    colBackground: GlassColors.colors.colLayer2
+    colBackgroundHover: GlassColors.colors.colLayer2Hover
+    colRipple: GlassColors.colors.colLayer2Active
 
     implicitHeight: contentItem.implicitHeight + 6 * 2
     implicitWidth: contentItem.implicitWidth + 6 * 2
@@ -27,7 +27,7 @@ RippleButton {
             Layout.alignment: Qt.AlignVCenter
             Layout.fillWidth: false
             Layout.leftMargin: 5
-            color: SidebarColors.colors.colOnLayer2
+            color: GlassColors.colors.colOnLayer2
             iconSize: Appearance.font.pixelSize.hugeass
             text: input ? "mic_external_on" : "media_output"
         }
@@ -41,14 +41,14 @@ RippleButton {
                 elide: Text.ElideRight
                 font.pixelSize: Appearance.font.pixelSize.normal
                 text: input ? Translation.tr("Input") : Translation.tr("Output")
-                color: SidebarColors.colors.colOnLayer2
+                color: GlassColors.colors.colOnLayer2
             }
             StyledText {
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 text: (input ? Pipewire.defaultAudioSource?.description : Pipewire.defaultAudioSink?.description) ?? Translation.tr("Unknown")
-                color: SidebarColors.m3colors.m3outline
+                color: GlassColors.m3colors.m3outline
                 animateChange: true
             }
         }

@@ -19,7 +19,7 @@ QuickToggleButton {
         width: 16
         height: 16
         colorize: true
-        color: root.toggled ? SidebarColors.m3colors.m3onPrimary : SidebarColors.colors.colOnLayer1
+        color: root.toggled ? GlassColors.m3colors.m3onPrimary : GlassColors.colors.colOnLayer1
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)

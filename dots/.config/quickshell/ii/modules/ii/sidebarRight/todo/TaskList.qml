@@ -51,7 +51,7 @@ Item {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 implicitHeight: todoContentRowLayout.implicitHeight
-                color: SidebarColors.colors.colLayer2
+                color: GlassColors.colors.colLayer2
                 radius: Appearance.rounding.small
 
                 ColumnLayout {
@@ -88,7 +88,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                                 text: todoItem.modelData.done ? "remove_done" : "check"
                                 iconSize: Appearance.font.pixelSize.larger
-                                color: SidebarColors.colors.colOnLayer1
+                                color: GlassColors.colors.colOnLayer1
                             }
                         }
                         TodoItemActionButton {
@@ -101,7 +101,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                                 text: "delete_forever"
                                 iconSize: Appearance.font.pixelSize.larger
-                                color: SidebarColors.colors.colOnLayer1
+                                color: GlassColors.colors.colOnLayer1
                             }
                         }
                     }
@@ -127,13 +127,13 @@ Item {
             MaterialSymbol {
                 Layout.alignment: Qt.AlignHCenter
                 iconSize: 55
-                color: SidebarColors.m3colors.m3outline
+                color: GlassColors.m3colors.m3outline
                 text: emptyPlaceholderIcon
             }
             StyledText {
                 Layout.alignment: Qt.AlignHCenter
                 font.pixelSize: Appearance.font.pixelSize.normal
-                color: SidebarColors.m3colors.m3outline
+                color: GlassColors.m3colors.m3outline
                 horizontalAlignment: Text.AlignHCenter
                 text: emptyPlaceholderText
             }

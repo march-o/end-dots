@@ -22,6 +22,51 @@ Singleton {
     property url defaultFolder: Qt.resolvedUrl(`${Directories.home}/.config/dotfiles/wallpapers`)
     property alias folderModel: folderModel // Expose for direct binding when needed
     property string searchQuery: ""
+    property var titles: ({})
+    property var entries: []
+    readonly property var galleryModel: {
+        const terms = searchQuery.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+        return entries.map(entry => Object.assign({}, entry, { title: displayName(entry.filePath, entry.fileIsDir) }))
+            .filter(entry => {
+                const searchable = `${entry.title} ${entry.fileName}`.toLocaleLowerCase();
+                return terms.every(term => searchable.includes(term));
+            })
+            .sort((a, b) => Number(b.fileIsDir) - Number(a.fileIsDir) || a.title.localeCompare(b.title));
+    }
+
+    FileView {
+        id: titleCatalog
+        path: Quickshell.shellPath("assets/wallpaper-titles.json")
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try { root.titles = JSON.parse(titleCatalog.text()); }
+            catch (error) { console.warn("Invalid wallpaper title catalog:", error); }
+        }
+    }
+
+    function displayName(path, isDirectory = false) {
+        const filename = path.substring(path.lastIndexOf("/") + 1);
+        const collection = FileUtils.trimFileProtocol(root.defaultFolder.toString());
+        if (!isDirectory && FileUtils.parentDirectory(path) === collection && root.titles[filename])
+            return root.titles[filename];
+        const stem = isDirectory ? filename : filename.replace(/\.[^.]+$/, "");
+        return stem.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim()
+            .replace(/\b\w/g, letter => letter.toLocaleUpperCase());
+    }
+
+    function refreshEntries() {
+        const items = [];
+        for (let i = 0; i < folderModel.count; ++i) {
+            items.push({
+                fileName: folderModel.get(i, "fileName"),
+                filePath: folderModel.get(i, "filePath"),
+                fileIsDir: folderModel.get(i, "fileIsDir")
+            });
+        }
+        root.entries = items;
+        root.wallpapers = items.filter(item => !item.fileIsDir).map(item => item.filePath);
+    }
     readonly property list<string> extensions: [ // TODO: add videos
         "jpg", "jpeg", "png", "webp", "avif", "bmp", "svg"
     ]
@@ -83,14 +128,15 @@ Singleton {
             if (/^\/*$/.test(validateDirProc.nicePath)) validateDirProc.nicePath = "/";
             validateDirProc.exec([
                 "bash", "-c",
-                `if [ -d "${validateDirProc.nicePath}" ]; then echo dir; elif [ -f "${validateDirProc.nicePath}" ]; then echo file; else echo invalid; fi`
+                'if [ -d "$1" ]; then echo dir; elif [ -f "$1" ]; then echo file; else echo invalid; fi',
+                "wallpaper-directory", validateDirProc.nicePath
             ])
         }
         stdout: StdioCollector {
             onStreamFinished: {
-                    root.directory = Qt.resolvedUrl(validateDirProc.nicePath)
                 const result = text.trim()
                 if (result === "dir") {
+                    root.directory = Qt.resolvedUrl(validateDirProc.nicePath)
                 } else if (result === "file") {
                     root.directory = Qt.resolvedUrl(FileUtils.parentDirectory(validateDirProc.nicePath))
                 } else {
@@ -117,19 +163,14 @@ Singleton {
         id: folderModel
         folder: Qt.resolvedUrl(root.defaultFolder)
         caseSensitive: false
-        nameFilters: root.extensions.map(ext => `*${searchQuery.split(" ").filter(s => s.length > 0).map(s => `*${s}*`)}*.${ext}`)
+        nameFilters: root.extensions.map(ext => `*.${ext}`)
         showDirs: true
         showDotAndDotDot: false
         showOnlyReadable: true
         sortField: FolderListModel.Time
         sortReversed: false
-        onCountChanged: {
-            root.wallpapers = []
-            for (let i = 0; i < folderModel.count; i++) {
-                const path = folderModel.get(i, "filePath") || FileUtils.trimFileProtocol(folderModel.get(i, "fileURL"))
-                if (path && path.length) root.wallpapers.push(path)
-            }
-        }
+        onCountChanged: root.refreshEntries()
+        onStatusChanged: if (status === FolderListModel.Ready) root.refreshEntries()
     }
 
     // Thumbnail generation
@@ -139,7 +180,9 @@ Singleton {
         thumbgenProc.running = false
         thumbgenProc.command = [
             "bash", "-c",
-            `${thumbgenScriptPath} --size ${size} --machine_progress -d ${FileUtils.trimFileProtocol(root.directory)} || ${generateThumbnailsMagickScriptPath} --size ${size} -d ${FileUtils.trimFileProtocol(root.directory)}`,
+            '"$1" --size "$3" --machine_progress -d "$4" || "$2" --size "$3" -d "$4"',
+            "wallpaper-thumbnails", thumbgenScriptPath, generateThumbnailsMagickScriptPath,
+            size, FileUtils.trimFileProtocol(root.directory),
         ]
         // console.log("[Wallpapers] Updating thumbnails with command ", thumbgenProc.command.join(" "))
         root.thumbnailGenerationProgress = 0

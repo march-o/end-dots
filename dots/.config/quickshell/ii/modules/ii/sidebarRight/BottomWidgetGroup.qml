@@ -11,7 +11,7 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     radius: Appearance.rounding.normal
-    color: SidebarColors.colors.colLayer1
+    color: GlassColors.colors.colLayer1
     clip: true
     implicitHeight: collapsed ? collapsedBottomWidgetGroupRow.implicitHeight : 350
     property int selectedTab: Persistent.states.sidebar.bottomGroup.tab
@@ -106,7 +106,7 @@ Rectangle {
                 text: "keyboard_arrow_up"
                 iconSize: Appearance.font.pixelSize.larger
                 horizontalAlignment: Text.AlignHCenter
-                color: SidebarColors.colors.colOnLayer1
+                color: GlassColors.colors.colOnLayer1
             }
         }
 
@@ -117,7 +117,7 @@ Rectangle {
             // text: `${DateTime.collapsedCalendarFormat}   •   ${remainingTasks} task${remainingTasks > 1 ? "s" : ""}`
             text: Translation.tr("%1   •   %2 tasks").arg(DateTime.collapsedCalendarFormat).arg(remainingTasks)
             font.pixelSize: Appearance.font.pixelSize.large
-            color: SidebarColors.colors.colOnLayer1
+            color: GlassColors.colors.colOnLayer1
         }
     }
 
@@ -183,7 +183,7 @@ Rectangle {
                     text: "keyboard_arrow_down"
                     iconSize: Appearance.font.pixelSize.larger
                     horizontalAlignment: Text.AlignHCenter
-                    color: SidebarColors.colors.colOnLayer1
+                    color: GlassColors.colors.colOnLayer1
                 }
             }
         }

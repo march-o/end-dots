@@ -1,6 +1,7 @@
 import qs
 import qs.services
 import qs.modules.common
+import qs.modules.common.widgets
 import QtQuick
 import Quickshell.Io
 import Quickshell
@@ -11,9 +12,12 @@ Scope {
     id: root
     property int sidebarWidth: Appearance.sizes.sidebarWidth
 
-    PanelWindow {
+    GlassPanelWindow {
         id: panelWindow
-        visible: GlobalStates.sidebarRightOpen
+        panelName: "sidebarRight"
+        shown: GlobalStates.sidebarRightOpen
+        slideFrom: "right"
+        onDismissRequested: hide()
 
         function hide() {
             GlobalStates.sidebarRightOpen = false;
@@ -21,9 +25,6 @@ Scope {
 
         exclusiveZone: 0
         implicitWidth: sidebarWidth
-        WlrLayershell.namespace: "quickshell:sidebarRight"
-        WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-        color: "transparent"
 
         anchors {
             top: true
@@ -31,23 +32,9 @@ Scope {
             bottom: true
         }
 
-        onVisibleChanged: {
-            if (visible) {
-                GlobalFocusGrab.addDismissable(panelWindow);
-            } else {
-                GlobalFocusGrab.removeDismissable(panelWindow);
-            }
-        }
-        Connections {
-            target: GlobalFocusGrab
-            function onDismissed() {
-                panelWindow.hide();
-            }
-        }
-
         Loader {
             id: sidebarContentLoader
-            active: GlobalStates.sidebarRightOpen || Config?.options.sidebar.keepRightSidebarLoaded
+            active: panelWindow.visible || Config?.options.sidebar.keepRightSidebarLoaded
             anchors {
                 fill: parent
                 margins: Appearance.sizes.hyprlandGapsOut

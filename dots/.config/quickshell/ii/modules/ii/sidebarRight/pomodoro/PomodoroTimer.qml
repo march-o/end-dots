@@ -41,19 +41,19 @@ Item {
                         return `${minutes}:${seconds}`;
                     }
                     font.pixelSize: 40
-                    color: SidebarColors.m3colors.m3onSurface
+                    color: GlassColors.m3colors.m3onSurface
                 }
                 StyledText {
                     Layout.alignment: Qt.AlignHCenter
                     text: TimerService.pomodoroLongBreak ? Translation.tr("Long break") : TimerService.pomodoroBreak ? Translation.tr("Break") : Translation.tr("Focus")
                     font.pixelSize: Appearance.font.pixelSize.normal
-                    color: SidebarColors.colors.colSubtext
+                    color: GlassColors.colors.colSubtext
                 }
             }
 
             Rectangle {
                 radius: Appearance.rounding.full
-                color: SidebarColors.colors.colLayer2
+                color: GlassColors.colors.colLayer2
                 
                 anchors {
                     right: parent.right
@@ -65,7 +65,7 @@ Item {
                 StyledText {
                     id: cycleText
                     anchors.centerIn: parent
-                    color: SidebarColors.colors.colOnLayer2
+                    color: GlassColors.colors.colOnLayer2
                     text: TimerService.pomodoroCycle + 1
                 }
             }
@@ -81,14 +81,14 @@ Item {
                     anchors.centerIn: parent
                     horizontalAlignment: Text.AlignHCenter
                     text: TimerService.pomodoroRunning ? Translation.tr("Pause") : (TimerService.pomodoroSecondsLeft === TimerService.focusTime) ? Translation.tr("Start") : Translation.tr("Resume")
-                    color: TimerService.pomodoroRunning ? SidebarColors.colors.colOnSecondaryContainer : SidebarColors.colors.colOnPrimary
+                    color: TimerService.pomodoroRunning ? GlassColors.colors.colOnSecondaryContainer : GlassColors.colors.colOnPrimary
                 }
                 implicitHeight: 35
                 implicitWidth: 90
                 font.pixelSize: Appearance.font.pixelSize.larger
                 onClicked: TimerService.togglePomodoro()
-                colBackground: TimerService.pomodoroRunning ? SidebarColors.colors.colSecondaryContainer : SidebarColors.colors.colPrimary
-                colBackgroundHover: TimerService.pomodoroRunning ? SidebarColors.colors.colSecondaryContainer : SidebarColors.colors.colPrimary
+                colBackground: TimerService.pomodoroRunning ? GlassColors.colors.colSecondaryContainer : GlassColors.colors.colPrimary
+                colBackgroundHover: TimerService.pomodoroRunning ? GlassColors.colors.colSecondaryContainer : GlassColors.colors.colPrimary
             }
 
             RippleButton {
@@ -99,15 +99,15 @@ Item {
                 enabled: (TimerService.pomodoroSecondsLeft < TimerService.pomodoroLapDuration) || TimerService.pomodoroCycle > 0 || TimerService.pomodoroBreak
 
                 font.pixelSize: Appearance.font.pixelSize.larger
-                colBackground: SidebarColors.colors.colErrorContainer
-                colBackgroundHover: SidebarColors.colors.colErrorContainerHover
-                colRipple: SidebarColors.colors.colErrorContainerActive
+                colBackground: GlassColors.colors.colErrorContainer
+                colBackgroundHover: GlassColors.colors.colErrorContainerHover
+                colRipple: GlassColors.colors.colErrorContainerActive
 
                 contentItem: StyledText {
                     anchors.centerIn: parent
                     horizontalAlignment: Text.AlignHCenter
                     text: Translation.tr("Reset")
-                    color: SidebarColors.colors.colOnErrorContainer
+                    color: GlassColors.colors.colOnErrorContainer
                 }
             }
         }

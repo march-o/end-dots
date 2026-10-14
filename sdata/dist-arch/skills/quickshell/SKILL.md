@@ -7,6 +7,39 @@ description: Edit, deploy, and diagnose this repository's Arch Quickshell config
 
 The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch configuration is `~/.config/quickshell/ii/`. Edit tracked files first, then deploy the changed files to the same relative paths in the live tree. `sdata/dist-arch/setup-martins.sh` has an explicit Quickshell file list; add any newly changed file that needs to survive `./setup update`.
 
+## Shared widget foundation (required)
+
+- Start every new floating Quickshell widget with `GlassPanelWindow` containing `GlassPanel` from `modules/common/widgets/`. Set `panelName`, bind `shown`, choose `slideFrom`, and handle `dismissRequested`. The window supplies a `quickshell:glass-*` namespace, focus dismissal, animated pointer mask, and slide lifecycle; `GlassPanel` inherits its namespace and supplies the wallpaper-aligned blur, shared tint/edge, padding, and semantic colors. Use `frameInset` for outer clearance and `contentPadding` for the content inset; children are already placed inside that padding. Compact bar islands and animated media frames can retain their existing `BarGlassIsland` geometry.
+- `modules/common/GlassColors.qml` is the shared semantic palette; the former sidebar-only palette has been removed. Standard controls inherit it through `ScopedColors`. Use `GlassTextField` for text entry, `GlassButton`/`GlassIcon` for icon actions, and the panel's `statePalette` (icons) or `textStatePalette` (labels) for explicit states. Keep tile/group backgrounds transparent and avoid independent hard-coded colors, opaque plates, or outer shadows.
+- Keep native compositor movement disabled for `quickshell:glass-*` surfaces. `PanelSlide` animates their contents inside fixed windows, retains the surface through exit, and reverses smoothly on reopening. A compositor slide carries a pre-rendered wallpaper crop with the window, producing a stuck-on-image effect that QML cannot track. `GlassWallpaperBackdrop` updates its window-local crop with `FrameAnimation`, including media expansion; do not restore a low-frequency timer. Validate stationary screen samples at multiple intermediate slide positions, plus opening/closing/reversal and pointer-mask movement.
+- Bind the native window's `visible` to `PanelSlide.presented` (the explicit `shown || progress > 0` lifecycle state), never to the child item's `visible`. Qt item visibility includes hidden ancestors, so that feedback can keep a dismissed layer surface permanently hidden. A FloatingWindow/offscreen substitute missed this failure. Test actual `GlassPanelWindow` native surface teardown and reopening with a transparent 1×1 panel, an empty input mask, keyboard focus disabled, and a stub focus manager so the test cannot affect user input; verify both slide directions and content unload/reload.
+- Improve the shared components when a new widget needs a reusable capability. Do not copy the palette or backdrop into a widget and plan to restyle it later. Add new files to the Arch setup list, remove obsolete live files during migration, and verify both the new widget and an existing consumer after shared changes.
+- Keep `GlassPanelWindow` instantiated and put expensive content in a child `Loader` whose `active` follows the window's `visible`. This retains content through exit and unloads it afterward. Do not bind an outer Loader's `active` to its own `item.visible`: destroying the window changes that dependency and causes a binding loop on close.
+- Register shared glass windows with `GlobalFocusGrab` only after `backingWindowVisible` is true, deferring registration with `Qt.callLater` so native surface and keyboard-focus changes settle. Remove them immediately when `shown` becomes false, before the exit animation finishes. Validate repeated global dismissal and reopening with focus registration assertions; animation-only open/close checks do not cover outside-click handling.
+
+```qml
+import qs
+import QtQuick.Layouts
+import qs.modules.common.widgets
+
+GlassPanelWindow {
+    panelName: "myWidget"
+    shown: GlobalStates.myWidgetOpen
+    slideFrom: "top"
+    onDismissRequested: GlobalStates.myWidgetOpen = false
+    implicitWidth: 600
+    implicitHeight: 400
+    GlassPanel {
+        anchors.fill: parent
+        ColumnLayout {
+            anchors.fill: parent
+            StyledText { text: "My widget" }
+            GlassTextField { placeholderText: "Search" }
+        }
+    }
+}
+```
+
 ## Live changes
 
 - After a system Qt upgrade, run `qs --private-check-compat`. The locally built `illogical-impulse-quickshell-git` package is not updated by AUR helpers; if the check reports a Qt version mismatch, rebuild the pinned PKGBUILD in `sdata/dist-arch/illogical-impulse-quickshell-git/` against the installed Qt and install the resulting package. Verify compatibility again before the next shell launch. Package replacement does not require restarting the running desktop or lock UI.
@@ -66,6 +99,10 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 ## Wallpaper formats
 
+- The wallpaper gallery and control panel use `GlassPanel` and `GlassColors`, with transparent tile surfaces and contrast-checked text states. Its backdrop namespace needs a centered-screen/top-margin origin fallback until the layer snapshot arrives. Curated titles live in `assets/wallpaper-titles.json`; retain image paths for applying wallpapers and filter the gallery by both display title and original filename, rather than passing title queries to `FolderListModel.nameFilters`.
+
+- The bar wallpaper control opens the native `wallpaperSelectorOpen` gallery at `Wallpapers.defaultFolder`; keep selection explicit and clear the previous search when reopening. `ToolbarButton` inherits `Layout.fillHeight: true`, so constrain gallery header rows and give standalone toolbar icons a fixed height; otherwise the header can consume almost the entire panel and squeeze previews into a strip. Verify actual thumbnail rendering as well as model counts. Offscreen Qt rendering needs `QT_QUICK_BACKEND=rhi` for the thumbnail opacity masks; the software renderer can show empty cards even when images loaded successfully.
+
 - Dozens of simultaneous `sample-bar-wallpaper.py` processes decoded an 8K WebP independently and caused a verified system OOM. Serialize before importing Pillow and decode each image once into a shared 2048px raw RGB preview. Cached requests read its pixels with mmap and must not import Pillow or decode the preview per control. Index file metadata including ctime/inode, hash content only when metadata changes, and key previews by content plus sampler version; touching or renaming unchanged content should reuse it. Publish previews atomically and bound cache storage. Geometry, zoom, and theme changes reuse the raw preview while recalculating patches and contrast. Test changed content with preserved mtime and concurrent requests before high-resolution live wallpaper tests.
 
 - AVIF appears in the wallpaper picker and Qt can decode it, but the background size probe also uses `magick identify`. Check that decoder before treating AVIF as fully supported: a missing ImageMagick HEIC module breaks the dimension probe even if Pillow opens the image. Convert to PNG with Pillow when needed, preserving decoded pixels, and select it through `switchwall.sh --image` so the live wallpaper path and theming update together.
@@ -86,7 +123,7 @@ The tracked configuration is `dots/.config/quickshell/ii/`; the live Arch config
 
 ## Horizontal bar layout
 
-- For opt-in glass panels, inherit semantic colors through `ScopedColors` from an ancestor’s `glassColors`/`glassM3Colors`. Common controls must fall back to `Appearance` outside that subtree; never recolor the global application theme to style one panel. The right sidebar shares the bar tint/foreground and transparent content groups. Scope its native blur rule to `quickshell:sidebarRight` with `ignore_alpha = 0.01` and avoid an outer shadow so blur stays inside its frame.
+- For opt-in glass panels, inherit semantic colors through `ScopedColors` from an ancestor’s `glassColors`/`glassM3Colors`. Common controls must fall back to `Appearance` outside that subtree; never recolor the global application theme to style one panel. The right sidebar shares the bar tint/foreground and transparent content groups. Use the shared `quickshell:glass-*` native blur rule with `ignore_alpha = 0.01` and avoid an outer shadow so blur stays inside its frame.
 
 - Hide the per-monitor horizontal bar loader when a mapped, visible client on that monitor’s active or special workspace has actual Hyprland fullscreen (`fullscreen & 2`). Mode 1 is maximized and should retain the bar. Match refreshed monitor names/IDs from `HyprlandData`; do not depend only on the globally focused window or stale native workspace objects. Unloading the panel removes its input mask and reserved zone as well as its pixels. Test fullscreen entry/exit and monitor independence. A fullscreen Moonlight stream otherwise shows the laptop’s local bar over the streamed desktop bar.
 
