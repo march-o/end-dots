@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-exec node "$HOME/.local/share/end-dots-martins/chrome-control/cli.mjs" "$@"
+exec node "$HOME/.local/share/chrome-control/current/cli.mjs" "$@"

@@ -1,9 +1,0 @@
-{
-  "name": "chrome-control",
-  "private": true,
-  "type": "module",
-  "scripts": { "test": "node --test" },
-  "dependencies": {
-    "ws": "^8.22.0"
-  }
-}
