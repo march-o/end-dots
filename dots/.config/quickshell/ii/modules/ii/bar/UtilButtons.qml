@@ -156,31 +156,6 @@ Item {
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredWidth: BarGeometry.buttonSize
             Layout.preferredHeight: BarGeometry.buttonSize
-            active: Config.options.bar.utilButtons.showDarkModeToggle
-            visible: Config.options.bar.utilButtons.showDarkModeToggle
-            sourceComponent: UtilityButton {
-                Layout.alignment: Qt.AlignVCenter
-                toggled: Appearance.m3colors.darkmode
-                onClicked: event => {
-                    if (Appearance.m3colors.darkmode) {
-                        Quickshell.execDetached(["bash", "-c", `${Directories.wallpaperSwitchScriptPath} --mode light --noswitch`])
-                    } else {
-                        Quickshell.execDetached(["bash", "-c", `${Directories.wallpaperSwitchScriptPath} --mode dark --noswitch`])
-                    }
-                }
-                GlassIcon {
-                    horizontalAlignment: Qt.AlignHCenter
-                    fill: 0
-                    text: Appearance.m3colors.darkmode ? "light_mode" : "dark_mode"
-                    iconSize: BarGeometry.iconSize
-                }
-            }
-        }
-
-        Loader {
-            Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: BarGeometry.buttonSize
-            Layout.preferredHeight: BarGeometry.buttonSize
             active: Config.options.bar.utilButtons.showPerformanceProfileToggle
             visible: Config.options.bar.utilButtons.showPerformanceProfileToggle
             sourceComponent: UtilityButton {

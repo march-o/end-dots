@@ -16,6 +16,13 @@ Scope {
     property alias context: lockContext
     property bool screenOffRequested: false
 
+    function finishUnlock() {
+        if (!GlobalStates.screenLocked) return;
+        GlobalStates.screenLocked = false;
+        // Run once per successful unlock, after releasing the lock surfaces.
+        Quickshell.execDetached(["wallpaper-next", "--random"]);
+    }
+
     function turnOffScreenWhenReady() {
         if (!root.screenOffRequested || !GlobalStates.screenLocked) return;
         if (Config.options.lock.security.passwordless) {
@@ -113,7 +120,7 @@ Scope {
 
             // Unlock the screen before exiting, or the compositor will display a
             // fallback lock you can't interact with.
-            GlobalStates.screenLocked = false;
+            root.finishUnlock();
 
             // Reset
             lockContext.reset();
@@ -180,7 +187,7 @@ Scope {
         }
         function deactivate(): void {
             if (Config.options.lock.security.passwordless)
-                GlobalStates.screenLocked = false;
+                root.finishUnlock();
         }
         function isActive(): bool {
             return GlobalStates.screenLocked;

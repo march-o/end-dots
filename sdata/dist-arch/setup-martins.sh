@@ -171,6 +171,7 @@ configure_quickshell_shell() {
       modules/ii/sidebarLeft/SidebarLeft.qml \
       modules/ii/sidebarLeft/AiChat.qml \
       modules/ii/sidebarLeft/aiChat/MessageTextBlock.qml \
+      modules/settings/BarConfig.qml \
       modules/ii/lock/Lock.qml \
       modules/ii/lock/LockSurface.qml \
       modules/ii/wallpaperSelector/WallpaperSelector.qml \

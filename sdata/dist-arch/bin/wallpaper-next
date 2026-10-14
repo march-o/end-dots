@@ -4,6 +4,15 @@ set -euo pipefail
 wallpaper_dir="${WALLPAPER_DIR:-$HOME/.config/dotfiles/wallpapers}"
 shell_config="${XDG_CONFIG_HOME:-$HOME/.config}/illogical-impulse/config.json"
 switcher="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/ii/scripts/colors/switchwall.sh"
+random=false
+dry_run=false
+for arg in "$@"; do
+  case "$arg" in
+    --random) random=true ;;
+    --dry-run) dry_run=true ;;
+    *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
+  esac
+done
 
 if [[ ! -d "$wallpaper_dir" ]]; then
   printf 'Wallpaper directory does not exist: %s\n' "$wallpaper_dir" >&2
@@ -40,7 +49,18 @@ for index in "${!wallpapers[@]}"; do
 done
 next_wallpaper="${wallpapers[$next_index]}"
 
-if [[ "${1:-}" == "--dry-run" ]]; then
+if $random; then
+  candidates=()
+  for wallpaper in "${wallpapers[@]}"; do
+    [[ "$wallpaper" == "$current" ]] || candidates+=("$wallpaper")
+  done
+  # With a single image there is nothing new to choose on unlock.
+  (( ${#candidates[@]} > 0 )) || exit 0
+  random_index=$(shuf -i "0-$((${#candidates[@]} - 1))" -n 1)
+  next_wallpaper="${candidates[$random_index]}"
+fi
+
+if $dry_run; then
   printf '%s\n' "$next_wallpaper"
   exit 0
 fi
