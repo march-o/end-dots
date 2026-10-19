@@ -63,8 +63,8 @@ ButtonMouseArea {
                     && assignedMonitor !== null && monitorName !== root.referenceMonitorName
                 // Complementary hues use the shared glass contrast checks.
                 readonly property color backgroundTint: onOtherMonitor
-                    ? BarGlassPalette.highlightTint(0.25, hovered ? 0.62 : 0.52)
-                    : active ? BarGlassPalette.highlightTint(0.75, hovered ? 0.62 : 0.52) : "transparent"
+                    ? BarGlassPalette.highlightTint(0.25, hovered ? 0.40 : 0.30)
+                    : active ? BarGlassPalette.highlightTint(0.75, hovered ? 0.40 : 0.30) : "transparent"
                 readonly property color effectiveTint: BarGlassPalette.overlayTint(backgroundTint)
                 readonly property var iconStates: BarGlassPalette.islandButtonColors(effectiveTint)
                 readonly property var textStates: BarGlassPalette.islandButtonColors(effectiveTint, 4.5)
@@ -85,9 +85,9 @@ ButtonMouseArea {
 
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 30.5
-                    height: 27
-                    radius: 9
+                    width: 26
+                    height: 22
+                    radius: 7
                     color: workspace.backgroundTint
                     visible: workspace.active || workspace.onOtherMonitor
                 }
