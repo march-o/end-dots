@@ -15,91 +15,43 @@ Scope {
     id: overviewScope
     property bool dontAutoCancelSearch: false
 
-    PanelWindow {
+    GlassPanelWindow {
         id: panelWindow
-        property string searchingText: ""
-        readonly property HyprlandMonitor monitor: Hyprland.monitorFor(panelWindow.screen)
-        property bool monitorIsFocused: (Hyprland.focusedMonitor?.id == monitor?.id)
-        visible: GlobalStates.overviewOpen
+        panelName: "overview"
+        screen: Quickshell.screens.find(s => s.name === HyprlandData.monitors.find(m => m.focused)?.name)
+            ?? Quickshell.screens[0]
+        shown: GlobalStates.overviewOpen
+        slideFrom: "top"
+        anchors.top: true
+        margins.top: 56
+        implicitWidth: Math.min(1360, (screen?.width ?? 1440) - 48)
+        implicitHeight: contentLoader.item?.implicitHeight ?? 600
+        onDismissRequested: GlobalStates.overviewOpen = false
 
-        WlrLayershell.namespace: "quickshell:overview"
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: GlobalStates.overviewOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-        color: "transparent"
-
-        mask: Region {
-            item: GlobalStates.overviewOpen ? columnLayout : null
-        }
-
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
+        function setSearchingText(text) {
+            LauncherSearch.query = text;
+            contentLoader.item?.setSearchingText(text);
         }
 
         Connections {
             target: GlobalStates
             function onOverviewOpenChanged() {
-                if (!GlobalStates.overviewOpen) {
-                    searchWidget.disableExpandAnimation();
-                    overviewScope.dontAutoCancelSearch = false;
-                    GlobalFocusGrab.dismiss();
+                if (GlobalStates.overviewOpen) {
+                    if (!overviewScope.dontAutoCancelSearch) LauncherSearch.query = "";
+                    contentLoader.item?.resetSelection();
+                    Qt.callLater(() => contentLoader.item?.focusSearchInput());
                 } else {
-                    if (!overviewScope.dontAutoCancelSearch) {
-                        searchWidget.cancelSearch();
-                    }
-                    GlobalFocusGrab.addDismissable(panelWindow);
+                    GlobalStates.superReleaseMightTrigger = false;
+                    overviewScope.dontAutoCancelSearch = false;
                 }
             }
         }
 
-        Connections {
-            target: GlobalFocusGrab
-            function onDismissed() {
-                GlobalStates.overviewOpen = false;
-            }
-        }
-        implicitWidth: columnLayout.implicitWidth
-        implicitHeight: columnLayout.implicitHeight
-
-        function setSearchingText(text) {
-            searchWidget.setSearchingText(text);
-            searchWidget.focusFirstItem();
-        }
-
-        Column {
-            id: columnLayout
-            visible: GlobalStates.overviewOpen
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
-            }
-            spacing: -8
-
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
-                    GlobalStates.overviewOpen = false;
-                }
-            }
-
-            SearchWidget {
-                id: searchWidget
-                anchors.horizontalCenter: parent.horizontalCenter
-                Synchronizer on searchingText {
-                    property alias source: panelWindow.searchingText
-                }
-            }
-
-            Loader {
-                id: overviewLoader
-                anchors.horizontalCenter: parent.horizontalCenter
-                active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
-                sourceComponent: OverviewWidget {
-                    screen: panelWindow.screen
-                    visible: (panelWindow.searchingText == "")
-                }
-            }
+        Loader {
+            id: contentLoader
+            anchors.fill: parent
+            active: panelWindow.visible
+            sourceComponent: OverviewContent { screen: panelWindow.screen }
         }
     }
 
@@ -146,6 +98,41 @@ Scope {
         }
     }
 
+    GlobalShortcut {
+        name: "overviewNavigateLeft"
+        onPressed: {
+            GlobalStates.superReleaseMightTrigger = false;
+            if (GlobalStates.overviewOpen) contentLoader.item?.navigate("left");
+        }
+    }
+    GlobalShortcut {
+        name: "overviewNavigateRight"
+        onPressed: {
+            GlobalStates.superReleaseMightTrigger = false;
+            if (GlobalStates.overviewOpen) contentLoader.item?.navigate("right");
+        }
+    }
+    GlobalShortcut {
+        name: "overviewNavigateUp"
+        onPressed: {
+            GlobalStates.superReleaseMightTrigger = false;
+            if (GlobalStates.overviewOpen) contentLoader.item?.navigate("up");
+        }
+    }
+    GlobalShortcut {
+        name: "overviewNavigateDown"
+        onPressed: {
+            GlobalStates.superReleaseMightTrigger = false;
+            if (GlobalStates.overviewOpen) contentLoader.item?.navigate("down");
+        }
+    }
+    GlobalShortcut {
+        name: "overviewActivate"
+        onPressed: {
+            GlobalStates.superReleaseMightTrigger = false;
+            contentLoader.item?.acceptSelection();
+        }
+    }
     GlobalShortcut {
         name: "searchToggle"
         description: "Toggles search on press"

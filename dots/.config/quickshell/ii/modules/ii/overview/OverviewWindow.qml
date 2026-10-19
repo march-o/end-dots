@@ -103,10 +103,10 @@ Item { // Window
             topRightRadius: root.topRightRadius
             bottomRightRadius: root.bottomRightRadius
             bottomLeftRadius: root.bottomLeftRadius
-            color: pressed ? ColorUtils.transparentize(Appearance.colors.colLayer2Active, 0.5) : 
-                hovered ? ColorUtils.transparentize(Appearance.colors.colLayer2Hover, 0.7) : 
-                ColorUtils.transparentize(Appearance.colors.colLayer2)
-            border.color : ColorUtils.transparentize(Appearance.m3colors.m3outline, 0.88)
+            color: pressed ? ColorUtils.transparentize(GlassColors.colors.colPrimaryContainer, 0.5) :
+                hovered ? ColorUtils.transparentize(GlassColors.colors.colPrimaryContainer, 0.7) :
+                ColorUtils.transparentize(GlassColors.colors.colLayer2)
+            border.color : ColorUtils.transparentize(GlassColors.states.off, 0.88)
             border.width : 1
         }
 

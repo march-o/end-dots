@@ -16,6 +16,7 @@ Singleton {
     property var addresses: []
     property var windowByAddress: ({})
     property var workspaces: []
+    property var specialWorkspaces: []
     property var workspaceIds: []
     property var workspaceById: ({})
     property var activeWorkspace: null
@@ -216,6 +217,8 @@ Singleton {
             id: workspacesCollector
             onStreamFinished: {
                 var rawWorkspaces = JSON.parse(workspacesCollector.text);
+                root.specialWorkspaces = rawWorkspaces.filter(ws => ws.id < 0 && ws.name.startsWith("special:") && ws.windows > 0)
+                    .sort((a, b) => a.name.localeCompare(b.name));
                 // Filter out invalid workspace ids (e.g. lock-screen temp workspace 2147483647 - N)
                 root.workspaces = rawWorkspaces.filter(ws => ws.id >= 1 && ws.id <= 100);
                 let tempWorkspaceById = {};

@@ -64,6 +64,13 @@ local function canvas_window(direction)
     return active, best_window
 end
 
+local function overview_is_open()
+    for _, layer in ipairs(hl.get_layers({ namespace = "quickshell:glass-overview" })) do
+        if layer.mapped and layer.interactivity > 0 then return true end
+    end
+    return false
+end
+
 local function focus_canvas(direction)
     local _, best_window = canvas_window(direction)
 
@@ -103,7 +110,11 @@ for _, direction in ipairs({
 }) do
     hl.unbind("SUPER + " .. direction.key)
     hl.bind("SUPER + " .. direction.key, function()
-        focus_canvas(direction.direction)
+        if overview_is_open() then
+            hl.dispatch(hl.dsp.global("quickshell:overviewNavigate" .. direction.key))
+        else
+            focus_canvas(direction.direction)
+        end
     end, { description = direction.description })
 
     local move_description = direction.description:gsub("Focus", "Move")
@@ -122,7 +133,13 @@ hl.bind("CTRL + SUPER + ALT + T", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-ne
 -- Launch the configured terminal directly instead of using the upstream fallback.
 for _, key in ipairs({ "SUPER + Return", "SUPER + T", "CTRL + ALT + T" }) do
     hl.unbind(key)
-    hl.bind(key, hl.dsp.exec_cmd("kitty"), { description = "App: Kitty terminal" })
+    hl.bind(key, function()
+        if key == "SUPER + Return" and overview_is_open() then
+            hl.dispatch(hl.dsp.global("quickshell:overviewActivate"))
+        else
+            hl.dispatch(hl.dsp.exec_cmd("kitty"))
+        end
+    end, { description = "App: Kitty terminal" })
 end
 
 -- Use the bar's region selector, then open the annotation editor.
@@ -132,3 +149,21 @@ hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"),
 
 -- PrintScreen is the screenshot shortcut. Remove both upstream snip bindings.
 hl.unbind("SUPER + SHIFT + S")
+
+-- Twelve workspaces retain 1–0 and add the two keys beside the number row.
+-- Move screen zoom to Ctrl+Super so these workspace shortcuts stay contiguous.
+for _, entry in ipairs({ { key = "Minus", id = 11 }, { key = "Equal", id = 12 } }) do
+    hl.unbind("SUPER + " .. entry.key)
+    hl.bind("SUPER + " .. entry.key, function()
+        hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(entry.id) }))
+    end, { description = "Workspace: Focus " .. entry.id })
+    hl.bind("SUPER + ALT + " .. entry.key, function()
+        hl.dispatch(hl.dsp.window.move({ workspace = workspace_in_group(entry.id), follow = false }))
+    end, { description = "Window: Send to workspace " .. entry.id })
+end
+for _, entry in ipairs({ { key = "Minus", delta = -0.3 }, { key = "Equal", delta = 0.3 } }) do
+    hl.bind("CTRL + SUPER + " .. entry.key, function()
+        local zoom = hl.get_config("cursor:zoom_factor")
+        hl.config({ cursor = { zoom_factor = math.max(1.0, math.min(3.0, zoom + entry.delta)) } })
+    end, { repeating = true, description = "Screen: Zoom" })
+end

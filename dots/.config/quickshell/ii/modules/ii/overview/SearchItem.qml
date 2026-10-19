@@ -34,25 +34,25 @@ RippleButton {
     property string materialSymbol: entry.iconType === LauncherSearchResult.IconType.Material ? entry?.iconName ?? "" : ""
     property string cliphistRawString: entry?.rawValue ?? ""
     property bool blurImage: entry?.blurImage ?? false
-    
+
     visible: root.entryShown
     property int horizontalMargin: 10
     property int buttonHorizontalPadding: 10
     property int buttonVerticalPadding: 6
     property bool keyboardDown: false
-    readonly property bool selected: (root.hovered || root.focus)
+    property bool selected: (root.hovered || root.focus)
 
     implicitHeight: rowLayout.implicitHeight + root.buttonVerticalPadding * 2
     implicitWidth: rowLayout.implicitWidth + root.buttonHorizontalPadding * 2
     buttonRadius: Appearance.rounding.normal
-    colBackground: (root.down || root.keyboardDown) ? Appearance.colors.colPrimaryContainerActive : 
-        (selected ? Appearance.colors.colPrimaryContainer : 
-        ColorUtils.transparentize(Appearance.colors.colPrimaryContainer, 1))
-    colBackgroundHover: Appearance.colors.colPrimaryContainer
-    colRipple: Appearance.colors.colPrimaryContainerActive
-    property color colForeground: selected ? Appearance.colors.colOnPrimaryContainer : Appearance.m3colors.m3onSurface
+    colBackground: (root.down || root.keyboardDown) ? GlassColors.colors.colPrimaryContainerActive :
+        (selected ? GlassColors.colors.colPrimaryContainer :
+        ColorUtils.transparentize(GlassColors.colors.colPrimaryContainer, 1))
+    colBackgroundHover: GlassColors.colors.colPrimaryContainer
+    colRipple: GlassColors.colors.colPrimaryContainerActive
+    property color colForeground: selected ? GlassColors.colors.colOnPrimaryContainer : GlassColors.m3colors.m3onSurface
 
-    readonly property string highlightPrefix: `<u><font color="${Appearance.colors.colPrimary}">`
+    readonly property string highlightPrefix: `<u><font color="${GlassColors.colors.colPrimary}">`
     readonly property string highlightSuffix: `</font></u>`
     // Note that this highlighting is independent from the search
     // It's close, but does not accurately represent how the fuzzy algorithm works
@@ -94,7 +94,7 @@ RippleButton {
             ?.filter(url => !url.includes("…")) // Elided = invalid
         return matches ? matches : [];
     }
-    
+
     PointingHandInteraction {}
 
     background {
@@ -187,7 +187,7 @@ RippleButton {
             spacing: 0
             StyledText {
                 font.pixelSize: Appearance.font.pixelSize.smaller
-                color: root.selected ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colSubtext
+                color: root.selected ? GlassColors.colors.colOnPrimaryContainer : GlassColors.colors.colSubtext
                 visible: root.itemType && root.itemType != Translation.tr("App")
                 text: root.itemType
             }
@@ -199,13 +199,13 @@ RippleButton {
                         implicitWidth: activeText.implicitHeight
                         implicitHeight: activeText.implicitHeight
                         radius: Appearance.rounding.full
-                        color: Appearance.colors.colPrimary
+                        color: GlassColors.colors.colPrimary
                         MaterialSymbol {
                             id: activeText
                             anchors.centerIn: parent
                             text: "check"
                             font.pixelSize: Appearance.font.pixelSize.normal
-                            color: Appearance.m3colors.m3onPrimary
+                            color: GlassColors.m3colors.m3onPrimary
                         }
                     }
                 }
@@ -247,7 +247,7 @@ RippleButton {
             visible: root.selected
             id: clickAction
             font.pixelSize: Appearance.font.pixelSize.normal
-            color: Appearance.colors.colOnPrimaryContainer
+            color: GlassColors.colors.colOnPrimaryContainer
             horizontalAlignment: Text.AlignRight
             text: root.itemClickActionName
         }
@@ -267,8 +267,8 @@ RippleButton {
                     implicitHeight: 34
                     implicitWidth: 34
 
-                    colBackgroundHover: Appearance.colors.colSecondaryContainerHover
-                    colRipple: Appearance.colors.colSecondaryContainerActive
+                    colBackgroundHover: GlassColors.colors.colSecondaryContainerHover
+                    colRipple: GlassColors.colors.colSecondaryContainerActive
 
                     contentItem: Item {
                         id: actionContentItem

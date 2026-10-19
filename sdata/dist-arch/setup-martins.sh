@@ -48,6 +48,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/glass.lua" "$HOME/.config/hypr/custom/glass.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/hyprland/variables.lua" "$HOME/.config/hypr/hyprland/variables.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/hyprland/env.lua" "$HOME/.config/hypr/hyprland/env.lua"
   if [[ "${LAPTOP:-0}" == "0" ]]; then
     install -Dm644 "$repo_root/sdata/dist-arch/config/hypridle-pc.conf" "$HOME/.config/hypr/hypridle.conf"
@@ -150,7 +151,15 @@ configure_quickshell_shell() {
       modules/ii/bar/MediaProgress.qml \
       modules/ii/bar/MediaVolumeSlider.qml \
       modules/ii/bar/MediaVolumeControl.qml \
+      modules/ii/overview/Overview.qml \
+      modules/ii/overview/OverviewContent.qml \
+      modules/ii/overview/OverviewMonitorTag.qml \
       modules/ii/overview/OverviewWidget.qml \
+      modules/ii/overview/OverviewWindow.qml \
+      modules/ii/overview/OverviewNavigation.js \
+      modules/ii/overview/SearchWidget.qml \
+      modules/ii/overview/SearchBar.qml \
+      modules/ii/overview/SearchItem.qml \
       scripts/cava/media_card_config.txt \
       scripts/media/spotify-connect.py \
       scripts/media/spotify-authorize.py \
@@ -219,6 +228,11 @@ configure_quickshell_shell() {
       .lock.security.unlockKeyring = false |
       .lock.blur.radius = 50 |
       .bar.cornerStyle = 1 |
+      .bar.workspaces.shown = 12 |
+      .overview.rows = 3 |
+      .overview.columns = 4 |
+      .overview.orderRightLeft = false |
+      .overview.orderBottomUp = false |
       .background.widgets.clock.style = "digital" |
       .background.widgets.clock.styleLocked = "digital" |
       .appearance.fontScale = $quickshell_font_scale |

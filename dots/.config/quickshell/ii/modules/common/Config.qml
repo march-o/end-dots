@@ -260,7 +260,7 @@ Singleton {
                 }
                 property JsonObject workspaces: JsonObject {
                     property bool monochromeIcons: true
-                    property int shown: 10
+                    property int shown: 12
                     property bool showAppIcons: true
                     property bool alwaysShowNumbers: false
                     property int showNumberDelay: 300 // milliseconds
@@ -428,8 +428,8 @@ Singleton {
             property JsonObject overview: JsonObject {
                 property bool enable: true
                 property real scale: 0.18 // Relative to screen size
-                property real rows: 2
-                property real columns: 5
+                property real rows: 3
+                property real columns: 4
                 property bool orderRightLeft: false
                 property bool orderBottomUp: false
                 property bool centerIcons: true

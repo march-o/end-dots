@@ -21,14 +21,16 @@ Item {
     // Clamp to avoid lock-screen temp workspace (2147483647 - N) leaking into UI
     readonly property int effectiveActiveWorkspaceId: Math.max(1, Math.min(100, monitor?.activeWorkspace?.id ?? 1))
     readonly property int workspacesShown: Config.options.overview.rows * Config.options.overview.columns
-    readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / workspacesShown)
+    readonly property int workspaceGroup: 0
     property bool monitorIsFocused: monitor?.focused ?? false
     property var windows: HyprlandData.windowList
     property var windowByAddress: HyprlandData.windowByAddress
     property var windowAddresses: HyprlandData.addresses
     readonly property var monitorData: root.monitor
     property real scale: Config.options.overview.scale
-    property color activeBorderColor: Appearance.colors.colSecondary
+    property color activeBorderColor: GlassColors.states.on
+    property int selectedWorkspace: -1
+    signal workspaceChosen(int workspace)
 
     readonly property real monitorScale: Math.max(0.1, monitorData?.scale ?? root.screen?.devicePixelRatio ?? 1)
     readonly property real monitorWidth: monitorData?.width ?? (root.screen?.width ?? 1) * monitorScale
@@ -36,23 +38,24 @@ Item {
     readonly property bool monitorRotated: (monitorData?.transform ?? 0) % 2 === 1
     property real workspaceImplicitWidth: Math.max(1, ((monitorRotated ? monitorHeight : monitorWidth)
         - (monitorData?.reserved?.[0] ?? 0) - (monitorData?.reserved?.[2] ?? 0)) * root.scale / monitorScale)
-    property real workspaceImplicitHeight: Math.max(1, ((monitorRotated ? monitorWidth : monitorHeight)
+    readonly property real workspaceHeaderHeight: 28
+    property real workspaceImplicitHeight: workspaceHeaderHeight + Math.max(1, ((monitorRotated ? monitorWidth : monitorHeight)
         - (monitorData?.reserved?.[1] ?? 0) - (monitorData?.reserved?.[3] ?? 0)) * root.scale / monitorScale)
-    property real largeWorkspaceRadius: Appearance.rounding.large
-    property real smallWorkspaceRadius: Appearance.rounding.verysmall
+    property real largeWorkspaceRadius: 12
+    property real smallWorkspaceRadius: 12
 
     property real workspaceNumberMargin: 80
     property real workspaceNumberSize: 250 * root.monitorScale
     property int workspaceZ: 0
     property int windowZ: 1
     property int windowDraggingZ: 99999
-    property real workspaceSpacing: 5
+    property real workspaceSpacing: 8
 
     property int draggingFromWorkspace: -1
     property int draggingTargetWorkspace: -1
 
-    implicitWidth: overviewBackground.implicitWidth + Appearance.sizes.elevationMargin * 2
-    implicitHeight: overviewBackground.implicitHeight + Appearance.sizes.elevationMargin * 2
+    implicitWidth: overviewBackground.implicitWidth
+    implicitHeight: overviewBackground.implicitHeight
 
     property Component windowComponent: OverviewWindow {}
     property list<OverviewWindow> windowWidgets: []
@@ -72,19 +75,13 @@ Item {
         return (Config.options.overview.orderBottomUp ? Config.options.overview.rows - ri - 1 : ri) * Config.options.overview.columns + (Config.options.overview.orderRightLeft ? Config.options.overview.columns - ci - 1 : ci) + 1
     }
 
-    StyledRectangularShadow {
-        target: overviewBackground
-    }
-    Rectangle { // Background
+    Item { // Transparent grid; GlassPanel owns the surface
         id: overviewBackground
-        property real padding: 10
+        property real padding: 0
         anchors.fill: parent
-        anchors.margins: Appearance.sizes.elevationMargin
 
         implicitWidth: workspaceColumnLayout.implicitWidth + padding * 2
         implicitHeight: workspaceColumnLayout.implicitHeight + padding * 2
-        radius: root.largeWorkspaceRadius + padding
-        color: Appearance.colors.colBackgroundSurfaceContainer
 
         Column { // Workspaces
             id: workspaceColumnLayout
@@ -107,14 +104,14 @@ Item {
                             required property int index
                             property int colIndex: index
                             property int workspaceValue: root.workspaceGroup * root.workspacesShown + getWsInCell(row.index, colIndex)
-                            property color defaultWorkspaceColor: Appearance.colors.colSurfaceContainerLow
-                            property color hoveredWorkspaceColor: ColorUtils.mix(defaultWorkspaceColor, Appearance.colors.colLayer1Hover, 0.1)
-                            property color hoveredBorderColor: Appearance.colors.colLayer2Hover
+                            property color defaultWorkspaceColor: "transparent"
+                            property color hoveredWorkspaceColor: Qt.alpha(GlassColors.foreground, 0.08)
+                            property color hoveredBorderColor: GlassColors.states.onHover
                             property bool hoveredWhileDragging: false
 
                             implicitWidth: root.workspaceImplicitWidth
                             implicitHeight: root.workspaceImplicitHeight
-                            color: hoveredWhileDragging ? hoveredWorkspaceColor : defaultWorkspaceColor
+                            color: hoveredWhileDragging || workspaceArea.containsMouse ? hoveredWorkspaceColor : defaultWorkspaceColor
                             property bool workspaceAtLeft: colIndex === 0
                             property bool workspaceAtRight: colIndex === Config.options.overview.columns - 1
                             property bool workspaceAtTop: row.index === 0
@@ -124,29 +121,43 @@ Item {
                             bottomLeftRadius: (workspaceAtLeft && workspaceAtBottom) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                             bottomRightRadius: (workspaceAtRight && workspaceAtBottom) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                             border.width: 2
-                            border.color: hoveredWhileDragging ? hoveredBorderColor : "transparent"
+                            border.color: hoveredWhileDragging ? hoveredBorderColor : Qt.alpha(GlassColors.states.off, 0.3)
 
                             StyledText {
-                                anchors.centerIn: parent
+                                anchors { left: parent.left; top: parent.top; margins: 10 }
                                 text: workspace.workspaceValue
                                 font {
-                                    pixelSize: root.workspaceNumberSize * root.scale
+                                    pixelSize: Appearance.font.pixelSize.normal
                                     weight: Font.DemiBold
                                     family: Appearance.font.family.expressive
                                 }
-                                color: ColorUtils.transparentize(Appearance.colors.colOnLayer1, 0.8)
+                                color: root.selectedWorkspace === workspace.workspaceValue ? GlassColors.textStates.on : GlassColors.foreground
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
+                            }
+
+                            OverviewMonitorTag {
+                                anchors { right: parent.right; top: parent.top; rightMargin: 10; topMargin: 7 }
+                                monitorName: HyprlandData.workspaceById[workspace.workspaceValue]?.monitor ?? ""
+                                current: HyprlandData.monitors.some(m => m.activeWorkspace?.id === workspace.workspaceValue)
+                            }
+
+                            Rectangle {
+                                anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 5 }
+                                width: 24; height: 3; radius: 1.5
+                                color: GlassColors.states.on
+                                visible: workspace.workspaceValue === root.effectiveActiveWorkspaceId
+                                z: root.windowDraggingZ + 1
                             }
 
                             MouseArea {
                                 id: workspaceArea
                                 anchors.fill: parent
                                 acceptedButtons: Qt.LeftButton
-                                onPressed: {
+                                hoverEnabled: true
+                                onClicked: {
                                     if (root.draggingTargetWorkspace === -1) {
-                                        GlobalStates.overviewOpen = false
-                                        Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspace.workspaceValue} })`)
+                                        root.workspaceChosen(workspace.workspaceValue)
                                     }
                                 }
                             }
@@ -185,7 +196,7 @@ Item {
                             const address = `0x${toplevel.HyprlandToplevel?.address}`
                             var win = windowByAddress[address]
                             const inWorkspaceGroup = (root.workspaceGroup * root.workspacesShown < win?.workspace?.id && win?.workspace?.id <= (root.workspaceGroup + 1) * root.workspacesShown)
-                            return inWorkspaceGroup;
+                            return inWorkspaceGroup && HyprlandData.monitors.some(m => m.id === win.monitor);
                         })
                     }
                 }
@@ -207,7 +218,7 @@ Item {
                     property int workspaceColIndex: getWsColumn(windowData?.workspace.id)
                     property int workspaceRowIndex: getWsRow(windowData?.workspace.id)
                     xOffset: (root.workspaceImplicitWidth + workspaceSpacing) * workspaceColIndex
-                    yOffset: (root.workspaceImplicitHeight + workspaceSpacing) * workspaceRowIndex
+                    yOffset: (root.workspaceImplicitHeight + workspaceSpacing) * workspaceRowIndex + root.workspaceHeaderHeight
                     property real xWithinWorkspaceWidget: Math.max((windowData?.at[0] - (monitor?.x ?? 0) - monitorData?.reserved[0]) * root.scale, 0)
                     property real yWithinWorkspaceWidget: Math.max((windowData?.at[1] - (monitor?.y ?? 0) - monitorData?.reserved[1]) * root.scale, 0)
 
@@ -308,11 +319,12 @@ Item {
 
             Rectangle { // Focused workspace indicator
                 id: focusedWorkspaceIndicator
-                property int rowIndex: getWsRow(root.effectiveActiveWorkspaceId)
-                property int colIndex: getWsColumn(root.effectiveActiveWorkspaceId)
+                visible: root.selectedWorkspace > 0
+                property int rowIndex: getWsRow(root.selectedWorkspace > 0 ? root.selectedWorkspace : root.effectiveActiveWorkspaceId)
+                property int colIndex: getWsColumn(root.selectedWorkspace > 0 ? root.selectedWorkspace : root.effectiveActiveWorkspaceId)
                 x: (root.workspaceImplicitWidth + workspaceSpacing) * colIndex
                 y: (root.workspaceImplicitHeight + workspaceSpacing) * rowIndex
-                z: root.windowZ
+                z: root.windowDraggingZ + 1
                 width: root.workspaceImplicitWidth
                 height: root.workspaceImplicitHeight
                 color: "transparent"
