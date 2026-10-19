@@ -4,8 +4,32 @@
 Credentials stay on ash. Only device names and playback state cross SSH.
 """
 import json
+import math
 import subprocess
 import sys
+
+# Volume has its own short request, independent of full playback/status polls.
+# It reads the cached address atomically and touches no Spotify credentials.
+VOLUME_REMOTE = r"""
+import json,subprocess
+from pathlib import Path
+params = REQUEST
+try:
+    cache=json.loads((Path.home()/'.cache/quickshell/spotify-connect.json').read_text())
+    ip=cache.get('speaker_ip')
+    if not ip:raise RuntimeError('No known speaker address')
+    probe = r'''import json,sys,soco
+soco.config.REQUEST_TIMEOUT=2
+speaker=soco.SoCo(sys.argv[1])
+speaker.volume=round(float(sys.argv[2])*100)
+print(json.dumps({'ok':True,'volume':speaker.volume/100}))
+'''
+    result=subprocess.run(['docker','exec','-i','homeassistant','python3','-',ip,str(params['value'])],input=probe,text=True,capture_output=True,timeout=6)
+    if result.returncode:raise RuntimeError('Speaker volume request failed')
+    print(json.dumps(json.loads(result.stdout)))
+except Exception:
+    print(json.dumps({'ok':False,'error':'Could not change Living Room volume. Check the speaker and retry.'}))
+"""
 
 REMOTE = r"""
 import json,time,urllib.request,urllib.parse,fcntl,subprocess,os
@@ -226,8 +250,12 @@ except Exception:print(json.dumps({'ok':False,'error':'Home Assistant could not 
 
 def main():
     action=sys.argv[1] if len(sys.argv)>1 else 'status'
-    if action not in ['status','select','play-room','room-control']:raise ValueError('Invalid action')
+    if action not in ['status','select','play-room','room-control','room-volume']:raise ValueError('Invalid action')
     request={'action':action}
+    if action=='room-volume':
+        value=float(sys.argv[2])
+        if not math.isfinite(value):raise ValueError('Invalid volume')
+        request['value']=max(0,min(1,value))
     if action=='select':
         request['source']=sys.argv[2]
         if not request['source'] or len(request['source'])>200:raise ValueError('Invalid device')
@@ -235,8 +263,9 @@ def main():
         request['control']=sys.argv[2]
         if request['control'] not in ['play','pause','next','previous','volume','seek']:raise ValueError('Invalid control')
         if request['control'] in ['volume','seek']:request['value']=float(sys.argv[3])
-    code=REMOTE.replace('REQUEST',repr(request),1)
-    result=subprocess.run(['ssh','-o','BatchMode=yes','-o','ConnectTimeout=3','ash','python3','-'],input=code,text=True,capture_output=True,timeout=90 if action!='status' else 20)
+    code=(VOLUME_REMOTE if action=='room-volume' else REMOTE).replace('REQUEST',repr(request),1)
+    timeout=10 if action=='room-volume' else (20 if action=='status' else 90)
+    result=subprocess.run(['ssh','-o','BatchMode=yes','-o','ConnectTimeout=3','ash','python3','-'],input=code,text=True,capture_output=True,timeout=timeout)
     if result.returncode:raise RuntimeError('Spotify connection unavailable')
     data=json.loads(result.stdout)
     print(json.dumps(data))

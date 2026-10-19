@@ -20,7 +20,7 @@ Scope {
         if (!GlobalStates.screenLocked) return;
         GlobalStates.screenLocked = false;
         // Run once per successful unlock, after releasing the lock surfaces.
-        Quickshell.execDetached(["wallpaper-next", "--random"]);
+        Quickshell.execDetached([FileUtils.trimFileProtocol(`${Directories.home}/.local/bin/wallpaper-next`), "--random"]);
     }
 
     function turnOffScreenWhenReady() {

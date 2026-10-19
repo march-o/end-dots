@@ -149,6 +149,7 @@ configure_quickshell_shell() {
       modules/ii/bar/MediaCard.qml \
       modules/ii/bar/MediaProgress.qml \
       modules/ii/bar/MediaVolumeSlider.qml \
+      modules/ii/bar/MediaVolumeControl.qml \
       modules/ii/overview/OverviewWidget.qml \
       scripts/cava/media_card_config.txt \
       scripts/media/spotify-connect.py \

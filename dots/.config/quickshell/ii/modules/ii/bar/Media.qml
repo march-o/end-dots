@@ -17,7 +17,7 @@ Item {
     readonly property var activePlayer: roomPlayback.active ? roomPlayer : (spotifyPlayer ?? MprisController.activePlayer)
     readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || Translation.tr("No media")
     readonly property bool canChangeVolume: !!(activePlayer?.volumeSupported && activePlayer?.canControl)
-    readonly property real volumeLevel: Math.max(0, Math.min(1, activePlayer?.volume ?? 0))
+    readonly property real volumeLevel: volumeControl.value
     property var roomPlayback: ({})
     property real roomUpdatedAt: 0
     property real positionClock: Date.now()
@@ -73,7 +73,44 @@ Item {
     Layout.minimumWidth: 100
     implicitWidth: 240
     implicitHeight: 30
-    function setVolume(value) { if (!canChangeVolume) return; if (roomPlayback.active) controlRoom("volume", value); else activePlayer.volume = Math.max(0, Math.min(1, value)) }
+    function setVolume(value) { volumeControl.request(value) }
+    MediaVolumeControl {
+        id: volumeControl
+        available: root.canChangeVolume
+        observedValue: Math.max(0, Math.min(1, root.activePlayer?.volume ?? 0))
+        sourceKey: root.roomPlayback.active ? "Living Room" : (root.activePlayer?.dbusName ?? "")
+        onWriteRequested: value => {
+            if (root.roomPlayback.active) {
+                volumeWrite.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "room-volume", String(value)]
+                volumeWrite.running = true
+            } else {
+                root.activePlayer.volume = value
+                volumeControl.complete(true)
+            }
+        }
+    }
+    Process {
+        id: volumeWrite
+        property var reply: null
+        onStarted: reply = null
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { volumeWrite.reply = JSON.parse(text) } catch (e) { volumeWrite.reply = null }
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            // Collectors finish during process teardown; handle the result afterward.
+            Qt.callLater(() => {
+                const data = volumeWrite.reply
+                const ok = exitCode === 0 && data?.ok === true
+                if (ok && root.roomPlayback.active) {
+                    root.roomPlayback = Object.assign({}, root.roomPlayback, { volume: data.volume })
+                    root.connectError = ""
+                } else if (!ok) root.connectError = data?.error ?? "Could not change speaker volume"
+                volumeControl.complete(ok)
+            })
+        }
+    }
     function closeCard() { expanded = false; openTimer.stop(); closeTimer.stop() }
     property var connectDevices: ["Living Room"]
     property string connectSource: ""
@@ -104,6 +141,8 @@ Item {
     readonly property bool connectBusy: connect.running
     Process {
         id: connect
+        property int volumeSnapshot: -1
+        onStarted: volumeSnapshot = volumeControl.pendingValue >= 0 ? -1 : volumeControl.revision
         onRunningChanged: {
             if (!running) Qt.callLater(() => {
                 if (connect.running) return
@@ -120,7 +159,16 @@ Item {
             onStreamFinished: {
                 try {
                     const data = JSON.parse(text)
-                    if (data.ok) { root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = ""; root.roomPlayback = data.room ?? {}; root.roomUpdatedAt = Date.now(); root.positionClock = root.roomUpdatedAt }
+                    if (data.ok) {
+                        root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = ""
+                        // A status request started before a volume write must not
+                        // undo that write when its older snapshot arrives later.
+                        const room = data.room ?? {}
+                        if (room.active && connect.volumeSnapshot !== volumeControl.revision)
+                            room.volume = root.roomPlayback.volume ?? room.volume
+                        root.roomPlayback = room
+                        root.roomUpdatedAt = Date.now(); root.positionClock = root.roomUpdatedAt
+                    }
                     else root.connectError = data.error
                 } catch (e) { root.connectError = "Device connection unavailable" }
                 if (root.connectError && root.roomPlayback.active) {

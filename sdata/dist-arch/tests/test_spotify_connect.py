@@ -1,13 +1,19 @@
 """Exercise the remote playback policy without SSH or credentials."""
 import ast
 import copy
+import contextlib
+import io
 import importlib.util
+import json
+import subprocess
+import sys
+import tempfile
 import time
 import unittest
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 SCRIPT = Path(__file__).resolve().parents[3] / 'dots/.config/quickshell/ii/scripts/media/spotify-connect.py'
 spec = importlib.util.spec_from_file_location('spotify_connect', SCRIPT)
@@ -65,5 +71,40 @@ class PlaybackPolicy(unittest.TestCase):
         self.assertEqual(output['room']['position'], 20)
         self.assertTrue(output['room']['can_next'])
         self.assertTrue(output['room']['can_previous'])
+
+class FastVolume(unittest.TestCase):
+    def test_cli_uses_volume_only_backend_and_clamps_value(self):
+        reply = subprocess.CompletedProcess([], 0, '{"ok":true,"volume":1}', '')
+        with patch.object(sys, 'argv', ['spotify-connect.py', 'room-volume', '1.5']), \
+             patch.object(module.subprocess, 'run', return_value=reply) as run, \
+             contextlib.redirect_stdout(io.StringIO()):
+            module.main()
+        code = run.call_args.kwargs['input']
+        self.assertIn("'value': 1", code)
+        self.assertNotIn('HA_TOKEN', code)
+        self.assertNotIn('flock', code)
+        self.assertEqual(run.call_args.kwargs['timeout'], 10)
+
+    def test_volume_reply_is_read_from_speaker_without_status_poll(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / '.cache/quickshell/spotify-connect.json'
+            cache.parent.mkdir(parents=True)
+            cache.write_text(json.dumps({'speaker_ip': '192.0.2.1'}))
+            reply = subprocess.CompletedProcess([], 0, '{"ok":true,"volume":0.39}', '')
+            output = io.StringIO()
+            with patch.object(Path, 'home', return_value=Path(tmp)), \
+                 patch.object(subprocess, 'run', return_value=reply) as run, \
+                 contextlib.redirect_stdout(output):
+                exec(module.VOLUME_REMOTE.replace('REQUEST', repr({'value': .4}), 1), {})
+            self.assertEqual(json.loads(output.getvalue()), {'ok': True, 'volume': .39})
+            self.assertEqual(run.call_count, 1)
+            self.assertIn('speaker.volume/100', run.call_args.kwargs['input'])
+
+    def test_missing_speaker_address_returns_failure(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(Path, 'home', return_value=Path(tmp)), \
+             patch.object(subprocess, 'run') as run, contextlib.redirect_stdout(io.StringIO()) as output:
+            exec(module.VOLUME_REMOTE.replace('REQUEST', repr({'value': .4}), 1), {})
+        self.assertFalse(json.loads(output.getvalue())['ok'])
+        run.assert_not_called()
 
 if __name__ == '__main__': unittest.main()
