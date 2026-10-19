@@ -24,7 +24,7 @@ Scope {
         slideFrom: "top"
         anchors.top: true
         margins.top: 56
-        implicitWidth: Math.min(1360, (screen?.width ?? 1440) - 48)
+        implicitWidth: Math.min(1560, (screen?.width ?? 1440) - 48)
         implicitHeight: contentLoader.item?.implicitHeight ?? 600
         onDismissRequested: GlobalStates.overviewOpen = false
 

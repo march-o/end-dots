@@ -154,6 +154,7 @@ configure_quickshell_shell() {
       modules/ii/overview/Overview.qml \
       modules/ii/overview/OverviewContent.qml \
       modules/ii/overview/OverviewMonitorTag.qml \
+      modules/ii/overview/OverviewWorkspacePreview.qml \
       modules/ii/overview/OverviewWidget.qml \
       modules/ii/overview/OverviewWindow.qml \
       modules/ii/overview/OverviewNavigation.js \

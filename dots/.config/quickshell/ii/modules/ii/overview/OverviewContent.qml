@@ -138,7 +138,7 @@ GlassPanel {
                 }
             }
             ColumnLayout {
-                Layout.preferredWidth: Math.max(220, Math.min(300, root.width * 0.24))
+                Layout.preferredWidth: Math.max(260, Math.min(400, root.width * 0.27))
                 Layout.fillHeight: true
                 spacing: 12
                 StyledText {
@@ -162,7 +162,7 @@ GlassPanel {
                         readonly property bool selected: root.selectedIndex === root.count + index
                         readonly property bool current: modelData.name === root.monitor?.specialWorkspace?.name
                         width: hiddenList.width
-                        implicitHeight: 66
+                        implicitHeight: Math.max(100, workspacePreview.implicitHeight + 20)
                         padding: 10
                         background: Rectangle {
                             radius: 12
@@ -173,10 +173,11 @@ GlassPanel {
                         }
                         contentItem: RowLayout {
                             spacing: 12
-                            MaterialSymbol {
-                                text: hiddenEntry.modelData.name === "special:spotify" ? "music_note" : "stacks"
-                                iconSize: 24
-                                color: hiddenEntry.selected ? GlassColors.states.on : GlassColors.states.off
+                            OverviewWorkspacePreview {
+                                id: workspacePreview
+                                Layout.preferredWidth: 140
+                                Layout.preferredHeight: implicitHeight
+                                workspace: hiddenEntry.modelData
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
