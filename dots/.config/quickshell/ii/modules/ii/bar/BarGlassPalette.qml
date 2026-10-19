@@ -42,6 +42,28 @@ QtObject {
                        tone.g * (1 - lift) + lift, tone.b * (1 - lift) + lift, 1);
     }
     readonly property color glassTint: chooseGlassTint()
+    // Compose a translucent control highlight with the shared glass surface.
+    function overlayTint(overlay, base = glassTint): color {
+        const alpha = overlay.a + base.a * (1 - overlay.a);
+        if (alpha <= 0) return Qt.rgba(0, 0, 0, 0);
+        return Qt.rgba((overlay.r * overlay.a + base.r * base.a * (1 - overlay.a)) / alpha,
+                       (overlay.g * overlay.a + base.g * base.a * (1 - overlay.a)) / alpha,
+                       (overlay.b * overlay.a + base.b * base.a * (1 - overlay.a)) / alpha, alpha);
+    }
+    function highlightTint(hue, alpha): color {
+        // Find the closest readable tone without shifting the requested hue.
+        let overlay = Qt.hsla(hue, 0.55, 0.58, alpha);
+        for (let step = 0; step <= 22; step++) {
+            for (const direction of (lightGlass ? [1, -1] : [-1, 1])) {
+                const lightness = Math.max(0.12, Math.min(0.98, 0.58 + step * direction * 0.02));
+                overlay = Qt.hsla(hue, 0.55, lightness, alpha);
+                const tint = overlayTint(overlay);
+                const foreground = islandColor([glassTextTone], tint, 4.5);
+                if (glassBounds(tint).every(background => contrast(foreground, background) >= 4.5)) return overlay;
+            }
+        }
+        return overlay;
+    }
     function glassBounds(tint) {
         const low = glassBackground(Qt.rgba(0, 0, 0, 1), tint);
         const high = glassBackground(Qt.rgba(1, 1, 1, 1), tint);
