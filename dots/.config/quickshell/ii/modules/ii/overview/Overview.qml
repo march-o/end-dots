@@ -41,7 +41,6 @@ Scope {
                     contentLoader.item?.resetSelection();
                     Qt.callLater(() => contentLoader.item?.focusSearchInput());
                 } else {
-                    GlobalStates.superReleaseMightTrigger = false;
                     overviewScope.dontAutoCancelSearch = false;
                 }
             }
@@ -90,9 +89,6 @@ Scope {
         function open() {
             GlobalStates.overviewOpen = true;
         }
-        function toggleReleaseInterrupt() {
-            GlobalStates.superReleaseMightTrigger = false;
-        }
         function clipboardToggle() {
             overviewScope.toggleClipboard();
         }
@@ -101,41 +97,36 @@ Scope {
     GlobalShortcut {
         name: "overviewNavigateLeft"
         onPressed: {
-            GlobalStates.superReleaseMightTrigger = false;
             if (GlobalStates.overviewOpen) contentLoader.item?.navigate("left");
         }
     }
     GlobalShortcut {
         name: "overviewNavigateRight"
         onPressed: {
-            GlobalStates.superReleaseMightTrigger = false;
             if (GlobalStates.overviewOpen) contentLoader.item?.navigate("right");
         }
     }
     GlobalShortcut {
         name: "overviewNavigateUp"
         onPressed: {
-            GlobalStates.superReleaseMightTrigger = false;
             if (GlobalStates.overviewOpen) contentLoader.item?.navigate("up");
         }
     }
     GlobalShortcut {
         name: "overviewNavigateDown"
         onPressed: {
-            GlobalStates.superReleaseMightTrigger = false;
             if (GlobalStates.overviewOpen) contentLoader.item?.navigate("down");
         }
     }
     GlobalShortcut {
         name: "overviewActivate"
         onPressed: {
-            GlobalStates.superReleaseMightTrigger = false;
             contentLoader.item?.acceptSelection();
         }
     }
     GlobalShortcut {
         name: "searchToggle"
-        description: "Toggles search on press"
+        description: "Toggles workspace overview on press"
 
         onPressed: {
             GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
@@ -155,30 +146,6 @@ Scope {
 
         onPressed: {
             GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
-        }
-    }
-    GlobalShortcut {
-        name: "searchToggleRelease"
-        description: "Toggles search on release"
-
-        onPressed: {
-            GlobalStates.superReleaseMightTrigger = true;
-        }
-
-        onReleased: {
-            if (!GlobalStates.superReleaseMightTrigger) {
-                GlobalStates.superReleaseMightTrigger = true;
-                return;
-            }
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
-        }
-    }
-    GlobalShortcut {
-        name: "searchToggleReleaseInterrupt"
-        description: "Interrupts possibility of search being toggled on release. " + "This is necessary because GlobalShortcut.onReleased in quickshell triggers whether or not you press something else while holding the key. " + "To make sure this works consistently, use binditn = MODKEYS, catchall in an automatically triggered submap that includes everything."
-
-        onPressed: {
-            GlobalStates.superReleaseMightTrigger = false;
         }
     }
     GlobalShortcut {

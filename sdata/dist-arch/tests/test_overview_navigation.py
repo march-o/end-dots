@@ -78,6 +78,16 @@ class OverviewNavigationTest(unittest.TestCase):
         self.assertEqual(result, ['hl.dsp.focus({ monitor = "sunshine" })',
             'hl.dsp.workspace.toggle_special("spotify")', 'hl.dsp.focus({ workspace = 12 })'])
 
+    def test_monitor_identity_uses_configured_output_and_builtin_laptop_panels(self):
+        data = ROOT / "dots/.config/quickshell/ii/services/HyprlandData.qml"
+        body = re.search(r"    function isLaptopMonitor\((.*?)\) \{(.*?)^    \}", data.read_text(), re.S | re.M)
+        source = 'const root={laptopMonitorOutput:"sunshine"}; function isLaptopMonitor(' + body[1] + '){' + body[2] + '};'
+        source += 'const names=["DP-1","sunshine","eDP-1","LVDS-1","HDMI-A-1","custom-laptop"];'
+        source += 'const original=names.map(isLaptopMonitor); root.laptopMonitorOutput="custom-laptop";'
+        source += 'console.log(JSON.stringify([original,names.map(isLaptopMonitor)]));'
+        result = json.loads(subprocess.check_output(["node", "-e", source], text=True))
+        self.assertEqual(result, [[False, True, True, True, False, False], [False, False, True, True, False, True]])
+
 
 if __name__ == "__main__":
     unittest.main()

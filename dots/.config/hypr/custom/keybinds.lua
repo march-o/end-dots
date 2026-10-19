@@ -1,5 +1,14 @@
 hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), {description = "Edit user keybinds"} )
 
+-- Toggle once on Space press; a bare modifier release must never reopen it.
+-- Remove both upstream launcher and fallback bindings, retaining the separate
+-- transparent workspaceNumber bindings used while Super is held.
+hl.unbind("SUPER + SUPER_L")
+hl.unbind("SUPER + SUPER_R")
+hl.unbind("SUPER + Space")
+hl.bind("SUPER + Space", hl.dsp.global("quickshell:searchToggle"),
+    { description = "Shell: Toggle workspace overview" })
+
 if is_file_exists(HOME .. "/.config/hypr/.laptop-keyboard") then
     hl.bind("CTRL + SUPER + ALT + R", hl.dsp.exec_cmd("$HOME/.config/hypr/custom/scripts/reset-touchpad.sh"),
         { description = "Input: Reset touchpad" })

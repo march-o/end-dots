@@ -16,7 +16,9 @@ ButtonMouseArea {
     WorkspaceModel { id: wsModel; screenName: root.screenName }
     WallpaperIconColor { id: localColors; target: root }
     property bool vertical: Config.options.bar.vertical
-    property real workspaceButtonWidth: 32.5
+    readonly property bool showMonitorAssignments: HyprlandData.monitors.length > 1
+    // Keep the existing artwork cell intact and add space beside it for its display.
+    property real workspaceButtonWidth: 32.5 + (showMonitorAssignments ? 16 : 0)
     property real workspaceIconSize: Appearance.font.pixelSize.large * 1.25
     readonly property real barThickness: vertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.barHeight
     implicitWidth: vertical ? barThickness : workspaceLayout.implicitWidth
@@ -53,6 +55,11 @@ ButtonMouseArea {
                 required property int index
                 readonly property int wsId: wsModel.getWorkspaceIdAt(index)
                 readonly property bool active: wsId === wsModel.activeWorkspace
+                readonly property string monitorName: HyprlandData.workspaceById[wsId]?.monitor ?? ""
+                readonly property var assignedMonitor: HyprlandData.monitors.find(m => m.name === monitorName) ?? null
+                readonly property int displayIndex: HyprlandData.monitors.slice().sort((a, b) => a.id - b.id)
+                    .findIndex(m => m.name === monitorName)
+                readonly property real artworkOffset: root.showMonitorAssignments ? -8 : 0
                 readonly property bool occupied: !!wsModel.occupied[index] && wsId !== wsModel.fakeWorkspace
                 readonly property var biggestWindow: wsModel.biggestWindow[index]
                 readonly property bool hovered: root.containsMouse && root.hoverIndex === index
@@ -70,6 +77,7 @@ ButtonMouseArea {
 
                 Rectangle {
                     anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: workspace.artworkOffset
                     width: 27
                     height: 27
                     radius: 9
@@ -80,6 +88,7 @@ ButtonMouseArea {
                 AppIcon {
                     id: appIcon
                     anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: workspace.artworkOffset
                     implicitSize: NumberUtils.roundToEven(root.workspaceIconSize)
                     source: Quickshell.iconPath(AppSearch.guessIcon(workspace.biggestWindow?.class), "image-missing")
                     animated: false
@@ -99,6 +108,7 @@ ButtonMouseArea {
                 }
                 StyledText {
                     anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: workspace.artworkOffset
                     visible: workspace.showingNumber
                     text: Config.options.bar.workspaces.numberMap[workspace.wsId - 1] || workspace.wsId
                     color: workspace.textColor
@@ -108,6 +118,7 @@ ButtonMouseArea {
                 }
                 Rectangle {
                     anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: workspace.artworkOffset
                     visible: !workspace.showingNumber && !workspace.showingApp
                     width: workspace.active ? 7 : workspace.occupied ? 6 : 4
                     height: width
@@ -117,6 +128,7 @@ ButtonMouseArea {
                 Rectangle {
                     // Separate the active state from the artwork's own colors.
                     anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.horizontalCenterOffset: workspace.artworkOffset
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: (root.barThickness - Appearance.sizes.baseBarHeight) / 2 + 6
                     width: 14
@@ -124,6 +136,21 @@ ButtonMouseArea {
                     radius: 1
                     visible: workspace.active && workspace.showingApp
                     color: workspace.iconColor
+                }
+                MonitorIcon {
+                    anchors { right: parent.right; rightMargin: 1; verticalCenter: parent.verticalCenter }
+                    visible: root.showMonitorAssignments && workspace.assignedMonitor !== null
+                    monitorName: workspace.monitorName
+                    iconSize: 14
+                    color: workspace.iconColor
+                }
+                PopupToolTip {
+                    extraVisibleCondition: workspace.hovered && !GlobalStates.overviewOpen
+                    anchorEdges: Config.options.bar.bottom ? Edges.Top : Edges.Bottom
+                    text: Translation.tr("Workspace") + " " + workspace.wsId + "\n"
+                        + (workspace.assignedMonitor ? Translation.tr(HyprlandData.isLaptopMonitor(workspace.monitorName) ? "Laptop" : "Display")
+                            + " " + (workspace.displayIndex + 1) + " · " + workspace.monitorName
+                            : Translation.tr("No display assigned"))
                 }
             }
         }

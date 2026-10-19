@@ -85,6 +85,7 @@ configure_quickshell_shell() {
       modules/common/widgets/GlassPanelWindow.qml \
       modules/common/widgets/PanelSlide.qml \
       modules/common/widgets/GlassTextField.qml \
+      modules/common/widgets/MonitorIcon.qml \
       assets/wallpaper-titles.json \
       modules/common/Appearance.qml \
       modules/common/Config.qml \

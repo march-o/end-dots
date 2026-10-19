@@ -24,6 +24,27 @@ Singleton {
     property var layers: ({})
     property string focusedMonitorName: ""
     property int workspaceRevision: 0
+    property string laptopMonitorOutput: "sunshine"
+
+    function isLaptopMonitor(name) {
+        return name === root.laptopMonitorOutput || /^(eDP|LVDS)(-|$)/i.test(name);
+    }
+
+    // Share the config watcher across all workspace markers.
+    FileView {
+        id: laptopMonitorConfig
+        path: `${Quickshell.env("HOME")}/.config/laptop-monitor/config.json`
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const output = JSON.parse(text()).output;
+                root.laptopMonitorOutput = typeof output === "string" && output ? output : "sunshine";
+            } catch (error) { root.laptopMonitorOutput = "sunshine"; }
+        }
+        onLoadFailed: root.laptopMonitorOutput = "sunshine"
+    }
 
     // Apply compositor events immediately; CLI snapshots remain the resume fallback.
     function handleEvent(name, data) {
