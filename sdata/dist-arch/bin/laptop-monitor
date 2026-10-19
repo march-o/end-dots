@@ -8,6 +8,8 @@ import shlex
 import subprocess
 import sys
 import time
+import urllib.request
+import xml.etree.ElementTree as ET
 
 HOME_DIR = Path.home()
 CONFIG = HOME_DIR / '.config/laptop-monitor/config.json'
@@ -60,11 +62,33 @@ def active(c):
     return any(m['name'] == c['output'] for m in monitors())
 
 
-def remote(c, action):
+def connection_status(c):
+    """A headless output alone is not a connected laptop."""
+    output_present = active(c)
+    result = {'active': False, 'outputPresent': output_present, 'error': ''}
+    if not output_present:
+        return result
+    try:
+        port = c.get('sunshinePort', 47989)
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/serverinfo', timeout=2) as reply:
+            info = ET.fromstring(reply.read())
+        if info.findtext('state') != 'SUNSHINE_SERVER_BUSY':
+            result['error'] = 'Laptop stream disconnected — click to reconnect'
+            return result
+        client = json.loads(remote(c, 'client-status', timeout=6))
+        result['active'] = client.get('streaming') is True
+        if not result['active']:
+            result['error'] = 'Laptop is not receiving video — click to reconnect'
+    except Exception:
+        result['error'] = 'Cannot verify laptop stream — click to reconnect'
+    return result
+
+
+def remote(c, action, timeout=45):
     remote_command = '~/.local/bin/laptop-monitor ' + shlex.quote(action) + ' ' + shlex.quote(json.dumps(c))
     return command(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
                     f"{c['sshUser']}@{c['laptopIp']}",
-                    remote_command], timeout=45)
+                    remote_command], timeout=timeout)
 
 
 def prepare(c):
@@ -118,6 +142,23 @@ def client_windows():
             if 'moonlight' in w['class'].lower()]
 
 
+def client_status(c):
+    pidfile = CACHE / 'client.pid'
+    try:
+        pid = int(pidfile.read_text().strip())
+        argv = Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0')
+        if len(argv) < 3 or Path(os.fsdecode(argv[0])).name != 'moonlight' \
+                or argv[1] != b'stream' or os.fsencode(c['desktopIp']) not in argv:
+            return {'streaming': False}
+        log = (CACHE / 'client.log').read_text(errors='replace')
+        receiving = 'Decoded frame' in log and 'Stopping video stream' not in log
+        fullscreen = any(w['pid'] == pid and w.get('mapped', True) and w['fullscreen'] == 2
+                         for w in client_windows())
+        return {'streaming': receiving and fullscreen}
+    except (OSError, ValueError):
+        return {'streaming': False}
+
+
 def client_start(c):
     guard()
     if client_windows():
@@ -145,8 +186,9 @@ def client_start(c):
             time.sleep(1)
             if not any(w['fullscreen'] == 2 for w in client_windows()):
                 continue
-            return
-    command(['hyprctl', 'eval', 'laptop_monitor_fullscreen:set_enabled(false)'], check=False)
+            if client_status(c)['streaming']:
+                return
+    client_stop(c)
     raise RuntimeError('Moonlight did not open; check ~/.cache/laptop-monitor/client.log')
 
 
@@ -171,12 +213,76 @@ def client_stop(c):
 
 
 def save(**values):
-    STATE.write_text(json.dumps(values))
+    temporary = STATE.with_suffix('.tmp')
+    temporary.write_text(json.dumps(values))
+    temporary.replace(STATE)
+
+
+def watch(c):
+    """Remove the managed output if a previously confirmed stream dies."""
+    with (CACHE / 'watch.lock').open('a') as watcher:
+        try:
+            fcntl.flock(watcher, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        failures = 0
+        while active(c):
+            time.sleep(3)
+            if connection_status(c)['active']:
+                failures = 0
+                continue
+            failures += 1
+            if failures < 3:
+                continue
+            with (CACHE / 'operation.lock').open('a') as operation:
+                try:
+                    fcntl.flock(operation, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    failures = 0
+                    continue
+                if not active(c) or connection_status(c)['active']:
+                    failures = 0
+                    continue
+                try:
+                    remote(c, 'client-stop', timeout=6)
+                except Exception:
+                    pass
+                cleanup(c)
+                save(busy=False, error='Laptop stream disconnected; display removed. Click to reconnect')
+                return
+
+
+def start_watch():
+    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'watch'],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def start_stream(c):
+    remote(c, 'check')
+    prepare(c)
+    command(['systemctl', '--user', 'start', 'sunshine'], timeout=30)
+    pid_command = ['systemctl', '--user', 'show', 'sunshine', '--property=MainPID', '--value']
+    original_pid = command(pid_command)
+    try:
+        remote(c, 'client-start')
+    except Exception:
+        # An old capture process can crash after graphics libraries were updated.
+        # Retry once only when systemd confirms that Sunshine actually exited.
+        if command(pid_command) == original_pid:
+            raise
+        remote(c, 'client-stop')
+        prepare(c)
+        command(['systemctl', '--user', 'start', 'sunshine'], timeout=30)
+        remote(c, 'client-start')
 
 
 def main():
     c = config()
     action = sys.argv[1] if len(sys.argv) > 1 else 'toggle'
+    if action not in {'toggle', 'configure-host', 'watch', 'status', 'prepare', 'cleanup',
+                      'client-start', 'client-status', 'client-stop'}:
+        raise ValueError(f'Unknown action: {action}')
     if action == 'configure-host':
         apps_file = HOME_DIR / '.config/sunshine/apps.json'
         if apps_file.exists():
@@ -187,6 +293,9 @@ def main():
             apps_file.write_text(json.dumps(apps, indent=2) + '\n')
         return
     session_environment()
+    if action == 'watch':
+        watch(c)
+        return
     if action == 'status':
         state = json.loads(STATE.read_text()) if STATE.exists() else {}
         with (CACHE / 'operation.lock').open('a') as lock:
@@ -195,7 +304,11 @@ def main():
                 busy = False
             except BlockingIOError:
                 busy = True
-        print(json.dumps({'active': active(c), 'busy': busy, 'error': state.get('error', '')}))
+        status = connection_status(c)
+        status['busy'] = busy
+        if not status['active']:
+            status['error'] = state.get('error', '') or status['error']
+        print(json.dumps(status))
         return
     if action == 'prepare':
         prepare(c)
@@ -206,6 +319,9 @@ def main():
     if action == 'client-start':
         client_start(c)
         return
+    if action == 'client-status':
+        print(json.dumps(client_status(c)))
+        return
     if action == 'client-stop':
         client_stop(c)
         return
@@ -215,18 +331,19 @@ def main():
         except BlockingIOError:
             return
         save(busy=True, error='')
-        starting = not active(c)
+        starting = not connection_status(c)['active']
         try:
             if starting:
                 # Check the laptop before changing local display geometry.
-                remote(c, 'check')
-                prepare(c)
-                command(['systemctl', '--user', 'start', 'sunshine'], timeout=30)
-                remote(c, 'client-start')
+                start_stream(c)
             else:
-                remote(c, 'client-stop')
-                cleanup(c)
+                try:
+                    remote(c, 'client-stop')
+                finally:
+                    cleanup(c)
             save(busy=False, error='')
+            if starting:
+                start_watch()
         except Exception as e:
             if starting:
                 try:

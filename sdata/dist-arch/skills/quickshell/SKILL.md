@@ -157,6 +157,8 @@ GlassPanelWindow {
 - Before judging the laptop's local clock or bar from a capture, check its active window: fullscreen Moonlight shows the streamed desktop, while the local background and bar are hidden. Verify the local widget's loaded configuration separately without interrupting the stream, and remove any temporary diagnostic afterward.
 - Repeated live reloads can spend substantial time in `QmlScanner::scanQmlFile` / `QQmlMetaType::freeUnusedTypesAndCaches`, leaving the bar blank and IPC unresponsive while consuming one CPU core. A debugger stack distinguishes this from a layout polish loop. Batch live copies, deploy newly introduced component files before their consumers, and allow a fresh successful load plus a rendered frame before taking screenshots. Do not compile packages or repeatedly queue reloads to solve this. Only replace an unlocked, awake instance after checking the existing safety rules.
 
+- The laptop-display button must require both a live Sunshine session and a managed Moonlight process with decoded video and a mapped fullscreen window. A leftover headless output is not a connection. Clear the UI's connected flag on failed/malformed status replies; reconnect stale outputs instead of treating the next click as a disconnect. Keep a single connection watcher to remove the managed output after repeated loss, and always clean up locally even when remote disconnect fails. An old Sunshine capture process crashed after graphics updates here; retry startup once only if its systemd MainPID changed. Verify off → on (decoded video, real fullscreen capture matching the headless output) → off, and leave it off when requested.
+
 ## Keep this skill current
 
 ### Optional bar-only HyprGlass

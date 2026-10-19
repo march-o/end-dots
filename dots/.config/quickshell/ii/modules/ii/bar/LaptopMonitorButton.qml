@@ -37,7 +37,18 @@ GlassButton {
                     root.connected = data.active;
                     root.busy = operation.running || data.busy;
                     root.errorText = data.error;
-                } catch (e) { root.errorText = "Laptop monitor unavailable"; }
+                } catch (e) {
+                    root.connected = false;
+                    root.busy = operation.running;
+                    root.errorText = "Laptop monitor unavailable";
+                }
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0 || exitStatus !== 0) {
+                root.connected = false;
+                root.busy = operation.running;
+                root.errorText = "Cannot verify laptop connection";
             }
         }
     }
