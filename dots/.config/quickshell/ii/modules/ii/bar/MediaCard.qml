@@ -20,7 +20,7 @@ Item {
     property bool devicesOpen: false
     readonly property var connectDevices: root.media.connectDevices
     readonly property string connectSource: root.media.connectSource
-    readonly property string connectError: root.media.connectError
+    readonly property string connectError: root.media.connectError || root.media.connectWarning
     readonly property string requestedSource: root.media.requestedSource
     function refreshDevices() { root.media.refreshDevices() }
     function selectDevice(source) { root.media.selectDevice(source) }

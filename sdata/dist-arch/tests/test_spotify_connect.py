@@ -33,7 +33,7 @@ class PlaybackPolicy(unittest.TestCase):
                    'room': lambda: copy.deepcopy(self.speaker), 'service': service,
                    'room_name': 'Living Room', 'room_entity': 'room', 'entity': 'desktop',
                    'save': Mock(), 'activate_connect': Mock(), 'spotify_get': Mock(return_value={'queue': [{'uri': 'spotify:track:NEXT'}]})}
-        selected = {'DeviceError', 'uri_from', 'remember', 'remember_art', 'wait_room', 'play_room', 'room_control', 'output'}
+        selected = {'DeviceError', 'uri_from', 'remember', 'remember_art', 'is_room_playback', 'wait_room', 'play_room', 'room_control', 'output'}
         tree = ast.parse(module.REMOTE)
         tree.body = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name in selected]
         exec(compile(tree, '<remote playback policy>', 'exec'), self.ns)
@@ -63,6 +63,8 @@ class PlaybackPolicy(unittest.TestCase):
         with self.assertRaisesRegex(self.ns['DeviceError'], 'Spotify did not confirm'): self.ns['play_room']()
 
     def test_widget_state_comes_from_speaker(self):
+        self.speaker['attributes']['source'] = 'Spotify Connect'
+        self.ns['spotify_get'].return_value = {'device': {'name': 'Living Room'}, 'is_playing': False}
         self.ns['cache']['art'] = {'spotify:track:ROOM': 'speaker-art'}
         output = self.ns['output']()
         self.assertEqual(output['source'], 'Living Room')
@@ -71,6 +73,45 @@ class PlaybackPolicy(unittest.TestCase):
         self.assertEqual(output['room']['position'], 20)
         self.assertTrue(output['room']['can_next'])
         self.assertTrue(output['room']['can_previous'])
+
+    def test_stale_connect_uri_without_cloud_session_is_reactivated(self):
+        self.speaker['attributes']['source'] = 'Spotify Connect'
+        self.ns['spotify_get'].side_effect = [None, {'device': {'name': 'Living Room'}, 'is_playing': True}]
+        self.ns['play_room'](resume=True)
+        self.ns['activate_connect'].assert_called_once()
+
+    def test_local_sonos_queue_is_not_reported_as_connected(self):
+        self.speaker['state'] = 'playing'
+        output = self.ns['output']()
+        self.assertTrue(output['room']['playing'])
+        self.assertFalse(output['room']['connected'])
+        self.assertEqual(output['source'], '')
+        self.assertIn('reconnect', output['warning'])
+        self.assertEqual(output['room']['title'], 'Speaker song')
+
+    def test_cloud_disconnect_is_reported_even_with_connect_uri(self):
+        self.speaker['attributes']['source'] = 'Spotify Connect'
+        self.ns['spotify_get'].return_value = None
+        output = self.ns['output']()
+        self.assertFalse(output['room']['connected'])
+        self.assertEqual(output['source'], '')
+
+    def test_transport_reconnects_before_advancing_local_queue(self):
+        self.ns['params'] = {'control': 'next'}
+        events = []
+        self.ns['play_room'] = Mock(side_effect=lambda **kw: events.append('reconnect'))
+        self.ns['service'] = Mock(side_effect=lambda *a, **kw: events.append(a[0]))
+        self.ns['time'] = Mock()
+        self.ns['room_control']()
+        self.assertEqual(events, ['reconnect', 'media_next_track'])
+
+    def test_pause_still_stops_disconnected_speaker_without_reconnecting(self):
+        self.ns['params'] = {'control': 'pause'}
+        self.ns['play_room'] = Mock()
+        self.ns['time'] = Mock()
+        self.ns['room_control']()
+        self.ns['play_room'].assert_not_called()
+        self.assertEqual(self.calls, [('media_pause', 'room', {})])
 
 class FastVolume(unittest.TestCase):
     def test_cli_uses_volume_only_backend_and_clamps_value(self):

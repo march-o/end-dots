@@ -130,6 +130,8 @@ def remember_art(track):
     if images and urllib.parse.urlparse(images[0]['url']).hostname=='i.scdn.co':
         cache.setdefault('art',{})[track['uri']]=images[0]['url']
         cache['art']=dict(list(cache['art'].items())[-60:])
+def is_room_playback(playback):
+    return bool(playback and playback.get('device',{}).get('name')==room_name)
 def desktop_token():
     path=Path.home()/'.local/state/quickshell/spotify-desktop-auth.json'
     if not path.exists():raise DeviceError('Living Room needs one-time Spotify Connect authorization. Complete the sign-in, then retry.')
@@ -174,14 +176,14 @@ def play_room(resume=False):
     r=room()
     # Existing true Connect sessions can resume without a new authorization.
     # Never silently fall back to a local Sonos queue: Spotify cannot see it.
-    if r['attributes'].get('source')!='Spotify Connect':activate_connect()
+    playback=spotify_get('me/player')
+    if r['attributes'].get('source')!='Spotify Connect' or not is_room_playback(playback):activate_connect()
     service('media_play')
     r=wait_room()
     deadline=time.monotonic()+12
     while True:
         playback=spotify_get('me/player')
-        device=(playback or {}).get('device',{})
-        if device.get('name')==room_name and playback.get('is_playing'):
+        if is_room_playback(playback) and playback.get('is_playing'):
             remember_art(playback.get('item'));cache['room_mode']=True;remember(r);save();return
         if time.monotonic()>=deadline:raise DeviceError('The speaker started, but Spotify did not confirm the Connect session. No local-queue fallback was used.')
         time.sleep(.5)
@@ -197,7 +199,14 @@ def room_control():
     extra={}
     if action=='volume':extra['volume_level']=max(0,min(1,float(params['value'])))
     if action=='seek':extra['seek_position']=max(0,float(params['value']))
-    was_playing=room()['state']=='playing'
+    r=room()
+    # Advancing an orphaned Sonos queue keeps Spotify blind to playback.
+    # Reconnect before transport actions; pause must still stop that queue.
+    if action in ['next','previous','seek']:
+        if r['attributes'].get('source')!='Spotify Connect' or not is_room_playback(spotify_get('me/player')):
+            play_room(resume=True)
+            r=room()
+    was_playing=r['state']=='playing'
     service(names[action],**extra)
     if was_playing and action in ['next','previous','seek']:wait_room()
     else:time.sleep(.5)
@@ -209,10 +218,12 @@ def output():
         if active:raise
         r={'state':'unavailable','attributes':{}}
     ra=r['attributes']
+    connected=False if ra.get('source')!='Spotify Connect' else None
     if active and ra.get('source')=='Spotify Connect':
         try:
             playback=spotify_get('me/player')
-            if (playback or {}).get('device',{}).get('name')==room_name and playback.get('item'):
+            connected=is_room_playback(playback)
+            if connected and playback.get('item'):
                 track=playback['item'];remember_art(track)
                 ra.update(media_title=track['name'],media_artist=', '.join(a['name'] for a in track.get('artists',[])),
                     media_content_id=track['uri'],media_duration=track['duration_ms']/1000,
@@ -231,10 +242,11 @@ def output():
         try:remember_art(spotify_get('tracks/'+uri.split(':')[-1]))
         except Exception:pass
     save()
-    return {'ok':True,'source':room_name if active else a.get('source',''),
+    return {'ok':True,'source':(room_name if connected is not False else '') if active else (a.get('source') or ''),
+        'warning':'Living Room is outside Spotify Connect. Select it to reconnect.' if active and connected is False else '',
         'devices':list(dict.fromkeys([room_name]+([a['source']] if a.get('source') else [])+a.get('source_list',[]))),
         'state':r['state'] if active else s['state'],
-        'room':{'active':active,'playing':r['state']=='playing','available':r['state'] not in ['unknown','unavailable'],
+        'room':{'active':active,'connected':connected,'playing':r['state']=='playing','available':r['state'] not in ['unknown','unavailable'],
             'title':ra.get('media_title',''),'artist':ra.get('media_artist',''),
             'art':cache.get('art',{}).get(uri,'') or ra.get('album_art',''),
             'can_next':'Next' in ra.get('transport_actions',[]),'can_previous':'Previous' in ra.get('transport_actions',[]),'can_seek':'SeekTime' in ra.get('transport_actions',[]),

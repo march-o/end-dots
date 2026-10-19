@@ -115,6 +115,7 @@ Item {
     property var connectDevices: ["Living Room"]
     property string connectSource: ""
     property string connectError: ""
+    property string connectWarning: ""
     property string requestedSource: ""
     property bool pendingRoomPlay: false
     property var pendingControls: []
@@ -161,6 +162,7 @@ Item {
                     const data = JSON.parse(text)
                     if (data.ok) {
                         root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = ""
+                        root.connectWarning = data.warning ?? ""
                         // A status request started before a volume write must not
                         // undo that write when its older snapshot arrives later.
                         const room = data.room ?? {}
