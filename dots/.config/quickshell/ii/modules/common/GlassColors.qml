@@ -8,6 +8,10 @@ QtObject {
     readonly property color foreground: BarGlassPalette.glassTextTone
     readonly property var states: BarGlassPalette.islandButtonColors(surface)
     readonly property var textStates: BarGlassPalette.islandButtonColors(surface, 4.5)
+    // Keep monitor identity consistent in overview labels and bar highlights.
+    function monitorColor(focused): color {
+        return focused ? states.on : states.off;
+    }
     readonly property color onAccent: BarGlassPalette.readableColor(
         [BarGlassPalette.darkestTone, BarGlassPalette.lightestTone], textStates.on, 4.5)
     readonly property var colors: {

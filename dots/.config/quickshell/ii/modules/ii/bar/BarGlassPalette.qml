@@ -50,13 +50,15 @@ QtObject {
                        (overlay.g * overlay.a + base.g * base.a * (1 - overlay.a)) / alpha,
                        (overlay.b * overlay.a + base.b * base.a * (1 - overlay.a)) / alpha, alpha);
     }
-    function highlightTint(hue, alpha): color {
-        // Find the closest readable tone without shifting the requested hue.
-        let overlay = Qt.hsla(hue, 0.55, 0.58, alpha);
-        for (let step = 0; step <= 22; step++) {
+    function highlightTint(tone, alpha): color {
+        // Preserve the overview color's hue and saturation. Only adjust its
+        // lightness when the translucent fill would make bar labels unreadable.
+        let overlay = Qt.alpha(tone, alpha);
+        for (let step = 0; step <= 49; step++) {
             for (const direction of (lightGlass ? [1, -1] : [-1, 1])) {
-                const lightness = Math.max(0.12, Math.min(0.98, 0.58 + step * direction * 0.02));
-                overlay = Qt.hsla(hue, 0.55, lightness, alpha);
+                const lightness = Math.max(0.02, Math.min(0.98, tone.hslLightness + step * direction * 0.02));
+                overlay = step === 0 ? Qt.alpha(tone, alpha)
+                    : Qt.hsla(tone.hslHue, tone.hslSaturation, lightness, alpha);
                 const tint = overlayTint(overlay);
                 const foreground = islandColor([glassTextTone], tint, 4.5);
                 if (glassBounds(tint).every(background => contrast(foreground, background) >= 4.5)) return overlay;

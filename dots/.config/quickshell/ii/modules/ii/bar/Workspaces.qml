@@ -61,10 +61,9 @@ ButtonMouseArea {
                     .findIndex(m => m.name === monitorName)
                 readonly property bool onOtherMonitor: HyprlandData.monitors.length > 1
                     && assignedMonitor !== null && monitorName !== root.referenceMonitorName
-                // Complementary hues use the shared glass contrast checks.
-                readonly property color backgroundTint: onOtherMonitor
-                    ? BarGlassPalette.highlightTint(0.25, hovered ? 0.50 : 0.40)
-                    : active ? BarGlassPalette.highlightTint(0.75, hovered ? 0.50 : 0.40) : "transparent"
+                readonly property color backgroundTint: active || onOtherMonitor
+                    ? BarGlassPalette.highlightTint(GlassColors.monitorColor(!onOtherMonitor), hovered ? 0.50 : 0.40)
+                    : "transparent"
                 readonly property color effectiveTint: BarGlassPalette.overlayTint(backgroundTint)
                 readonly property var iconStates: BarGlassPalette.islandButtonColors(effectiveTint)
                 readonly property var textStates: BarGlassPalette.islandButtonColors(effectiveTint, 4.5)
