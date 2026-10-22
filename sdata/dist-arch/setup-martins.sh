@@ -267,7 +267,7 @@ configure_codex() {
       '.model = "gpt-6.1-sol" |
        .model_reasoning_effort = "high" |
        .tui.alternate_screen = "always" |
-       .tui.status_line = ["model-with-reasoning", "current-dir", "git-branch", "git-diff", "context-remaining", "five-hour-limit", "weekly-limit", "task-progress"] |
+       .tui.status_line = ["model-with-reasoning", "current-dir", "git-branch", "git-diff", "context-used", "five-hour-limit", "weekly-limit", "task-progress"] |
        .tui.status_line_use_colors = true |
        .tui.keymap.global.open_transcript = ["ctrl-t", "page-up"]' "$config"
   else
