@@ -12,6 +12,11 @@ Canvas {
     property bool showGrid: true
     property bool fillArea: true
     property bool stretchSamples: false
+    property bool showEndpoint: true
+    property real fillTopOpacity: 0.24
+    property real fillBottomOpacity: 0.02
+    property real leftRadius: 0
+    property real rightRadius: 0
     implicitWidth: 180
     implicitHeight: 64
     Accessible.role: Accessible.Graphic
@@ -24,10 +29,30 @@ Canvas {
     onHeightChanged: requestPaint()
     onShowGridChanged: requestPaint()
     onFillAreaChanged: requestPaint()
+    onStretchSamplesChanged: requestPaint()
+    onShowEndpointChanged: requestPaint()
+    onFillTopOpacityChanged: requestPaint()
+    onFillBottomOpacityChanged: requestPaint()
+    onLeftRadiusChanged: requestPaint()
+    onRightRadiusChanged: requestPaint()
     onPaint: {
         const ctx = getContext("2d");
         ctx.reset();
         if (width < 2 || height < 2) return;
+        // Clip filled histories to the owning pill without an offscreen layer.
+        if (leftRadius > 0 || rightRadius > 0) {
+            const left = Math.min(leftRadius, width / 2, height / 2);
+            const right = Math.min(rightRadius, width / 2, height / 2);
+            ctx.beginPath();
+            ctx.moveTo(left, 0); ctx.lineTo(width - right, 0);
+            ctx.quadraticCurveTo(width, 0, width, right);
+            ctx.lineTo(width, height - right);
+            ctx.quadraticCurveTo(width, height, width - right, height);
+            ctx.lineTo(left, height);
+            ctx.quadraticCurveTo(0, height, 0, height - left);
+            ctx.lineTo(0, left); ctx.quadraticCurveTo(0, 0, left, 0);
+            ctx.closePath(); ctx.clip();
+        }
         if (showGrid) {
             ctx.strokeStyle = gridColor;
             ctx.lineWidth = 1;
@@ -38,6 +63,7 @@ Canvas {
         }
         const samples = values.slice(-sampleCount);
         if (!samples.length) return;
+        if (stretchSamples && samples.length === 1) samples.unshift(samples[0]);
         const points = samples.map((value, index) => ({
             x: 1 + (stretchSamples ? index / Math.max(1, samples.length - 1)
                 : (sampleCount - samples.length + index) / Math.max(1, sampleCount - 1)) * (width - 2),
@@ -50,8 +76,8 @@ Canvas {
             ctx.lineTo(points[points.length - 1].x, height - 1);
             ctx.closePath();
             const fill = ctx.createLinearGradient(0, 0, 0, height);
-            fill.addColorStop(0, Qt.alpha(lineColor, 0.24));
-            fill.addColorStop(1, Qt.alpha(lineColor, 0.02));
+            fill.addColorStop(0, Qt.alpha(lineColor, fillTopOpacity));
+            fill.addColorStop(1, Qt.alpha(lineColor, fillBottomOpacity));
             ctx.fillStyle = fill; ctx.fill();
         }
         ctx.beginPath();
@@ -61,8 +87,10 @@ Canvas {
         ctx.lineJoin = "miter";
         ctx.lineCap = "butt";
         ctx.strokeStyle = lineColor; ctx.stroke();
-        const last = points[points.length - 1];
-        ctx.fillStyle = lineColor;
-        ctx.fillRect(last.x - 1, last.y - 1, 2, 2);
+        if (showEndpoint) {
+            const last = points[points.length - 1];
+            ctx.fillStyle = lineColor;
+            ctx.fillRect(last.x - 1, last.y - 1, 2, 2);
+        }
     }
 }
