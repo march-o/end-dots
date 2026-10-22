@@ -2,13 +2,18 @@
 set -euo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)
+codex_version=${1:-0.160.0}
+patch_path="$repo_root/sdata/dist-arch/patches/codex-$codex_version-git-diff-statusline.patch"
+if [[ ! -f "$patch_path" ]]; then
+  printf 'No status-line patch for Codex %s\n' "$codex_version" >&2
+  exit 1
+fi
 source_dir=$(mktemp -d /tmp/codex-statusline.XXXXXXXX)
 trap 'find "$source_dir" -depth -delete' EXIT
 
-git clone --quiet --depth 1 --branch rust-v0.160.0 --filter=blob:none \
+git clone --quiet --depth 1 --branch "rust-v$codex_version" --filter=blob:none \
   https://github.com/openai/codex.git "$source_dir"
-git -C "$source_dir" apply \
-  "$repo_root/sdata/dist-arch/patches/codex-0.160.0-git-diff-statusline.patch"
+git -C "$source_dir" apply "$patch_path"
 
 target_dir="$HOME/.cache/codex-statusline-target"
 systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% \
@@ -17,6 +22,10 @@ systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% \
   cargo build --manifest-path "$source_dir/codex-rs/Cargo.toml" \
   -p codex-cli --bin codex -j 2
 
-install -Dm755 "$target_dir/debug/codex" "$HOME/.local/bin/codex-statusline-0.160.0"
-strip -s "$HOME/.local/bin/codex-statusline-0.160.0"
-ln -sfn "$HOME/.local/bin/codex-statusline-0.160.0" "$HOME/.local/bin/codex"
+if [[ ${CODEX_STATUSLINE_INSTALL:-1} == 0 ]]; then
+  exit 0
+fi
+
+install -Dm755 "$target_dir/debug/codex" "$HOME/.local/bin/codex-statusline-$codex_version"
+strip -s "$HOME/.local/bin/codex-statusline-$codex_version"
+ln -sfn "$HOME/.local/bin/codex-statusline-$codex_version" "$HOME/.local/bin/codex"
