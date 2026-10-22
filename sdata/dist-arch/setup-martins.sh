@@ -82,6 +82,9 @@ configure_quickshell_shell() {
     for relative in \
       modules/common/GlassColors.qml \
       modules/common/widgets/GlassPanel.qml \
+      modules/common/widgets/MeterBar.qml \
+      modules/common/widgets/LineHistory.qml \
+      modules/common/widgets/MonitorSection.qml \
       modules/common/widgets/GlassPanelWindow.qml \
       modules/common/widgets/PanelSlide.qml \
       modules/common/widgets/GlassTextField.qml \
@@ -167,6 +170,10 @@ configure_quickshell_shell() {
       scripts/media/spotify-authorize.py \
       scripts/media/sample-card-backdrop.py \
       modules/ii/bar/Resource.qml \
+      scripts/system-stats.py \
+      services/SystemStats.qml \
+      modules/ii/bar/SystemStatsContent.qml \
+      modules/ii/bar/ResourcesPopup.qml \
       modules/ii/bar/Resources.qml \
       modules/ii/bar/SysTray.qml \
       modules/ii/bar/SysTrayItem.qml \

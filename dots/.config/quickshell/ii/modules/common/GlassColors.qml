@@ -4,6 +4,17 @@ import qs.modules.common
 import qs.modules.ii.bar
 
 QtObject {
+    // Dark telemetry glass is shared by the compact island and expanded panel.
+    readonly property color monitorSurface: Qt.rgba(0.025, 0.032, 0.044, 0.94)
+    readonly property color monitorForeground: Qt.rgba(0.90, 0.93, 0.96, 1)
+    readonly property color monitorMuted: Qt.rgba(0.62, 0.68, 0.73, 1)
+    readonly property color monitorCpu: "#67d4ed"
+    readonly property color monitorMemory: "#a6df8a"
+    readonly property color monitorSwap: "#c4a0ef"
+    readonly property color monitorDisk: "#efc078"
+    readonly property color monitorReceive: "#67d4ed"
+    readonly property color monitorTransmit: "#ee93b2"
+    readonly property color monitorLine: Qt.rgba(0.60, 0.69, 0.77, 0.18)
     readonly property color surface: BarGlassPalette.glassTint
     readonly property color foreground: BarGlassPalette.glassTextTone
     readonly property var states: BarGlassPalette.islandButtonColors(surface)
@@ -14,7 +25,12 @@ QtObject {
     }
     readonly property color onAccent: BarGlassPalette.readableColor(
         [BarGlassPalette.darkestTone, BarGlassPalette.lightestTone], textStates.on, 4.5)
-    readonly property var colors: {
+    readonly property var colors: colorsFor(surface, foreground)
+    function colorsFor(surface: color, foreground: color): var {
+        const states = BarGlassPalette.islandButtonColors(surface);
+        const textStates = BarGlassPalette.islandButtonColors(surface, 4.5);
+        const onAccent = BarGlassPalette.readableColor(
+            [BarGlassPalette.darkestTone, BarGlassPalette.lightestTone], textStates.on, 4.5);
         const result = Object.assign({}, Appearance.colors);
         result.colLayer0 = surface;
         for (const role of ["colLayer1", "colLayer2", "colLayer3", "colLayer4"]) {

@@ -1,56 +1,61 @@
 import qs.modules.common
+import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
 
 MouseArea {
     id: root
-    property bool borderless: Config.options.bar.borderless
-    property bool alwaysShowAllResources: false
-    implicitWidth: rowLayout.implicitWidth + rowLayout.anchors.leftMargin + rowLayout.anchors.rightMargin
+    property bool alwaysShowAllResources: false // Kept for compact-screen callers.
+    implicitWidth: metrics.implicitWidth
     implicitHeight: Appearance.sizes.barHeight
-    hoverEnabled: !Config.options.bar.tooltips.clickToShow
+    hoverEnabled: true
+    acceptedButtons: Qt.LeftButton
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: "CPU and memory. Open system statistics"
+    Accessible.onPressAction: popup.toggle()
+    onClicked: popup.toggle()
+    Keys.onReturnPressed: popup.toggle(true)
+    Keys.onSpacePressed: popup.toggle(true)
+    Keys.onEscapePressed: popup.dismiss()
 
     RowLayout {
-        id: rowLayout
-
-        spacing: 0
-        anchors.fill: parent
-        anchors.leftMargin: 4
-        anchors.rightMargin: 4
-
-        Resource {
-            groupHovered: root.containsMouse
-            iconName: "memory"
-            percentage: ResourceUsage.memoryUsedPercentage
-            warningThreshold: Config.options.bar.resources.memoryWarningThreshold
+        id: metrics
+        anchors.centerIn: parent
+        spacing: 18
+        Repeater {
+            model: [
+                { label: "CPU", value: SystemStats.local.cpu, history: SystemStats.localCpuHistory, color: GlassColors.monitorCpu },
+                { label: "MEM", value: SystemStats.local.memory?.total > 0 ? SystemStats.local.memory.used / SystemStats.local.memory.total : undefined,
+                    history: SystemStats.localMemoryHistory, color: GlassColors.monitorMemory }
+            ]
+            delegate: RowLayout {
+                required property var modelData
+                spacing: 6
+                StyledText {
+                    text: modelData.label
+                    color: GlassColors.monitorForeground
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.weight: Font.Medium
+                }
+                StyledText {
+                    text: SystemStats.percent(modelData.value)
+                    color: modelData.color
+                    font.family: Appearance.font.family.monospace
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    Layout.minimumWidth: percentageWidth.width
+                }
+                LineHistory {
+                    values: modelData.history
+                    lineColor: modelData.color
+                    showGrid: false
+                    Layout.preferredWidth: 44
+                    Layout.preferredHeight: 22
+                }
+                TextMetrics { id: percentageWidth; text: "100%"; font.family: Appearance.font.family.monospace; font.pixelSize: Appearance.font.pixelSize.small }
+            }
         }
-
-        Resource {
-            groupHovered: root.containsMouse
-            iconName: "swap_horiz"
-            percentage: ResourceUsage.swapUsedPercentage
-            shown: (Config.options.bar.resources.alwaysShowSwap && percentage > 0) || 
-                (MprisController.activePlayer?.trackTitle == null) ||
-                root.alwaysShowAllResources
-            Layout.leftMargin: shown ? 6 : 0
-            warningThreshold: Config.options.bar.resources.swapWarningThreshold
-        }
-
-        Resource {
-            groupHovered: root.containsMouse
-            iconName: "planner_review"
-            percentage: ResourceUsage.cpuUsage
-            shown: Config.options.bar.resources.alwaysShowCpu || 
-                !(MprisController.activePlayer?.trackTitle?.length > 0) ||
-                root.alwaysShowAllResources
-            Layout.leftMargin: shown ? 6 : 0
-            warningThreshold: Config.options.bar.resources.cpuWarningThreshold
-        }
-
     }
-
-    ResourcesPopup {
-        hoverTarget: root
-    }
+    ResourcesPopup { id: popup; hoverTarget: root }
 }

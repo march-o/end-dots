@@ -6,6 +6,7 @@ Item {
     id: root
     property bool vertical: false
     property bool glass: false
+    property color glassTint: BarGlassPalette.glassTint
     property real glassWidth: width
     property real glassHeight: height
     property alias glassFrame: background
@@ -17,6 +18,7 @@ Item {
 
     BarGlassIsland {
         id: background
+        tintColor: root.glassTint
         parent: root
         x: root.glass ? (root.width - root.glassWidth) / 2 : (root.vertical ? 4 : 0)
         y: root.glass || root.vertical ? 0 : 4

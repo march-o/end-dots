@@ -9,6 +9,7 @@ PanelWindow {
     id: root
     required property string panelName
     property bool shown: false
+    property bool dismissOnFocusLoss: true
     property alias slideFrom: reveal.edge
     readonly property string layerNamespace: `quickshell:glass-${panelName}`
     default property alias panelData: reveal.contentData
@@ -22,9 +23,10 @@ PanelWindow {
     mask: Region { item: reveal.maskItem }
 
     function updateFocusGrab() {
-        if (shown && backingWindowVisible) GlobalFocusGrab.addDismissable(root);
+        if (dismissOnFocusLoss && shown && backingWindowVisible) GlobalFocusGrab.addDismissable(root);
         else GlobalFocusGrab.removeDismissable(root);
     }
+    onDismissOnFocusLossChanged: updateFocusGrab()
     // Opening can recreate the native layer surface. Register after its show
     // and focus changes settle, never while the previous surface is closing.
     // Release immediately on dismissal so the exit animation cannot hold input.
@@ -37,7 +39,7 @@ PanelWindow {
 
     property Connections dismissal: Connections {
         target: GlobalFocusGrab
-        function onDismissed() { if (root.shown) root.dismissRequested(); }
+        function onDismissed() { if (root.dismissOnFocusLoss && root.shown) root.dismissRequested(); }
     }
     property Item slide: PanelSlide {
         id: reveal

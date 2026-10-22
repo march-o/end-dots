@@ -11,18 +11,24 @@ FocusScope {
     property real frameInset: 0
     property real contentPadding: 12
     property real wallpaperAmount: 1
+    property color surfaceTint: GlassColors.surface
+    property color foregroundColor: GlassColors.foreground
     property alias radius: panelFrame.radius
     readonly property alias contentItem: panelContent
-    readonly property var glassColors: GlassColors.colors
-    readonly property var glassM3Colors: GlassColors.m3colors
-    readonly property var statePalette: GlassColors.states
-    readonly property var textStatePalette: GlassColors.textStates
+    readonly property var glassColors: GlassColors.colorsFor(surfaceTint, foregroundColor)
+    readonly property var glassM3Colors: Object.assign({}, GlassColors.m3colors, {
+        m3onBackground: foregroundColor, m3onSurface: foregroundColor,
+        m3onSurfaceVariant: foregroundColor
+    })
+    readonly property var statePalette: BarGlassPalette.islandButtonColors(surfaceTint)
+    readonly property var textStatePalette: BarGlassPalette.islandButtonColors(surfaceTint, 4.5)
     default property alias contentData: panelContent.data
 
     BarGlassIsland {
         id: panelFrame
         anchors { fill: parent; margins: root.frameInset }
         radius: BarGeometry.cornerRadius
+        tintColor: root.surfaceTint
         wallpaperAmount: root.wallpaperAmount
         wallpaperNamespace: root.layerNamespace
     }

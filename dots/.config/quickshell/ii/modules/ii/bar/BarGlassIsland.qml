@@ -9,7 +9,7 @@ Rectangle {
         [Appearance.m3colors.m3primary, Appearance.m3colors.m3primaryContainer,
          Appearance.m3colors.m3onPrimaryFixedVariant, Appearance.m3colors.m3secondary],
         frameColors.sampledBackground, 2)
-    readonly property color tintColor: BarGlassPalette.glassTint
+    property color tintColor: BarGlassPalette.glassTint
     property var seams: []
     property real wallpaperAmount: 0
     property string wallpaperNamespace: "quickshell:bar"

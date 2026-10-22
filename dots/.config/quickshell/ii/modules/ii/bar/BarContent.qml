@@ -74,6 +74,7 @@ Item { // Bar content region
     BarGroup {
         id: leftCenterGroup
         glass: true
+        glassTint: GlassColors.monitorSurface
         anchors.verticalCenter: parent.verticalCenter
         x: (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width) / 2
 
