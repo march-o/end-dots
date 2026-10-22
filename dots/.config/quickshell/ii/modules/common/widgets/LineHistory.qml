@@ -11,6 +11,7 @@ Canvas {
     property real lineWidth: 1.5
     property bool showGrid: true
     property bool fillArea: true
+    property bool stretchSamples: false
     implicitWidth: 180
     implicitHeight: 64
     Accessible.role: Accessible.Graphic
@@ -38,7 +39,8 @@ Canvas {
         const samples = values.slice(-sampleCount);
         if (!samples.length) return;
         const points = samples.map((value, index) => ({
-            x: 1 + (sampleCount - samples.length + index) / Math.max(1, sampleCount - 1) * (width - 2),
+            x: 1 + (stretchSamples ? index / Math.max(1, samples.length - 1)
+                : (sampleCount - samples.length + index) / Math.max(1, sampleCount - 1)) * (width - 2),
             y: height - 2 - Math.max(0, Math.min(1, value / Math.max(0.001, ceiling))) * (height - 4)
         }));
         if (fillArea && points.length > 1) {

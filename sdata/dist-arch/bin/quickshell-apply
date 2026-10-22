@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+"""Deploy only a validated, committed Arch Quickshell tree; recover from Git."""
+import argparse
+import fcntl
+import hashlib
+from importlib.machinery import SourceFileLoader
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[3]
+PREFIX = 'dots/.config/quickshell/ii/'
+LIVE = Path.home() / '.config/quickshell/ii'
+STATE = Path.home() / '.local/state/quickshell-deploy'
+loader = SourceFileLoader('quickshell_ci', str(Path(__file__).with_name('quickshell-ci')))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+ci = importlib.util.module_from_spec(spec)
+loader.exec_module(ci)
+
+
+class DeployFailure(RuntimeError):
+    pass
+
+
+def run(argv, timeout=20):
+    return subprocess.run(argv, check=True, capture_output=True, text=True, timeout=timeout).stdout.strip()
+
+
+def git(*args):
+    return run(['git', '-C', str(ROOT), *args])
+
+
+def blob(ref, name):
+    result = subprocess.run(['git', '-C', str(ROOT), 'show', f'{ref}:{PREFIX}{name}'], capture_output=True)
+    return result.stdout if result.returncode == 0 else None
+
+
+def managed(ref):
+    setup = git('show', f'{ref}:sdata/dist-arch/setup-martins.sh')
+    body = setup.split('    for relative in \\\n', 1)[1].split('; do', 1)[0]
+    return [line.strip().rstrip('\\').strip() for line in body.splitlines() if line.strip()]
+
+
+def file_bytes(path):
+    if path.is_symlink():
+        raise DeployFailure(f'Refusing to replace a live symlink: {path}')
+    return path.read_bytes() if path.is_file() else None
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest() if data is not None else None
+
+
+def verify_state(state, exclude=()):
+    mismatch = [name for name, expected in state['hashes'].items() if name not in exclude and sha(file_bytes(LIVE / name)) != expected]
+    if mismatch:
+        raise DeployFailure('Live files changed since verification; no files changed: ' + ', '.join(mismatch[:12]))
+
+
+def verify_ref(ref, names=None):
+    mismatches = [name for name in names or managed(ref) if file_bytes(LIVE / name) != blob(ref, name)]
+    if mismatches:
+        raise DeployFailure('Live files differ from the recorded release; no files changed: ' + ', '.join(mismatches[:12]))
+
+
+def bar_outputs(layers):
+    result = []
+    for output, data in layers.items():
+        count = 0
+        def walk(node):
+            nonlocal count
+            if isinstance(node, dict):
+                if node.get('namespace') == 'quickshell:bar' and node.get('w', 0) > 100 and node.get('h', 0) > 10:
+                    count += 1
+                for value in node.values():
+                    walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    walk(value)
+        walk(data)
+        if count > 1:
+            raise DeployFailure(f'Multiple bars on {output}; refusing deployment')
+        if count:
+            result.append(output)
+    return sorted(result)
+
+
+def process_id():
+    listing = run(['qs', 'list', '-c', 'ii'])
+    pids = re.findall(r'Process ID: (\d+)', listing)
+    if len(pids) != 1:
+        raise DeployFailure(f'Expected one live Quickshell instance, found {len(pids)}')
+    return int(pids[0])
+
+
+def control(method, *args):
+    return run(['qs', '-c', 'ii', 'ipc', 'call', 'shellControl', method, *map(str, args)], timeout=65 if method == 'reload' else 8)
+
+
+def optional_control():
+    try:
+        return json.loads(control('health'))
+    except (subprocess.SubprocessError, ValueError):
+        return None
+
+
+def logs():
+    return run(['qs', '--log-times', '-c', 'ii', 'log', '--tail', '1200'], timeout=15)
+
+
+def snapshot(require_bars=True):
+    if run(['qs', '-c', 'ii', 'ipc', 'call', 'lock', 'isActive'], timeout=8) != 'false':
+        raise DeployFailure('The desktop is locked or the lock state is unknown; no deployment')
+    monitors = json.loads(run(['hyprctl', 'monitors', '-j']))
+    if not monitors or not all(m.get('dpmsStatus') is True for m in monitors):
+        raise DeployFailure('A display is asleep or its state is unknown; no deployment')
+    outputs = bar_outputs(json.loads(run(['hyprctl', 'layers', '-j'])))
+    if require_bars and not outputs:
+        raise DeployFailure('No visible bar to verify; leave the live session unchanged')
+    return {'pid': process_id(), 'outputs': outputs, 'control': optional_control()}
+
+
+def write_state(ref, report=None):
+    names = list(dict.fromkeys(['shell.qml', *managed(ref)]))
+    hashes = {name: sha(file_bytes(LIVE / name)) for name in names}
+    if any(value is None for value in hashes.values()):
+        raise DeployFailure('A managed live file is missing')
+    invariants = {name: hashes[name] for name in names if file_bytes(LIVE / name) != blob(ref, name)}
+    data = {'schema': 1, 'ref': ref, 'hashes': hashes, 'invariants': invariants, 'verifiedAt': time.time(), 'report': report}
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.NamedTemporaryFile(mode='w', dir=STATE, delete=False) as handle:
+        json.dump(data, handle, indent=2)
+        handle.flush()
+        os.fsync(handle.fileno())
+        name = handle.name
+    os.replace(name, STATE / 'last-good.json')
+
+
+def certificate(report, state):
+    base = state["ref"]
+    if not isinstance(report, dict) or not isinstance(report.get("checkedAt"), (int, float)):
+        raise DeployFailure("Malformed preflight certificate")
+    if report.get('schema') != 1 or report.get('passed') is not True:
+        raise DeployFailure('Preflight certificate is missing or failed')
+    if report.get('base') != base:
+        raise DeployFailure('Preflight did not test the currently deployed release as its baseline')
+    if report.get('invariantHashes', {}) != state.get('invariants', {}):
+        raise DeployFailure('Live customizations differ from the tested baseline')
+    age = time.time() - report.get('checkedAt', 0)
+    if age < -5 or age > 1800:
+        raise DeployFailure('Preflight certificate expired; run the checks again')
+    if report.get('sourcePath') != str(ROOT / ci.SHELL) or report.get('sourceHash') != ci.fingerprint(ROOT / ci.SHELL):
+        raise DeployFailure('Source changed after preflight; no deployment')
+    if report.get('producerHash') != hashlib.sha256(Path(__file__).with_name('quickshell-ci').read_bytes()).hexdigest():
+        raise DeployFailure('Preflight tooling changed; run it again')
+    if report.get('applyHash') != hashlib.sha256(Path(__file__).read_bytes()).hexdigest():
+        raise DeployFailure('Deployment tooling changed; run preflight again')
+    if report.get('regressionHash') != ci.fingerprint(ROOT / 'sdata/dist-arch/tests'):
+        raise DeployFailure('Regression tests changed; run preflight again')
+    if report.get('scenarioHash') != ci.fingerprint(ROOT / 'sdata/dist-arch/tests/quickshell'):
+        raise DeployFailure('Test scenarios changed; run preflight again')
+    if report.get('version') != run(['qs', '--version']):
+        raise DeployFailure('Quickshell changed after preflight')
+    run(['qs', '--private-check-compat'])
+
+
+def write_release(ref, names):
+    for name in names:
+        data = blob(ref, name)
+        path = LIVE / name
+        if data is None:
+            path.unlink(missing_ok=True)
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.is_symlink():
+            raise DeployFailure(f'Refusing a symlink target: {name}')
+        # In-place writes retain watcher inodes. The watcher is paused for the batch.
+        with path.open('wb') as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        path.chmod(0o755 if name.startswith('scripts/') and not name.endswith('.txt') else 0o644)
+
+
+def pause_with_watchdog(pid):
+    # Bootstrap only, before ShellControl exists. Even SIGKILL of this tool must
+    # resume the old shell. The watchdog owns no user input or other processes.
+    code = '''import os,sys,select,signal
+pid=int(sys.argv[1]); identity=open('/proc/%s/stat'%pid).read().split()[21]
+print('ready',flush=True)
+select.select([sys.stdin],[],[],3)
+try:
+ if open('/proc/%s/stat'%pid).read().split()[21]==identity: os.kill(pid,signal.SIGCONT)
+except (FileNotFoundError,ProcessLookupError): pass
+'''
+    child = subprocess.Popen([sys.executable, '-u', '-c', code, str(pid)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, start_new_session=True)
+    if child.stdout.readline().strip() != 'ready':
+        raise DeployFailure('Could not arm the shell-resume watchdog')
+    os.kill(pid, signal.SIGSTOP)
+    return child
+
+
+def update(ref, names, before):
+    watchdog = None
+    paused = False
+    try:
+        if before['control']:
+            control('setWatching', 'false')
+            paused = True
+        else:
+            watchdog = pause_with_watchdog(before['pid'])
+        write_release(ref, names)
+    finally:
+        if watchdog:
+            watchdog.stdin.close()
+            try:
+                watchdog.wait(timeout=5)
+            finally:
+                try:
+                    os.kill(before['pid'], signal.SIGCONT)
+                except ProcessLookupError:
+                    pass
+        if paused:
+            control('setWatching', 'true')
+    if before['control']:
+        control('reload')
+
+
+def wait_release(before, started, baseline_diagnostics, timeout=70):
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        health = optional_control()
+        if health and health.get('generation', 0) >= started and not health.get('locked'):
+            time.sleep(2)
+            after = snapshot()
+            bars = after['control'].get('bars', []) if after['control'] else []
+            if sorted(b['screen'] for b in bars) != before['outputs'] or any(not b['visible'] or b['width'] < 100 or b['height'] < 20 for b in bars):
+                raise DeployFailure('System-stats content did not remain visible on each output')
+            if after['pid'] != before['pid']:
+                raise DeployFailure('Quickshell changed process unexpectedly during apply')
+            if after['outputs'] != before['outputs']:
+                raise DeployFailure('A bar disappeared or moved to another output')
+            text = logs()
+            last_loaded = text.rfind('Configuration Loaded')
+            if last_loaded < 0 or text.rfind('Failed to load configuration') > last_loaded:
+                raise DeployFailure('The live reload did not finish successfully')
+            new = set(ci.diagnostic_lines(text[last_loaded:])) - baseline_diagnostics
+            critical = [line for line in new if re.search(r'ERROR|FATAL|TypeError|ReferenceError|Binding loop|Unable to assign', line)]
+            if critical:
+                raise DeployFailure('Live runtime diagnostics: ' + '\n'.join(sorted(critical)))
+            return
+        # Do not mistake the old instance's successful IPC reply for a new load.
+        if process_id() != before['pid']:
+            raise DeployFailure('Quickshell changed process unexpectedly during apply')
+        time.sleep(.5)
+    raise DeployFailure('No fresh healthy generation; old bar will be retained and source restored')
+
+
+def adopt(ref):
+    ref = git('rev-parse', ref)
+    before = snapshot()
+    text = logs()
+    if text.rfind('Failed to load configuration') > text.rfind('Configuration Loaded'):
+        raise DeployFailure('The current instance has an outstanding failed reload; cannot mark it known-good')
+    # Every file must predate the successful load being adopted.
+    loaded = re.findall(r'^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d+) .*Configuration Loaded', text, re.M)
+    if not loaded:
+        raise DeployFailure('No timestamped successful live load to adopt')
+    from datetime import datetime
+    cutoff = datetime.strptime(loaded[-1], '%Y-%m-%d %H:%M:%S.%f').timestamp() + 1
+    if any((LIVE / name).stat().st_mtime > cutoff for name in managed(ref)):
+        raise DeployFailure('A live file changed after the successful load; cannot adopt stale validation')
+    write_state(ref)
+    print('Recorded verified live release', ref[:12], 'on', ', '.join(before['outputs']))
+
+
+def apply(args):
+    state_path = STATE / 'last-good.json'
+    if not state_path.is_file():
+        raise DeployFailure('No verified release recorded. Run quickshell-apply adopt --ref <live Git commit> first')
+    state = json.loads(state_path.read_text())
+    base = state['ref']
+    release = git('rev-parse', 'HEAD')
+    if git('status', '--porcelain', '--', PREFIX):
+        raise DeployFailure('Commit the tested Quickshell source before applying; live files remain unchanged')
+    before = snapshot()
+    verify_state(state)
+    names = git('diff', '--name-only', base, release, '--', PREFIX).splitlines()
+    names = [name[len(PREFIX):] for name in names]
+    if not names:
+        print('Quickshell is already at the requested release')
+        return
+    allowed = set(managed(release))
+    for name in names:
+        if blob(release, name) is not None and name not in allowed:
+            raise DeployFailure(f'{name} is not in the Arch setup install list')
+        if file_bytes(LIVE / name) != blob(base, name):
+            raise DeployFailure(f'Live drift in {name}; no files changed')
+    if args.report:
+        report_path = Path(args.report).resolve()
+    else:
+        report_path = Path.home() / '.cache/quickshell-ci' / (time.strftime('%Y%m%d-%H%M%S') + '-apply') / 'result.json'
+        subprocess.run([str(Path(__file__).with_name('quickshell-ci')), '--base', base, '--output', str(report_path.parent)], check=True, timeout=200)
+    report = json.loads(report_path.read_text())
+    certificate(report, state)
+    # Recheck everything after preflight, immediately before any mutation.
+    before = snapshot()
+    verify_state(state)
+    started = time.time() * 1000
+    baseline_diagnostics = set(ci.diagnostic_lines(logs()))
+    try:
+        update(release, names, before)
+        wait_release(before, started, baseline_diagnostics)
+        verify_ref(release, names)
+        verify_state(state, exclude=names)
+    except BaseException as error:
+        print('Apply failed; restoring the verified Git source:', error, file=sys.stderr)
+        try:
+            current = snapshot(require_bars=False)
+            current['outputs'] = before['outputs']
+            # An old visible generation is deliberately kept alive. Never kill
+            # it merely because reload failed or the controller did not appear.
+            restored_at = time.time()
+            update(base, names, current)
+            verify_state(state)
+            deadline = time.monotonic() + 70
+            while time.monotonic() < deadline:
+                native = bar_outputs(json.loads(run(['hyprctl', 'layers', '-j'])))
+                text = logs()
+                from datetime import datetime
+                loaded = re.findall(r'^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d+) .*Configuration Loaded', text, re.M)
+                fresh = loaded and datetime.strptime(loaded[-1], '%Y-%m-%d %H:%M:%S.%f').timestamp() >= restored_at - .01
+                if native == before['outputs'] and fresh and text.rfind('Failed to load configuration') < text.rfind('Configuration Loaded'):
+                    break
+                time.sleep(.5)
+            else:
+                raise DeployFailure('Git source restored; no fresh restored generation verified')
+            print('Known-good source restored; existing bar retained', file=sys.stderr)
+        except BaseException as recovery:
+            raise DeployFailure(f'Apply failed ({error}); recovery needs attention ({recovery}). No running shell was killed') from recovery
+        raise DeployFailure(str(error)) from error
+    write_state(release, str(report_path))
+    print('Applied and verified', release[:12], 'on', ', '.join(before['outputs']))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest='action', required=True)
+    pin = commands.add_parser('adopt', help='Verify live files match a Git release and record it')
+    pin.add_argument('--ref', required=True)
+    deployment = commands.add_parser('apply', help='Check, apply and verify the committed source')
+    deployment.add_argument('--report', help='Reuse a current matching preflight result')
+    commands.add_parser('status')
+    args = parser.parse_args()
+    def interrupted(signum, frame):
+        raise KeyboardInterrupt('Deployment interrupted')
+    signal.signal(signal.SIGTERM, interrupted)
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE / 'apply.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            if args.action == 'adopt':
+                adopt(args.ref)
+            elif args.action == 'apply':
+                apply(args)
+            else:
+                print((STATE / 'last-good.json').read_text() if (STATE / 'last-good.json').exists() else 'No verified release recorded')
+        except (DeployFailure, subprocess.SubprocessError, OSError, ValueError) as error:
+            print('FAIL:', error, file=sys.stderr)
+            return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -1,0 +1,452 @@
+#!/usr/bin/env python3
+"""Validate a complete Quickshell tree on an isolated, headless Wayland display."""
+import argparse
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[3]
+SHELL = Path('dots/.config/quickshell/ii')
+
+
+class CheckFailure(RuntimeError):
+    pass
+
+
+def command(argv, **kwargs):
+    return subprocess.run(argv, check=True, text=True, capture_output=True, timeout=20, **kwargs)
+
+
+def fingerprint(root):
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob('*')):
+        if any(part in ('.git', '__pycache__') for part in path.relative_to(root).parts) or path.name == '.qmlls.ini' or path.suffix == '.pyc':
+            continue
+        if path.is_symlink():
+            content = b'link:' + os.readlink(path).encode()
+        elif path.is_file():
+            content = path.read_bytes()
+        else:
+            continue
+        digest.update(str(path.relative_to(root)).encode() + b'\0' + str(path.lstat().st_mode & 0o777).encode() + b'\0' + content + b'\0')
+    return digest.hexdigest()
+
+
+def sync(source, target):
+    """Keep existing watched inodes; remove files absent from the tested tree."""
+    target.mkdir(parents=True, exist_ok=True)
+    for path in sorted(target.rglob('*'), reverse=True):
+        if not (source / path.relative_to(target)).exists() and not (source / path.relative_to(target)).is_symlink():
+            if path.is_dir() and not path.is_symlink():
+                path.rmdir()
+            else:
+                path.unlink()
+    for path in source.rglob('*'):
+        dest = target / path.relative_to(source)
+        if path.is_symlink():
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.is_symlink() or dest.exists():
+                dest.unlink()
+            dest.symlink_to(os.readlink(path))
+        elif path.is_dir():
+            dest.mkdir(parents=True, exist_ok=True)
+        else:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.is_symlink():
+                dest.unlink()
+            shutil.copyfile(path, dest)
+            shutil.copymode(path, dest)
+
+
+def diagnostic_lines(text):
+    result = set()
+    for line in text.splitlines():
+        if re.search(r'\b(?:WARN|ERROR|FATAL)\b', line):
+            # Object addresses and engine-generated type numbers change on reload.
+            line = re.sub(r'0x[0-9a-f]+', '<address>', line)
+            line = re.sub(r'(No session for pid )[0-9]+', r'\1<pid>', line)
+            line = re.sub(r'(?:_QMLTYPE_|_QML_)[0-9]+', '_QML_<id>', line)
+            line = re.sub(r'\[[0-9]+:-?[0-9]+\]', '[line]', line)
+            line = re.sub(r'^.*?\b(WARN|ERROR|FATAL)\b', r'\1', line)
+            result.add(line)
+    return sorted(result)
+
+
+def inject_probe(tree, revision):
+    path = tree / 'shell.qml'
+    text = path.read_text()
+    hook = '''
+    property Timer ciPauseWatcher: Timer {
+        interval: 1; running: true
+        onTriggered: Quickshell.watchFiles = false
+    }
+    property IpcHandler ciProbe: IpcHandler {
+        target: "localCi"
+        property var scenario: null
+        property bool barSaved: false
+        function findBar(item): var {
+            if (!item) return null;
+            if (item.systemIsland !== undefined && item.clockIsland !== undefined) return item;
+            for (const child of item.children ?? []) { const found = findBar(child); if (found) return found; }
+            return null;
+        }
+        function bars(): var {
+            return GlobalFocusGrab.persistent.filter(w => w?.backingWindowVisible).map(w => {
+                const item = findBar(w.contentItem);
+                return item ? { width: w.width, systemWidth: item.systemIsland.width,
+                    systemHeight: item.systemIsland.height, visible: item.systemIsland.visible && item.systemIsland.opacity > 0 } : null;
+            }).filter(w => w !== null);
+        }
+        function captureBar(): void {
+            for (const window of GlobalFocusGrab.persistent) {
+                const bar = findBar(window?.contentItem);
+                if (bar && window.backingWindowVisible) {
+                    bar.systemIsland.grabToImage(image => { barSaved = image.saveToFile("/work/artifacts/bar-" + REVISION + ".png"); });
+                    return;
+                }
+            }
+        }
+        function scale(value: real): void { Config.options.appearance.fontScale = value; }
+        function health(): string {
+            return JSON.stringify({ revision: REVISION, screens: Quickshell.screens.length, done: scenario?.done ?? false, failure: scenario?.failure ?? "", bars: bars(), barSaved: barSaved });
+        }
+        function exercise(name: string): void {
+            if (scenario) scenario.destroy();
+            const component = Qt.createComponent(Qt.resolvedUrl("CiStatsSmoke.qml"));
+            if (component.status !== Component.Ready) throw Error(component.errorString());
+            scenario = component.createObject(ciProbe, { artifactPrefix: name + "-" });
+        }
+        function reload(): void { Quickshell.reload(false); }
+    }
+'''.replace('REVISION', json.dumps(revision))
+    index = text.rfind('}')
+    if index < 0:
+        raise CheckFailure('shell.qml has no root closing brace')
+    path.write_text(text[:index] + hook + text[index:])
+    shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/StatsSmoke.qml', tree / 'CiStatsSmoke.qml')
+
+
+def wait_loaded(process, log, offset, deadline):
+    end = time.monotonic() + deadline
+    while time.monotonic() < end:
+        text = log.read_bytes()[offset:].decode(errors='replace')
+        if 'Failed to load configuration' in text or re.search(r'\bFATAL\b', text):
+            raise CheckFailure(text[-10000:])
+        if process.poll() is not None:
+            raise CheckFailure(f'Quickshell exited ({process.returncode}):\n{text[-10000:]}')
+        if 'Configuration Loaded' in text:
+            return
+        time.sleep(.1)
+    raise CheckFailure(f'No fresh successful load within {deadline}s; see {log.name}')
+
+
+def health(current):
+    data = json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'health']).stdout)
+    if data.get('screens', 0) < 1 or len(data.get('bars', [])) != data['screens']:
+        raise CheckFailure('The shell loaded without a native bar on each output')
+    if any(not b['visible'] or b['systemWidth'] < 100 or b['systemHeight'] < 20 for b in data['bars']):
+        raise CheckFailure('A system-stats island is hidden or has invalid geometry')
+    return data
+
+
+
+def production_health(current):
+    data = json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'shellControl', 'health']).stdout)
+    bars = data.get('bars', [])
+    if data.get('locked') or sorted(b['screen'] for b in bars) != sorted(data.get('screens', [])) or not bars:
+        raise CheckFailure('Production deployment health did not find every bar')
+    if any(not b['visible'] or b['width'] < 100 or b['height'] < 20 for b in bars):
+        raise CheckFailure('Production health found hidden stats content')
+
+def capture_bar(current, artifacts):
+    command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'captureBar'])
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        data = health(current)
+        if data['barSaved']:
+            from PIL import Image
+            image = Image.open(artifacts / ('bar-' + data['revision'] + '.png')).convert('RGBA')
+            if not image.getbbox() or max(high - low for low, high in image.convert('RGB').getextrema()) < 20:
+                raise CheckFailure('The bar capture is blank')
+            return
+        time.sleep(.1)
+    raise CheckFailure('The native bar did not deliver a rendered frame')
+
+
+def exercise(current, log, baseline, profile):
+    offset = log.stat().st_size
+    command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'exercise', profile])
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        data = health(current)
+        if data['failure']:
+            raise CheckFailure(data['failure'])
+        if data['done']:
+            break
+        time.sleep(.4)
+    else:
+        raise CheckFailure('Widget exercise timed out')
+    extra = sorted(set(diagnostic_lines(log.read_bytes()[offset:].decode(errors='replace'))) - set(baseline))
+    if extra:
+        raise CheckFailure('New diagnostics exercising stats:\n' + '\n'.join(extra))
+
+def inside(work):
+    """This runs only inside bubblewrap, with no host display or host bus."""
+    work = Path(work)
+    artifacts = work / 'artifacts'
+    artifacts.mkdir(exist_ok=True)
+    runtime = Path('/tmp/qci')
+    runtime.mkdir(mode=0o700)
+    os.environ.update(XDG_RUNTIME_DIR=str(runtime), WLR_BACKENDS='headless',
+                      WLR_HEADLESS_OUTPUTS='1', WLR_LIBINPUT_NO_DEVICES='1',
+                      WLR_RENDERER='gles2', WLR_RENDERER_ALLOW_SOFTWARE='1',
+                      QS_NO_RELOAD_POPUP='1', QT_QPA_PLATFORM='wayland',
+                      XDG_CURRENT_DESKTOP='Hyprland', XDG_SESSION_TYPE='wayland')
+    (work / 'sway.conf').write_text('output * mode 1600x1000\nxwayland disable\nswaybg_command -\n')
+    sway_log = (artifacts / 'compositor.log').open('w')
+    compositor = subprocess.Popen(['sway', '--unsupported-gpu', '-c', str(work / 'sway.conf')], stdout=sway_log, stderr=subprocess.STDOUT)
+    shell = None
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            sockets = [p for p in runtime.glob('wayland-*') if p.is_socket()]
+            if sockets:
+                break
+            if compositor.poll() is not None:
+                raise CheckFailure('Headless compositor failed; see compositor.log')
+            time.sleep(.1)
+        else:
+            raise CheckFailure('Headless compositor did not create a Wayland socket')
+        os.environ['WAYLAND_DISPLAY'] = sockets[0].name
+        current = work / 'shell'
+        sync(work / 'baseline', current)
+        inject_probe(current, 'baseline')
+        log = artifacts / 'shell.log'
+        stream = log.open('w')
+        shell = subprocess.Popen(['qs', '--no-color', '-p', str(current)], stdout=stream, stderr=subprocess.STDOUT)
+        wait_loaded(shell, log, 0, 45)
+        time.sleep(3)
+        baseline = diagnostic_lines(log.read_text(errors='replace'))
+        capture_bar(current, artifacts)
+        command(['grim', '-l', '0', str(artifacts / 'baseline.png')])
+        # No file watchers run during a multi-file update. Reload is explicit.
+        sync(work / 'candidate', current)
+        inject_probe(current, 'candidate')
+        offset = log.stat().st_size
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'reload'])
+        wait_loaded(shell, log, offset, 45)
+        time.sleep(3)
+        candidate_text = log.read_bytes()[offset:].decode(errors='replace')
+        new_diagnostics = sorted(set(diagnostic_lines(candidate_text)) - set(baseline))
+        if new_diagnostics:
+            raise CheckFailure('New diagnostics after reload:\n' + '\n'.join(new_diagnostics))
+        reply = command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'health']).stdout
+        if json.loads(reply).get('revision') != 'candidate':
+            raise CheckFailure('IPC still belongs to the old generation')
+        production_health(current)
+        command(['grim', '-l', '0', str(artifacts / 'candidate-reload.png')])
+        capture_bar(current, artifacts)
+        exercise(current, log, baseline, 'normal')
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1.25'])
+        time.sleep(1)
+        exercise(current, log, baseline, 'scaled')
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1'])
+        # Prove that this candidate can return to the known-good source in-process.
+        sync(work / 'baseline', current)
+        inject_probe(current, 'rollback')
+        offset = log.stat().st_size
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'reload'])
+        wait_loaded(shell, log, offset, 45)
+        time.sleep(2)
+        if health(current)['revision'] != 'rollback':
+            raise CheckFailure('Rollback did not replace the candidate generation')
+        extra = set(diagnostic_lines(log.read_bytes()[offset:].decode(errors='replace'))) - set(baseline)
+        if extra:
+            raise CheckFailure('New diagnostics after rollback:\n' + '\n'.join(sorted(extra)))
+        capture_bar(current, artifacts)
+        sync(work / 'candidate', current)
+        inject_probe(current, 'candidate')
+        # A cold start is a separate check, not inferred from a successful reload.
+        shell.terminate()
+        shell.wait(timeout=8)
+        offset = log.stat().st_size
+        shell = subprocess.Popen(['qs', '--no-color', '-p', str(current)], stdout=stream, stderr=subprocess.STDOUT)
+        wait_loaded(shell, log, offset, 45)
+        time.sleep(3)
+        cold_text = log.read_bytes()[offset:].decode(errors='replace')
+        new_diagnostics = sorted(set(diagnostic_lines(cold_text)) - set(baseline))
+        if new_diagnostics:
+            raise CheckFailure('New diagnostics after cold start:\n' + '\n'.join(new_diagnostics))
+        capture_bar(current, artifacts)
+        production_health(current)
+        command(['grim', '-l', '0', str(artifacts / 'candidate-cold.png')])
+        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'checks': ['full-shell-baseline', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
+        print('Full shell: baseline, hot reload, cold start and Wayland render passed', flush=True)
+    finally:
+        for child in [shell, compositor]:
+            if child and child.poll() is None:
+                child.terminate()
+                try:
+                    child.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait()
+
+
+def check(args):
+    producer_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    scenario_hash = fingerprint(ROOT / 'sdata/dist-arch/tests/quickshell')
+    regression_hash = fingerprint(ROOT / 'sdata/dist-arch/tests')
+    apply_hash = hashlib.sha256(Path(__file__).with_name('quickshell-apply').read_bytes()).hexdigest()
+    source = Path(args.source).resolve() if args.source else ROOT / SHELL
+    state_path = Path.home() / '.local/state/quickshell-deploy/last-good.json'
+    state = json.loads(state_path.read_text()) if state_path.is_file() else {}
+    base = command(['git', '-C', str(ROOT), 'rev-parse', args.base or state.get('ref', 'HEAD')]).stdout.strip()
+    invariants = state.get('invariants', {}) if state.get('ref') == base else {}
+    raw_hash = fingerprint(source)
+    for binary in ['bwrap', 'sway', 'dbus-run-session', 'qs', 'grim', 'git']:
+        if not shutil.which(binary):
+            raise CheckFailure(f'Missing dependency: {binary}')
+    command(['qs', '--private-check-compat'])
+    tests = subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', str(ROOT / 'sdata/dist-arch/tests'), '-p', 'test_quickshell*.py'], capture_output=True, text=True, timeout=30)
+    if tests.returncode:
+        raise CheckFailure('Guard regression tests failed:\n' + tests.stdout + tests.stderr)
+    command([sys.executable, str(ROOT / 'sdata/dist-arch/tests/test_system_stats.py')])
+    command(['bash', '-n', str(ROOT / 'sdata/dist-arch/setup-martins.sh')])
+    artifacts = Path(args.output).resolve() if args.output else Path.home() / '.cache/quickshell-ci' / time.strftime('%Y%m%d-%H%M%S')
+    artifacts.mkdir(parents=True, exist_ok=False, mode=0o700)
+    work = Path(tempfile.mkdtemp(prefix='qci-'))
+    try:
+        archive = subprocess.run(['git', '-C', str(ROOT), 'archive', f'{base}:{SHELL}'], check=True, capture_output=True).stdout
+        (work / 'baseline').mkdir()
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            tar.extractall(work / 'baseline', filter='data')
+        # git archive deliberately omits submodule contents; materialize each pin.
+        links = command(['git', '-C', str(ROOT), 'ls-tree', '-r', base, str(SHELL)]).stdout
+        for line in links.splitlines():
+            if not line.startswith('160000 '):
+                continue
+            metadata, name = line.split('\t', 1)
+            revision = metadata.split()[2]
+            repository = ROOT / name
+            if not (repository / '.git').exists():
+                raise CheckFailure(f'Uninitialized dependency: run git submodule update --init --recursive {name}')
+            data = subprocess.run(['git', '-C', str(repository), 'archive', revision], check=True, capture_output=True).stdout
+            dest = work / 'baseline' / Path(name).relative_to(SHELL)
+            dest.mkdir(parents=True, exist_ok=True)
+            with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+                tar.extractall(dest, filter='data')
+        shutil.copytree(source, work / 'candidate', symlinks=True, ignore=shutil.ignore_patterns('.git', '__pycache__', '*.pyc', '.qmlls.ini'))
+        # Unchanged local customizations are test inputs, not files to overwrite.
+        # Only hashes are retained in state; temporary test copies are removed.
+        for name, expected in invariants.items():
+            if '..' in Path(name).parts or Path(name).is_absolute():
+                raise CheckFailure('Invalid local invariant path')
+            live = Path.home() / '.config/quickshell/ii' / name
+            data = live.read_bytes()
+            if hashlib.sha256(data).hexdigest() != expected:
+                raise CheckFailure('Live customization changed before preflight: ' + name)
+            original = (work / 'baseline' / name).read_bytes()
+            (work / 'baseline' / name).write_bytes(data)
+            if (work / 'candidate' / name).read_bytes() == original:
+                (work / 'candidate' / name).write_bytes(data)
+        tested_hash = fingerprint(work / 'candidate')
+        (work / 'artifacts').mkdir()
+        (work / 'bin').mkdir()
+        (work / 'dbus.conf').write_text('<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen><policy context="default"><allow own="*"/><allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
+        state = work / 'xdg/state/quickshell/user'
+        state.mkdir(parents=True)
+        (state / 'first_run.txt').write_text('CI fixture: already initialized')
+        colors = Path.home() / '.local/state/quickshell/user/generated/colors.json'
+        if colors.is_file():
+            (state / 'generated').mkdir()
+            shutil.copyfile(colors, state / 'generated/colors.json')
+        # Supply compositor read data, never a connection to the user's Hyprland.
+        shim = '''#!/usr/bin/python3
+import json,sys
+monitor={"id":0,"name":"HEADLESS-1","width":1600,"height":1000,"x":0,"y":0,"scale":1,"focused":True,"dpmsStatus":True,"reserved":[0,50,0,0],"activeWorkspace":{"id":1,"name":"1"},"specialWorkspace":{"id":0,"name":""}}
+args=sys.argv[1:]
+if "monitors" in args: print(json.dumps([monitor]))
+elif "workspaces" in args: print(json.dumps([{"id":1,"name":"1","monitor":"HEADLESS-1","monitorID":0,"windows":0}]))
+elif "clients" in args: print("[]")
+elif "activewindow" in args: print("{}")
+elif "activeworkspace" in args: print(json.dumps({"id":1,"name":"1","monitor":"HEADLESS-1"}))
+elif "devices" in args: print(json.dumps({"keyboards":[{"main":True,"layout":"us","active_keymap":"English (US)"}]}))
+elif "cursorpos" in args: print(json.dumps({"x":800,"y":500}))
+else: print("{}")
+'''
+        (work / 'bin/hyprctl').write_text(shim)
+        (work / 'bin/hyprctl').chmod(0o755)
+        config = work / 'xdg/config/illogical-impulse'
+        config.mkdir(parents=True)
+        wallpaper = ''
+        live_config = Path.home() / '.config/illogical-impulse/config.json'
+        if live_config.is_file():
+            selected = Path(json.loads(live_config.read_text()).get('background', {}).get('wallpaperPath', ''))
+            if selected.is_file():
+                shutil.copyfile(selected, work / ('wallpaper' + selected.suffix))
+                wallpaper = '/work/wallpaper' + selected.suffix
+        fonts = {'main': 'Google Sans Flex', 'numbers': 'Google Sans Flex', 'title': 'Google Sans Flex', 'monospace': 'JetBrains Mono NF'}
+        (config / 'config.json').write_text(json.dumps({'appearance': {'fonts': fonts}, 'panelFamily': 'ii', 'background': {'wallpaperPath': wallpaper}, 'bar': {'cornerStyle': 1}}))
+        env = ['--clearenv', '--setenv', 'PATH', '/work/bin:/usr/bin', '--setenv', 'HOME', str(Path.home()), '--setenv', 'USER', os.environ.get('USER', 'martins'), '--setenv', 'LANG', 'C.UTF-8', '--setenv', 'XDG_CONFIG_HOME', '/work/xdg/config', '--setenv', 'XDG_STATE_HOME', '/work/xdg/state', '--setenv', 'XDG_DATA_HOME', '/work/xdg/data', '--setenv', 'XDG_CACHE_HOME', '/work/xdg/cache']
+        argv = ['bwrap', '--unshare-all', '--die-with-parent', '--new-session', '--ro-bind', '/usr', '/usr', '--ro-bind', '/etc', '/etc', '--symlink', 'usr/bin', '/bin', '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib', '/lib64', '--proc', '/proc', '--dev', '/dev', '--ro-bind', '/sys', '/sys', '--tmpfs', '/run', '--tmpfs', '/tmp', '--bind', str(work), '/work', '--ro-bind', str(ROOT), '/source', '--dir', str(Path.home())]
+        for device in sorted(Path('/dev/dri').glob('renderD*')):
+            argv += ['--dev-bind', str(device), str(device)]
+        fonts_dir = Path.home() / '.local/share/fonts'
+        if fonts_dir.is_dir():
+            argv += ['--ro-bind', str(fonts_dir), str(fonts_dir)]
+        argv += env + ['dbus-run-session', '--config-file=/work/dbus.conf', '--', 'python3', '/source/sdata/dist-arch/bin/quickshell-ci', '--inside', '/work']
+        print(f'Validating full Quickshell tree against {base[:12]}; artifacts: {artifacts}', flush=True)
+        result = subprocess.run(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=160)
+        (artifacts / 'runner.log').write_text(result.stdout)
+        for path in (work / 'artifacts').iterdir():
+            shutil.copyfile(path, artifacts / path.name)
+        if result.returncode:
+            raise CheckFailure(result.stdout[-12000:])
+        if fingerprint(source) != raw_hash or hashlib.sha256(Path(__file__).read_bytes()).hexdigest() != producer_hash or fingerprint(ROOT / 'sdata/dist-arch/tests/quickshell') != scenario_hash:
+            raise CheckFailure('Source changed during validation; result cannot authorize deployment')
+        if fingerprint(ROOT / 'sdata/dist-arch/tests') != regression_hash or hashlib.sha256(Path(__file__).with_name('quickshell-apply').read_bytes()).hexdigest() != apply_hash:
+            raise CheckFailure('Guard or regression tests changed during validation')
+        for name, expected in invariants.items():
+            if hashlib.sha256((Path.home() / '.config/quickshell/ii' / name).read_bytes()).hexdigest() != expected:
+                raise CheckFailure('Live customization changed during preflight: ' + name)
+        report = json.loads((artifacts / 'checks.json').read_text())
+        report['checks'] += ['guard-regressions', 'telemetry-accounting', 'setup-shell-syntax']
+        report.update(schema=1, checkedAt=time.time(), producerHash=producer_hash, applyHash=apply_hash, regressionHash=regression_hash, scenarioHash=scenario_hash, sourcePath=str(source), sourceHash=raw_hash, runtimeTreeHash=tested_hash, invariantHashes=invariants, base=base, version=command(['qs', '--version']).stdout.strip())
+        (artifacts / 'result.json').write_text(json.dumps(report, indent=2))
+        print(result.stdout.strip())
+        print(f'PASS: {artifacts / "result.json"}')
+    finally:
+        shutil.rmtree(work)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', help='Candidate Quickshell directory (defaults to the tracked tree)')
+    parser.add_argument('--base', help='Known-good Git baseline (defaults to the recorded live release)')
+    parser.add_argument('--output')
+    parser.add_argument('--inside', help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    try:
+        if args.inside:
+            inside(args.inside)
+        else:
+            check(args)
+        return 0
+    except (CheckFailure, subprocess.SubprocessError, OSError, ValueError) as error:
+        print(f'FAIL: {error}', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

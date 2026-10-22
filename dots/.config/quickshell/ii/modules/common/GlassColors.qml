@@ -4,10 +4,12 @@ import qs.modules.common
 import qs.modules.ii.bar
 
 QtObject {
-    // Dark telemetry glass is shared by the compact island and expanded panel.
-    readonly property color monitorSurface: Qt.rgba(0.025, 0.032, 0.044, 0.94)
-    readonly property color monitorForeground: Qt.rgba(0.90, 0.93, 0.96, 1)
-    readonly property color monitorMuted: Qt.rgba(0.62, 0.68, 0.73, 1)
+    // A modestly darker shared surface for expanded telemetry only.
+    readonly property color monitorSurface: Qt.rgba(surface.r * 0.80, surface.g * 0.80, surface.b * 0.80, Math.min(0.86, surface.a + 0.035))
+    readonly property color monitorForeground: BarGlassPalette.islandColor([foreground], monitorSurface, 4.5)
+    readonly property color monitorMuted: BarGlassPalette.islandColor([textStates.off], monitorSurface, 4.5)
+    readonly property color statsCpuTint: BarGlassPalette.highlightTint(Appearance.m3colors.m3primary, 0.24)
+    readonly property color statsMemoryTint: BarGlassPalette.highlightTint(Appearance.m3colors.m3tertiary, 0.24)
     readonly property color monitorCpu: "#67d4ed"
     readonly property color monitorMemory: "#a6df8a"
     readonly property color monitorSwap: "#c4a0ef"

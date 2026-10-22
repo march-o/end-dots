@@ -5,24 +5,16 @@ import qs.modules.common
 
 GroupBox {
     id: box
-    property color accent: GlassColors.monitorCpu
+    property color accent: GlassColors.monitorForeground
+    property string icon: ""
     default property alias sectionData: body.data
-    padding: 12
-    topPadding: 34
-    label: StyledText {
-        x: 12
-        y: 10
-        text: box.title
-        color: box.accent
-        font.pixelSize: Appearance.font.pixelSize.smaller
-        font.weight: Font.DemiBold
-        font.letterSpacing: 1.2
+    padding: 0
+    topPadding: 30
+    label: RowLayout {
+        spacing: 7
+        MaterialSymbol { text: box.icon; iconSize: 20; color: box.accent; visible: box.icon.length > 0 }
+        StyledText { text: box.title; color: box.accent; font.pixelSize: Appearance.font.pixelSize.small; font.weight: Font.Medium }
     }
-    background: Rectangle {
-        color: "transparent"
-        radius: 4
-        border.width: 1
-        border.color: GlassColors.monitorLine
-    }
-    contentItem: ColumnLayout { id: body; spacing: 7 }
+    background: Item {}
+    contentItem: ColumnLayout { id: body; spacing: 8 }
 }

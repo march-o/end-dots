@@ -12,6 +12,9 @@ import Quickshell.Hyprland
 Singleton {
     id: root
 
+    // Keep deployment control alive with the global window lifecycle service.
+    property ShellControl deploymentControl: ShellControl {}
+
     signal dismissed()
 
     property list<var> persistent: []

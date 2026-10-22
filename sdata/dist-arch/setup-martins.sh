@@ -43,6 +43,8 @@ install_user_config() {
   "$HOME/.local/bin/laptop-monitor" configure-host
   install -Dm755 "$repo_root/sdata/dist-arch/bin/wallpaper-next" "$HOME/.local/bin/wallpaper-next"
   install -Dm755 "$repo_root/sdata/dist-arch/bin/ash-desktop-state" "$HOME/.local/bin/ash-desktop-state"
+  ln -sfn "$repo_root/sdata/dist-arch/bin/quickshell-ci" "$HOME/.local/bin/quickshell-ci"
+  ln -sfn "$repo_root/sdata/dist-arch/bin/quickshell-apply" "$HOME/.local/bin/quickshell-apply"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/general.lua" "$HOME/.config/hypr/custom/general.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
@@ -78,8 +80,17 @@ configure_quickshell_shell() {
   fi
   local quickshell="$HOME/.config/quickshell/ii"
   if [[ -d "$quickshell" ]]; then
-    local relative mode source target
+    local relative mode source target guarded_live=false
+    if command -v qs >/dev/null && qs list -c ii 2>/dev/null | rg -q 'Process ID:'; then
+      "$repo_root/sdata/dist-arch/bin/quickshell-apply" apply
+      guarded_live=true
+    fi
+    # Direct installation is only for an inactive shell. Running shells use CI.
+    if [[ "$guarded_live" == false ]]; then
     for relative in \
+      shell.qml \
+      services/ShellControl.qml \
+      services/GlobalFocusGrab.qml \
       modules/common/GlassColors.qml \
       modules/common/widgets/GlassPanel.qml \
       modules/common/widgets/MeterBar.qml \
@@ -220,6 +231,7 @@ configure_quickshell_shell() {
     done
     # Palette consumers now share modules/common/GlassColors.qml.
     rm -f "$quickshell/modules/ii/sidebarRight/SidebarColors.qml"
+    fi
   fi
   local updated input_file="$config" launch_on_startup=false
   [[ -f "$input_file" ]] || input_file=/dev/null
@@ -321,7 +333,7 @@ enable_services() {
   sudo systemctl enable --now sshd.service
 }
 
-sudo pacman -S --needed --noconfirm wireguard-tools python-pillow
+sudo pacman -S --needed --noconfirm wireguard-tools python-pillow sway bubblewrap dbus grim
 
 install_zsh_plugins
 install_user_config
