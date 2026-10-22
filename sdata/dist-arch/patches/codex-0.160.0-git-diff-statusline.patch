@@ -50,10 +50,19 @@ index 64562d1..690c850 100644
  
      #[test]
 diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
-index 8c44ce4..a463afc 100644
+index 8c44ce4..2716f86 100644
 --- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
 +++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
-@@ -40,7 +40,8 @@ impl StatusLineAccent {
+@@ -13,6 +13,8 @@ use crate::style::secondary_text_style;
+ use crate::thread_color::thread_color;
+ use codex_protocol::ThreadId;
+ 
++const EFFORT_COLOR: Color = Color::Rgb(190, 160, 255);
++
+ const STATUS_LINE_SEPARATOR: &str = " · ";
+ const STATUS_LINE_COLOR_SATURATION_PERCENT: u16 = 85;
+ const STATUS_LINE_COLOR_BRIGHTNESS_PERCENT: u16 = 100;
+@@ -40,7 +42,8 @@ impl StatusLineAccent {
              StatusLineItem::CurrentDir | StatusLineItem::ProjectRoot => Self::Path,
              StatusLineItem::GitBranch
              | StatusLineItem::PullRequestNumber
@@ -63,7 +72,7 @@ index 8c44ce4..a463afc 100644
              StatusLineItem::Status => Self::State,
              StatusLineItem::ContextRemaining
              | StatusLineItem::ContextUsed
-@@ -124,6 +125,8 @@ where
+@@ -124,6 +127,8 @@ where
              && let Some(thread_id) = thread_id
          {
              Style::default().fg(thread_color(thread_id))
@@ -72,10 +81,61 @@ index 8c44ce4..a463afc 100644
          } else if use_theme_colors {
              let accent = StatusLineAccent::for_item(item);
              soften_status_line_style(
-@@ -158,6 +161,39 @@ fn soften_status_line_style(mut style: Style) -> Style {
+@@ -145,7 +150,23 @@ where
+         } else {
+             style
+         };
+-        spans.push(Span::styled(text, style));
++        let effort_style = || {
++            Style::default().fg(readable_color_on(EFFORT_COLOR, /*background*/ None))
++        };
++        if use_theme_colors && item == StatusLineItem::Reasoning {
++            spans.push(Span::styled(text, effort_style()));
++        } else if use_theme_colors
++            && item == StatusLineItem::ModelWithReasoning
++            && let Some((start, end)) = reasoning_range(&text)
++        {
++            spans.push(Span::styled(text[..start].to_string(), style));
++            spans.push(Span::styled(text[start..end].to_string(), effort_style()));
++            if end < text.len() {
++                spans.push(Span::styled(text[end..].to_string(), style));
++            }
++        } else {
++            spans.push(Span::styled(text, style));
++        }
+     }
+ 
+     (!spans.is_empty()).then(|| Line::from(spans))
+@@ -158,6 +179,67 @@ fn soften_status_line_style(mut style: Style) -> Style {
      style
  }
  
++// Model labels may contain spaces; effort is a separate word before an optional service tier.
++fn reasoning_range(text: &str) -> Option<(usize, usize)> {
++    let mut offset = 0;
++    for word in text.split_inclusive(' ') {
++        let token = word.trim_end();
++        if offset > 0
++            && matches!(
++                token,
++                "default"
++                    | "minimal"
++                    | "low"
++                    | "medium"
++                    | "high"
++                    | "xhigh"
++                    | "max"
++                    | "ultra"
++                    | "persistent"
++            )
++        {
++            return Some((offset, offset + token.len()));
++        }
++        offset += word.len();
++    }
++    None
++}
++
 +fn remaining_percent(item: StatusLineItem, text: &str) -> Option<u8> {
 +    if !matches!(
 +        item,
@@ -85,7 +145,9 @@ index 8c44ce4..a463afc 100644
 +    ) {
 +        return None;
 +    }
-+    text.strip_suffix("% left")?
++    text.strip_suffix(" left")
++        .unwrap_or(text)
++        .strip_suffix('%')?
 +        .split_whitespace()
 +        .last()?
 +        .parse::<u8>()
@@ -112,7 +174,7 @@ index 8c44ce4..a463afc 100644
  #[allow(clippy::disallowed_methods)]
  fn soften_status_line_color(color: Color) -> Color {
      match color {
-@@ -321,6 +357,40 @@ mod tests {
+@@ -321,6 +403,61 @@ mod tests {
          assert_eq!(line.spans[2].style, secondary_text_style());
      }
  
@@ -125,14 +187,8 @@ index 8c44ce4..a463afc 100644
 +        ] {
 +            let line = status_line_from_segments_with_resolver(
 +                [
-+                    (
-+                        StatusLineItem::ContextRemaining,
-+                        format!("Context {percent}% left"),
-+                    ),
-+                    (
-+                        StatusLineItem::WeeklyLimit,
-+                        format!("weekly {percent}% left"),
-+                    ),
++                    (StatusLineItem::ContextRemaining, format!("CX: {percent}%")),
++                    (StatusLineItem::WeeklyLimit, format!("WK: {percent}%")),
 +                ],
 +                /*use_theme_colors*/ true,
 +                /*thread_id*/ None,
@@ -150,11 +206,38 @@ index 8c44ce4..a463afc 100644
 +        }
 +    }
 +
++    #[test]
++    fn effort_uses_lavender_without_recoloring_model_or_service_tier() {
++        for text in [
++            "gpt-6 high",
++            "Custom Model xhigh Fast",
++            "gpt-6 ultra",
++            "gpt-6 persistent",
++        ] {
++            let line = status_line_from_segments_with_resolver(
++                [(StatusLineItem::ModelWithReasoning, text.to_string())],
++                /*use_theme_colors*/ true,
++                /*thread_id*/ None,
++                |_| Some(Style::default().cyan()),
++            )
++            .expect("status line");
++            assert_eq!(line_text(&line), text);
++            assert_eq!(line.spans[0].style.fg, Some(Color::Cyan));
++            assert_eq!(
++                line.spans[1].style.fg,
++                Some(readable_color_on(EFFORT_COLOR, None))
++            );
++            if line.spans.len() == 3 {
++                assert_eq!(line.spans[2].style.fg, Some(Color::Cyan));
++            }
++        }
++    }
++
      #[test]
      fn pull_request_number_uses_link_style() {
          let line = status_line_from_segments_with_resolver(
 diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
-index f2e6f90..df62dd9 100644
+index f2e6f90..2bede40 100644
 --- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
 +++ b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
 @@ -19,6 +19,7 @@ pub(crate) enum StatusSurfacePreviewItem {
@@ -165,14 +248,22 @@ index f2e6f90..df62dd9 100644
      Permissions,
      ApprovalMode,
      ContextRemaining,
-@@ -56,6 +57,7 @@ impl StatusSurfacePreviewItem {
+@@ -56,12 +57,13 @@ impl StatusSurfacePreviewItem {
              StatusSurfacePreviewItem::GitBranch => "feat/awesome-feature",
              StatusSurfacePreviewItem::PullRequestNumber => "PR #123",
              StatusSurfacePreviewItem::BranchChanges => "+12 -3",
 +            StatusSurfacePreviewItem::GitDiff => "Δ +8 -2",
              StatusSurfacePreviewItem::Permissions => "Workspace",
              StatusSurfacePreviewItem::ApprovalMode => "on-request",
-             StatusSurfacePreviewItem::ContextRemaining => "Context 0% left",
+-            StatusSurfacePreviewItem::ContextRemaining => "Context 0% left",
++            StatusSurfacePreviewItem::ContextRemaining => "CX: 0%",
+             StatusSurfacePreviewItem::ContextUsed => "Context 0% used",
+             StatusSurfacePreviewItem::FiveHourLimit => "primary 0%",
+-            StatusSurfacePreviewItem::WeeklyLimit => "secondary 0%",
++            StatusSurfacePreviewItem::WeeklyLimit => "WK: 0%",
+             StatusSurfacePreviewItem::CodexVersion => "0.0.0",
+             StatusSurfacePreviewItem::ContextWindowSize => "0 window",
+             StatusSurfacePreviewItem::UsedTokens => "0 used",
 diff --git a/codex-rs/tui/src/branch_summary.rs b/codex-rs/tui/src/branch_summary.rs
 index 6329e43..7a44470 100644
 --- a/codex-rs/tui/src/branch_summary.rs
@@ -288,8 +379,85 @@ index 6329e43..7a44470 100644
      #[tokio::test]
      async fn branch_diff_stats_prefers_remote_default_ref_over_stale_local_branch() {
          let runner = FakeRunner::new(vec![
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_context_remaining_footer.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_context_remaining_footer.snap
+index 6200fdf..3b7ea5f 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_context_remaining_footer.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_context_remaining_footer.snap
+@@ -6,4 +6,4 @@ expression: normalized_backend_snapshot(terminal.backend())
+ "                                                                                "
+ "› Ask Codex to do anything                                                      "
+ "                                                                                "
+-"  gpt-5.4 xhigh fast · Context 100% left · /tmp/project                         "
++"  gpt-5.4 xhigh fast · CX: 100% · /tmp/project                                  "
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap
+index 6b6cd08..59819ec 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap
+@@ -10,11 +10,11 @@ expression: status_line_popup_snapshot(&mut chat)
+ › [x] Use theme colors      Apply colors from the active /theme
+   ───────────────────────
+   [x] monthly-limit         Remaining usage on the monthly usage limit (omitted when unavailable)
+-  [x] weekly-limit          Remaining usage on the weekly usage limit (omitted when unavailable)
++  [x] weekly-limit          Remaining usage on the secondary usage limit (omitted when unavailable)
+   [ ] model                 Current model name
+   [ ] model-with-reasoning  Current model name with reasoning level
+   [ ] reasoning             Current reasoning level
+   [ ] current-dir           Current working directory
+ ↓
+-  monthly 65% left · weekly 50% left
++  monthly 65% left · WK: 50%
+   space toggle · ←/→ reorder · enter save · esc cancel
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_surface_previews_rate_limits.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_surface_previews_rate_limits.snap
+index 4ac0747..3578721 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_surface_previews_rate_limits.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_surface_previews_rate_limits.snap
+@@ -2,5 +2,5 @@
+ source: tui/src/chatwidget/tests/status_surface_previews.rs
+ expression: snapshot
+ ---
+-status line: monthly 65% left · weekly 50% left
+-terminal title: monthly 65% left | weekly 50% left
++status line: monthly 65% left · WK: 50%
++terminal title: monthly 65% left | WK: 50%
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__terminal_title_setup_popup_rate_limits.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__terminal_title_setup_popup_rate_limits.snap
+index 3eca27b..ecf7c20 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__terminal_title_setup_popup_rate_limits.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__terminal_title_setup_popup_rate_limits.snap
+@@ -8,7 +8,7 @@ expression: terminal_title_popup_snapshot(&mut chat)
+   Type to search
+ 
+ › [x] monthly-limit  Remaining usage on the monthly usage limit (omitted when unavailable)
+-  [x] weekly-limit   Remaining usage on the weekly usage limit (omitted when unavailable)
++  [x] weekly-limit   Remaining usage on the secondary usage limit (omitted when unavailable)
+   [ ] app-name       Codex app name
+   [ ] project-name   Project name (falls back to current directory name)
+   [ ] current-dir    Current working directory
+@@ -16,5 +16,5 @@ expression: terminal_title_popup_snapshot(&mut chat)
+   [ ] run-state      Compact session run-state text (Ready, Working, Thinking)
+   [ ] thread-name    Current thread name (omitted when unnamed)
+ ↓
+-  monthly 65% left | weekly 50% left
++  monthly 65% left | WK: 50%
+   space toggle · ←/→ reorder · enter save · esc cancel
+diff --git a/codex-rs/tui/src/chatwidget/status_controls.rs b/codex-rs/tui/src/chatwidget/status_controls.rs
+index 6dc0ab9..e8ebd8d 100644
+--- a/codex-rs/tui/src/chatwidget/status_controls.rs
++++ b/codex-rs/tui/src/chatwidget/status_controls.rs
+@@ -448,7 +448,11 @@ impl ChatWidget {
+     ) -> Option<String> {
+         let window = window?;
+         let remaining = (100.0f64 - window.used_percent).clamp(0.0f64, 100.0f64);
+-        Some(format!("{label} {remaining:.0}% left"))
++        if label == "weekly" {
++            Some(format!("WK: {remaining:.0}%"))
++        } else {
++            Some(format!("{label} {remaining:.0}% left"))
++        }
+     }
+ 
+     pub(super) fn status_line_reasoning_effort_label(
 diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
-index 616dd6d..f2c9206 100644
+index 616dd6d..26639c0 100644
 --- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
 +++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
 @@ -70,6 +70,7 @@ impl StatusSurfaceSelections {
@@ -368,6 +536,15 @@ index 616dd6d..f2c9206 100644
              StatusLineItem::BranchChanges => self
                  .status_line_git_summary
                  .as_ref()
+@@ -753,7 +779,7 @@ impl ChatWidget {
+             }
+             StatusLineItem::ContextRemaining => self
+                 .status_line_context_remaining_percent()
+-                .map(|remaining| format!("Context {remaining}% left")),
++                .map(|remaining| format!("CX: {remaining}%")),
+             StatusLineItem::ContextUsed => self
+                 .status_line_context_used_percent()
+                 .map(|used| format!("Context {used}% used")),
 @@ -853,6 +879,7 @@ impl ChatWidget {
              StatusSurfacePreviewItem::GitBranch => StatusLineItem::GitBranch,
              StatusSurfacePreviewItem::PullRequestNumber => StatusLineItem::PullRequestNumber,
@@ -377,9 +554,18 @@ index 616dd6d..f2c9206 100644
              StatusSurfacePreviewItem::ApprovalMode => StatusLineItem::ApprovalMode,
              StatusSurfacePreviewItem::ContextRemaining => StatusLineItem::ContextRemaining,
 diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
-index abe4b66..129daf7 100644
+index abe4b66..33ed440 100644
 --- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
 +++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -116,7 +116,7 @@ async fn resumed_session_hides_unknown_token_usage_until_an_update_arrives() {
+     chat.refresh_status_line();
+     assert_eq!(
+         status_line_text(&chat),
+-        Some("Context 30% left · Context 70% used · 0 in · 0 out".to_string())
++        Some("CX: 30% · Context 70% used · 0 in · 0 out".to_string())
+     );
+ }
+ 
 @@ -248,6 +248,10 @@ async fn status_line_git_summary_items_render_values() {
              additions: 143,
              deletions: 22,
@@ -417,4 +603,62 @@ index abe4b66..129daf7 100644
 +            worktree_change_stats: None,
          },
      );
+ 
+@@ -773,7 +783,7 @@ async fn status_line_legacy_limit_items_prefer_matching_windows() {
+     );
+     assert_eq!(
+         chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::WeeklyLimit),
+-        Some("weekly 6% left".to_string())
++        Some("WK: 6%".to_string())
+     );
+ }
+ 
+@@ -808,7 +818,7 @@ async fn status_line_shows_secondary_non_weekly_when_primary_is_weekly() {
+     );
+     assert_eq!(
+         chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::WeeklyLimit),
+-        Some("weekly 6% left".to_string())
++        Some("WK: 6%".to_string())
+     );
+ }
+ 
+@@ -839,7 +849,7 @@ async fn status_line_five_hour_item_omits_weekly_only_limit() {
+     );
+     assert_eq!(
+         chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::WeeklyLimit),
+-        Some("weekly 91% left".to_string())
++        Some("WK: 91%".to_string())
+     );
+ }
+ 
+@@ -2924,7 +2934,7 @@ async fn status_line_context_remaining_renders_labeled_percent() {
+ 
+     assert_eq!(
+         status_line_text(&chat),
+-        Some("Context 100% left".to_string())
++        Some("CX: 100%".to_string())
+     );
+     assert!(
+         drain_insert_history(&mut rx).is_empty(),
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_surface_previews.rs b/codex-rs/tui/src/chatwidget/tests/status_surface_previews.rs
+index 60c7415..6745944 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_surface_previews.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_surface_previews.rs
+@@ -414,7 +414,7 @@ async fn status_surface_preview_omits_unavailable_rate_limit_items() {
+             &mut chat,
+             &[StatusLineItem::FiveHourLimit, StatusLineItem::WeeklyLimit]
+         ),
+-        "weekly 91% left"
++        "WK: 91%"
+     );
+     assert_eq!(
+         title_preview_line(
+@@ -424,7 +424,7 @@ async fn status_surface_preview_omits_unavailable_rate_limit_items() {
+                 TerminalTitleItem::WeeklyLimit
+             ],
+         ),
+-        "weekly 91% left"
++        "WK: 91%"
+     );
+ }
  
