@@ -217,6 +217,7 @@ def inside(work):
     sway_log = (artifacts / 'compositor.log').open('w')
     compositor = subprocess.Popen(['sway', '--unsupported-gpu', '-c', str(work / 'sway.conf')], stdout=sway_log, stderr=subprocess.STDOUT)
     shell = None
+    seat = None
     try:
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
@@ -229,6 +230,14 @@ def inside(work):
         else:
             raise CheckFailure('Headless compositor did not create a Wayland socket')
         os.environ['WAYLAND_DISPLAY'] = sockets[0].name
+        os.environ['SWAYSOCK'] = str(next(runtime.glob('sway-ipc.*.sock')))
+        protocol = '/source/sdata/dist-arch/tests/quickshell/wlr-virtual-pointer-unstable-v1.xml'
+        command(['wayland-scanner', 'client-header', protocol, str(work / 'wlr-virtual-pointer.h')])
+        command(['wayland-scanner', 'private-code', protocol, str(work / 'pointer-protocol.c')])
+        command(['cc', '-Wall', '-Wextra', '-Werror', '/source/sdata/dist-arch/tests/quickshell/virtual-pointer.c', str(work / 'pointer-protocol.c'), '-I' + str(work), '-lwayland-client', '-o', str(work / 'ci-seat')])
+        seat = subprocess.Popen([str(work / 'ci-seat')], stdout=subprocess.PIPE, text=True)
+        if seat.stdout.readline().strip() != 'ready':
+            raise CheckFailure('Could not create the private Wayland pointer')
         current = work / 'shell'
         sync(work / 'baseline', current)
         inject_probe(current, 'baseline')
@@ -295,10 +304,16 @@ def inside(work):
         capture_bar(current, artifacts)
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-cold.png')])
-        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'checks': ['full-shell-baseline', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
+        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'checks': ['full-shell-baseline', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
         print('Full shell: baseline, hot reload, cold start and Wayland render passed', flush=True)
+    except BaseException:
+        try:
+            command(["grim", "-l", "0", str(artifacts / "failed-screen.png")])
+        except subprocess.SubprocessError:
+            pass
+        raise
     finally:
-        for child in [shell, compositor]:
+        for child in [shell, seat, compositor]:
             if child and child.poll() is None:
                 child.terminate()
                 try:
@@ -319,7 +334,7 @@ def check(args):
     base = command(['git', '-C', str(ROOT), 'rev-parse', args.base or state.get('ref', 'HEAD')]).stdout.strip()
     invariants = state.get('invariants', {}) if state.get('ref') == base else {}
     raw_hash = fingerprint(source)
-    for binary in ['bwrap', 'sway', 'dbus-run-session', 'qs', 'grim', 'git']:
+    for binary in ['bwrap', 'sway', 'dbus-run-session', 'qs', 'grim', 'git', 'cc', 'wayland-scanner']:
         if not shutil.which(binary):
             raise CheckFailure(f'Missing dependency: {binary}')
     command(['qs', '--private-check-compat'])

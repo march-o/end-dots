@@ -333,7 +333,7 @@ enable_services() {
   sudo systemctl enable --now sshd.service
 }
 
-sudo pacman -S --needed --noconfirm wireguard-tools python-pillow sway bubblewrap dbus grim
+sudo pacman -S --needed --noconfirm wireguard-tools python-pillow sway bubblewrap dbus grim gcc wayland
 
 install_zsh_plugins
 install_user_config

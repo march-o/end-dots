@@ -9,6 +9,7 @@ Item {
     property color glassTint: BarGlassPalette.glassTint
     property real glassWidth: width
     property real glassHeight: height
+    property real glassOffsetY: 0
     property alias glassFrame: background
     property real padding: BarGeometry.groupPadding
     property color colBackground: "transparent"
@@ -21,7 +22,7 @@ Item {
         tintColor: root.glassTint
         parent: root
         x: root.glass ? (root.width - root.glassWidth) / 2 : (root.vertical ? 4 : 0)
-        y: root.glass || root.vertical ? 0 : 4
+        y: root.glass ? root.glassOffsetY : root.vertical ? 0 : 4
         width: root.glass ? root.glassWidth : root.width - (root.vertical ? 8 : 0)
         height: root.glass ? root.glassHeight : root.height - (root.vertical ? 0 : 8)
         color: root.glass && Config.options.bar.showBackground ? background.tintColor : root.colBackground

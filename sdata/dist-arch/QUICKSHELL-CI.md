@@ -11,7 +11,8 @@ quickshell-apply apply --report /path/to/result.json
 The scripts live in `sdata/dist-arch/bin/`; Arch setup links them into
 `~/.local/bin`. Omitting `--report` runs fresh checks automatically. Setup also
 uses this deployment path when `ii` is running. Requirements are the installed
-Quickshell build, Sway, bubblewrap, D-Bus, grim, Python/Pillow, and initialized
+Quickshell build, Sway, bubblewrap, D-Bus, grim, Python/Pillow, a C compiler,
+Wayland client headers/scanner, and initialized
 Git submodules. These are installed by Arch setup.
 
 For the initial release record, use `quickshell-apply adopt --ref <live-commit>`.
@@ -28,7 +29,9 @@ The candidate is frozen into a temporary test fixture. The baseline comes from
 the recorded Git release, including pinned submodule contents. The complete
 `shell.qml` runs on a real headless Wayland compositor in bubblewrap, with a
 private D-Bus session. There is no host display socket, input device, session bus,
-network, or writable home. Only render nodes and fonts are exposed. Temporary
+network, or writable home. Only render nodes and fonts are exposed. A small virtual-pointer fixture gives the
+private compositor a persistent pointer device; cursor commands address only its
+private seat. The vendored protocol retains the upstream copyright and license. Temporary
 source fixtures are removed; logs, screenshots, and the result remain.
 
 Checks cover:
@@ -36,7 +39,8 @@ Checks cover:
 - Complete baseline load, baseline → candidate hot reload, and independent cold start.
 - A fresh generation's IPC, native bar geometry, and nonempty rendered pixels.
 - The production deployment health endpoint and stats content on every test output.
-- Actual hover surface opening, teardown and reopening without stealing focus.
+- Actual bar expansion/collapse, reversal and pointer travel without stealing focus.
+- Same native window, fixed application reservation and stable surface size in both bar positions.
 - Local telemetry, Ash offline/data states, and remote sampler shutdown on close.
 - Normal and 1.25 font scale with populated bar captures, plus return to the baseline in the same process.
 - Content-fitted stats panel height and compact offline layout without unused space.

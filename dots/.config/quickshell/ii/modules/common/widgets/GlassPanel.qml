@@ -11,6 +11,7 @@ FocusScope {
     property real frameInset: 0
     property real contentPadding: 12
     property real wallpaperAmount: 1
+    property bool drawSurface: true
     property color surfaceTint: GlassColors.surface
     property color foregroundColor: GlassColors.foreground
     property alias radius: panelFrame.radius
@@ -26,10 +27,11 @@ FocusScope {
 
     BarGlassIsland {
         id: panelFrame
+        visible: root.drawSurface
         anchors { fill: parent; margins: root.frameInset }
         radius: BarGeometry.cornerRadius
         tintColor: root.surfaceTint
-        wallpaperAmount: root.wallpaperAmount
+        wallpaperAmount: root.drawSurface ? root.wallpaperAmount : 0
         wallpaperNamespace: root.layerNamespace
     }
 

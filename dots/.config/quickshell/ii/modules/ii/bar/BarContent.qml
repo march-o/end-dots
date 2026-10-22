@@ -19,7 +19,10 @@ Item { // Bar content region
                                       ? 1 : 0
 
     property alias clockIsland: barLeftSideMouseArea
-    property alias systemIsland: leftCenterGroup
+    property alias systemIsland: leftCenterGroup.glassFrame
+    readonly property bool statsPresented: statsWidget.presented
+    readonly property bool statsKeyboardMode: statsWidget.keyboardMode && statsWidget.expanded
+    readonly property real statsSurfaceHeight: statsWidget.maximumExpandedHeight + Appearance.sizes.barHeight
     property alias mediaIsland: mediaCenterGroup.glassFrame
     readonly property real mediaSurfaceHeight: root.useShortenedForm < 2 ? 438
                                                                            + Appearance.sizes.baseBarHeight :
@@ -75,11 +78,27 @@ Item { // Bar content region
         id: leftCenterGroup
         glass: true
         padding: 0
+        z: statsWidget.presented ? 3 : 0
+        glassHeight: height + statsWidget.expansionProgress * (statsWidget.expandedHeight - height)
+        glassOffsetY: Config.options.bar.bottom ? height - glassHeight : 0
+        glassTint: ColorUtils.mix(GlassColors.monitorSurface, BarGlassPalette.glassTint, statsWidget.expansionProgress)
+        glassFrame.wallpaperAmount: statsWidget.expansionProgress
         anchors.verticalCenter: parent.verticalCenter
-        x: (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width) / 2
+        x: Math.max(8, Math.min(root.width - width - 8,
+            (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width) / 2))
 
+        Item {
+            implicitWidth: statsWidget.compactWidth * (1 - statsWidget.expansionProgress)
+                + statsWidget.expandedWidth * statsWidget.expansionProgress
+            implicitHeight: Appearance.sizes.baseBarHeight
+        }
         Resources {
+            id: statsWidget
+            parent: leftCenterGroup.glassFrame
+            anchors.fill: parent
+            morphEnabled: true
             alwaysShowAllResources: root.useShortenedForm === 2
+            onExpandedChanged: if (expanded) mediaWidget.closeCard()
         }
     }
 
@@ -121,6 +140,7 @@ Item { // Bar content region
 
         Media {
             id: mediaWidget
+            onExpandedChanged: if (expanded) statsWidget.dismiss()
             glassFrame: mediaCenterGroup.glassFrame
             Layout.fillWidth: true
         }

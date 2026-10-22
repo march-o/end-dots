@@ -51,15 +51,18 @@ Scope {
                     }
                 }
                 property bool superShow: false
-                property bool mustShow: hoverRegion.containsMouse || superShow
+                property bool mustShow: hoverRegion.containsMouse || superShow || barContent.statsPresented
                 exclusionMode: ExclusionMode.Ignore
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 :
                     Appearance.sizes.baseBarHeight + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
                 WlrLayershell.namespace: "quickshell:bar"
+                WlrLayershell.keyboardFocus: barContent.statsKeyboardMode ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
                 // Keep the compositor surface stable while the glass frame morphs.
                 // The input mask still passes through everything outside the islands.
-                implicitHeight: Math.max(Appearance.sizes.barHeight + Appearance.rounding.screenRounding, barContent.mediaSurfaceHeight)
+                implicitHeight: Math.max(Appearance.sizes.barHeight + Appearance.rounding.screenRounding,
+                    barContent.mediaSurfaceHeight, barContent.statsSurfaceHeight)
                 mask: Region {
+                    id: barInputMask
                     Region { item: barContent.clockIsland }
                     Region { item: barContent.systemIsland }
                     Region { item: barContent.mediaIsland.visible ? barContent.mediaIsland : null }
@@ -110,6 +113,9 @@ Scope {
 
                     BarContent {
                         id: barContent
+                        // Region.item does not track every ancestor transform.
+                        // Refresh after bottom anchoring or auto-hide moves the row.
+                        onYChanged: Qt.callLater(() => barInputMask.changed())
                         
                         implicitHeight: Appearance.sizes.barHeight
                         anchors {
