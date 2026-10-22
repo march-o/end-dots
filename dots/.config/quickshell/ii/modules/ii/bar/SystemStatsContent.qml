@@ -8,6 +8,7 @@ import qs.services
 GlassPanel {
     id: root
     contentPadding: 16
+    implicitHeight: Math.ceil(content.implicitHeight + 2 * (contentPadding + frameInset))
     radius: 12
     surfaceTint: GlassColors.monitorSurface
     foregroundColor: GlassColors.monitorForeground
@@ -40,6 +41,7 @@ GlassPanel {
     }
 
     ColumnLayout {
+        id: content
         anchors.fill: parent
         spacing: 12
         RowLayout {
@@ -93,6 +95,7 @@ GlassPanel {
             visible: !root.ready
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.preferredHeight: 128 * Math.max(1, Config.options.appearance.fontScale)
             Item { Layout.fillHeight: true }
             StyledText {
                 Layout.alignment: Qt.AlignHCenter
@@ -107,6 +110,8 @@ GlassPanel {
             visible: root.ready
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.minimumHeight: 0
+            implicitHeight: sections.implicitHeight
             contentHeight: sections.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -231,7 +236,7 @@ GlassPanel {
                                 }
                                 LineHistory {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 40
+                                    Layout.preferredHeight: 24
                                     values: modelData.history
                                     ceiling: root.networkCeiling
                                     lineColor: modelData.color
@@ -241,7 +246,7 @@ GlassPanel {
                             }
                         }
                     }
-                    Caption { text: (root.stats.network?.interfaces ?? []).join(", "); Layout.fillWidth: true; elide: Text.ElideRight }
+                    Caption { text: (root.stats.network?.interfaces ?? []).join(", "); visible: text.length > 0; Layout.fillWidth: true; elide: Text.ElideRight }
                 }
             }
         }

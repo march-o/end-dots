@@ -8,8 +8,9 @@ QtObject {
     readonly property color monitorSurface: Qt.rgba(surface.r * 0.68, surface.g * 0.68, surface.b * 0.68, Math.min(0.86, surface.a + 0.035))
     readonly property color monitorForeground: BarGlassPalette.islandColor([foreground], monitorSurface, 4.5)
     readonly property color monitorMuted: BarGlassPalette.islandColor([textStates.off], monitorSurface, 4.5)
-    readonly property color statsTint: BarGlassPalette.highlightTint(Appearance.m3colors.m3primary, 0.24)
-    readonly property color statsChart: Qt.rgba(1, 1, 1, 0.65)
+    readonly property color statsTint: BarGlassPalette.highlightTint(Appearance.m3colors.m3primary, 0.16)
+    readonly property color statsChart: Qt.rgba(1, 1, 1, 0.50)
+    readonly property color statsDivider: Qt.rgba(1, 1, 1, 0.70)
     readonly property color monitorCpu: "#67d4ed"
     readonly property color monitorMemory: "#a6df8a"
     readonly property color monitorSwap: "#c4a0ef"

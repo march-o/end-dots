@@ -15,6 +15,7 @@ Canvas {
     property bool showEndpoint: true
     property real fillTopOpacity: 0.24
     property real fillBottomOpacity: 0.02
+    property bool fillFromTrace: false
     property real leftRadius: 0
     property real rightRadius: 0
     implicitWidth: 180
@@ -33,6 +34,7 @@ Canvas {
     onShowEndpointChanged: requestPaint()
     onFillTopOpacityChanged: requestPaint()
     onFillBottomOpacityChanged: requestPaint()
+    onFillFromTraceChanged: requestPaint()
     onLeftRadiusChanged: requestPaint()
     onRightRadiusChanged: requestPaint()
     onPaint: {
@@ -41,16 +43,16 @@ Canvas {
         if (width < 2 || height < 2) return;
         // Clip filled histories to the owning pill without an offscreen layer.
         if (leftRadius > 0 || rightRadius > 0) {
-            const left = Math.min(leftRadius, width / 2, height / 2);
-            const right = Math.min(rightRadius, width / 2, height / 2);
+            const left = Math.max(0, Math.min(leftRadius, width / 2, height / 2));
+            const right = Math.max(0, Math.min(rightRadius, width / 2, height / 2));
             ctx.beginPath();
             ctx.moveTo(left, 0); ctx.lineTo(width - right, 0);
-            ctx.quadraticCurveTo(width, 0, width, right);
+            ctx.arcTo(width, 0, width, right, right);
             ctx.lineTo(width, height - right);
-            ctx.quadraticCurveTo(width, height, width - right, height);
+            ctx.arcTo(width, height, width - right, height, right);
             ctx.lineTo(left, height);
-            ctx.quadraticCurveTo(0, height, 0, height - left);
-            ctx.lineTo(0, left); ctx.quadraticCurveTo(0, 0, left, 0);
+            ctx.arcTo(0, height, 0, height - left, left);
+            ctx.lineTo(0, left); ctx.arcTo(0, 0, left, 0, left);
             ctx.closePath(); ctx.clip();
         }
         if (showGrid) {
@@ -75,7 +77,7 @@ Canvas {
             for (const point of points) ctx.lineTo(point.x, point.y);
             ctx.lineTo(points[points.length - 1].x, height - 1);
             ctx.closePath();
-            const fill = ctx.createLinearGradient(0, 0, 0, height);
+            const fill = ctx.createLinearGradient(0, fillFromTrace ? Math.min(...points.map(point => point.y)) : 0, 0, height);
             fill.addColorStop(0, Qt.alpha(lineColor, fillTopOpacity));
             fill.addColorStop(1, Qt.alpha(lineColor, fillBottomOpacity));
             ctx.fillStyle = fill; ctx.fill();
@@ -84,8 +86,8 @@ Canvas {
         ctx.moveTo(points[0].x, points[0].y);
         for (const point of points.slice(1)) ctx.lineTo(point.x, point.y);
         ctx.lineWidth = lineWidth;
-        ctx.lineJoin = "miter";
-        ctx.lineCap = "butt";
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
         ctx.strokeStyle = lineColor; ctx.stroke();
         if (showEndpoint) {
             const last = points[points.length - 1];

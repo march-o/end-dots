@@ -51,7 +51,8 @@ Item {
         WlrLayershell.layer: WlrLayer.Overlay
         exclusionMode: ExclusionMode.Ignore
         implicitWidth: Math.min(610 * Math.max(1, Config.options.appearance.fontScale), (screen?.width ?? 800) - 16)
-        implicitHeight: Math.min(650 * Math.max(1, Config.options.appearance.fontScale), (screen?.height ?? 900) - Appearance.sizes.barHeight - 24)
+        implicitHeight: Math.min(detailsLoader.item?.implicitHeight ?? 240 * Math.max(1, Config.options.appearance.fontScale),
+            (screen?.height ?? 900) - Appearance.sizes.barHeight - 24)
         anchors.left: !Config.options.bar.vertical || !Config.options.bar.bottom
         anchors.right: Config.options.bar.vertical && Config.options.bar.bottom
         anchors.top: Config.options.bar.vertical || !Config.options.bar.bottom
@@ -65,6 +66,7 @@ Item {
             bottom: Appearance.sizes.barHeight + 6
         }
         Loader {
+            id: detailsLoader
             anchors.fill: parent
             active: panel.visible
             onLoaded: if (root.keyboardMode) item.forceActiveFocus()

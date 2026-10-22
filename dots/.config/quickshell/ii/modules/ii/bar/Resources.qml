@@ -46,8 +46,9 @@ MouseArea {
                     lineColor: GlassColors.statsChart
                     showGrid: false
                     fillArea: true
-                    fillTopOpacity: 0.22
-                    fillBottomOpacity: 0.06
+                    fillTopOpacity: 0.16
+                    fillFromTrace: true
+                    fillBottomOpacity: 0
                     showEndpoint: false
                     lineWidth: 1
                     sampleCount: 24
@@ -57,19 +58,21 @@ MouseArea {
                 }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: modelData.mirrored ? 8 : 12
-                    anchors.rightMargin: modelData.mirrored ? 12 : 8
+                    anchors.leftMargin: modelData.mirrored ? 8 : 14
+                    anchors.rightMargin: modelData.mirrored ? 14 : 8
                     layoutDirection: modelData.mirrored ? Qt.RightToLeft : Qt.LeftToRight
-                    spacing: 6
+                    spacing: 7
                     MaterialSymbol { text: modelData.icon; iconSize: 20; color: GlassColors.foreground }
                     StyledText {
                         text: SystemStats.percent(modelData.value)
                         color: GlassColors.foreground
-                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.pixelSize: Appearance.font.pixelSize.normal
+                        font.weight: Font.Medium
+                        horizontalAlignment: modelData.mirrored ? Text.AlignRight : Text.AlignLeft
                         Layout.minimumWidth: percentageWidth.width
                     }
                     Item { Layout.fillWidth: true }
-                    TextMetrics { id: percentageWidth; text: "100%"; font.family: Appearance.font.family.main; font.pixelSize: Appearance.font.pixelSize.small }
+                    TextMetrics { id: percentageWidth; text: "100%"; font.family: Appearance.font.family.main; font.pixelSize: Appearance.font.pixelSize.normal; font.weight: Font.Medium }
                 }
             }
         }
@@ -77,8 +80,8 @@ MouseArea {
     Rectangle {
         anchors.centerIn: parent
         width: 1
-        height: parent.height - 12
-        color: GlassColors.statsChart
+        height: parent.height
+        color: GlassColors.statsDivider
     }
     ResourcesPopup { id: popup; hoverTarget: root }
 }

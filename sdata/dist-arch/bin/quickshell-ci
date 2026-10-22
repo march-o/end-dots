@@ -108,6 +108,7 @@ def inject_probe(tree, revision):
             }).filter(w => w !== null);
         }
         function captureBar(): void {
+            barSaved = false;
             for (const window of GlobalFocusGrab.persistent) {
                 const bar = findBar(window?.contentItem);
                 if (bar && window.backingWindowVisible) {
@@ -257,9 +258,13 @@ def inside(work):
         command(['grim', '-l', '0', str(artifacts / 'candidate-reload.png')])
         capture_bar(current, artifacts)
         exercise(current, log, baseline, 'normal')
+        capture_bar(current, artifacts)
+        shutil.copyfile(artifacts / 'bar-candidate.png', artifacts / 'bar-candidate-normal.png')
         command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1.25'])
         time.sleep(1)
         exercise(current, log, baseline, 'scaled')
+        capture_bar(current, artifacts)
+        shutil.copyfile(artifacts / 'bar-candidate.png', artifacts / 'bar-candidate-scaled.png')
         command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1'])
         # Prove that this candidate can return to the known-good source in-process.
         sync(work / 'baseline', current)

@@ -12,6 +12,7 @@ Scope {
     property int step: 0
     property var details: null
     property var panel: null
+    property real readyPanelHeight: 0
     property int startingGrabs: GlobalFocusGrab.dismissable.length
     function require(condition, message) { if (!condition) { failure = message; done = true; steps.stop(); } }
     function findDetails(item) {
@@ -47,10 +48,16 @@ Scope {
                 root.require(root.details !== null, "Lazy stats content did not load");
                 root.require(GlobalFocusGrab.dismissable.length === root.startingGrabs, "Passive hover grabbed focus");
             }
-            if (root.step === 10 && root.details) { root.require(root.details.ready && !root.details.ashSelected, "Local stats are not ready"); root.capture("stats-local"); }
+            if (root.step === 10 && root.details) {
+                root.require(root.details.ready && !root.details.ashSelected, "Local stats are not ready");
+                root.readyPanelHeight = root.panel.height;
+                root.require(root.panel.height <= root.details.implicitHeight + 1, "Stats panel reserves empty height below content");
+                root.capture("stats-local");
+            }
             if (root.step === 11 && root.details) root.details.ashSelected = true;
             if (root.step === 21 && root.details) {
                 root.require(!SystemStats.ashOnline && !root.details.ready, "Offline Ash still shows live data");
+                root.require(root.panel.height < root.readyPanelHeight, "Offline stats panel retains unused height");
                 root.capture("stats-ash-offline");
             }
             if (root.step === 22) {

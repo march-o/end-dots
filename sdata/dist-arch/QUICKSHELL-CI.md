@@ -38,7 +38,8 @@ Checks cover:
 - The production deployment health endpoint and stats content on every test output.
 - Actual hover surface opening, teardown and reopening without stealing focus.
 - Local telemetry, Ash offline/data states, and remote sampler shutdown on close.
-- Normal and 1.25 font scale, plus return to the baseline in the same process.
+- Normal and 1.25 font scale with populated bar captures, plus return to the baseline in the same process.
+- Content-fitted stats panel height and compact offline layout without unused space.
 - Telemetry accounting, deployment failure regressions, and setup shell syntax.
 
 The sandbox provides deterministic read-only `hyprctl` fixtures. It does not
