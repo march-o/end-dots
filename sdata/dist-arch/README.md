@@ -42,3 +42,17 @@ cp -n .env.example .env
 
 The command requires `.env` with a valid `LAPTOP` setting. An explicit
 environment value takes precedence, but `.env` must still exist.
+
+## Workspace alignment
+
+Super+Space closes gaps between occupied numbered workspaces across all monitors:
+windows on 1, 3, and 7 become workspaces 1, 2, and 3. Bare Super opens the overview.
+Alignment changes workspace IDs in place, preserving layouts, fullscreen, monitor
+placement, and focus. Special and named workspaces with managed negative IDs stay
+untouched; retained empty workspaces swap into the vacated slots.
+
+Run the desktop-independent regression scenarios from the repository root:
+
+```sh
+lua sdata/dist-arch/tests/test_workspace_alignment.lua
+```

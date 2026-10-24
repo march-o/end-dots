@@ -12,6 +12,10 @@ for _, key in ipairs({ "SUPER_L", "SUPER_R" }) do
         { release = true, description = "Shell: Toggle workspace overview" })
 end
 
+-- Close gaps between occupied numbered workspaces without rebuilding layouts.
+hl.bind("SUPER + Space", require("custom.workspace-alignment"),
+    { description = "Workspace: Align occupied workspaces" })
+
 if is_file_exists(HOME .. "/.config/hypr/.laptop-keyboard") then
     hl.bind("CTRL + SUPER + ALT + R", hl.dsp.exec_cmd("$HOME/.config/hypr/custom/scripts/reset-touchpad.sh"),
         { description = "Input: Reset touchpad" })

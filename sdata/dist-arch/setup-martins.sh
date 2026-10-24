@@ -48,6 +48,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/general.lua" "$HOME/.config/hypr/custom/general.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/custom/workspace-alignment.lua" "$HOME/.config/hypr/custom/workspace-alignment.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/rules.lua" "$HOME/.config/hypr/custom/rules.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/glass.lua" "$HOME/.config/hypr/custom/glass.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/hyprland/variables.lua" "$HOME/.config/hypr/hyprland/variables.lua"
