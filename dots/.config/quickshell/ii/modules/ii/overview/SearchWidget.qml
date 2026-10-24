@@ -14,11 +14,21 @@ ColumnLayout {
     property string searchingText: LauncherSearch.query
     readonly property bool showResults: searchingText !== ""
     property real maximumResultsHeight: 560
+    property bool keyboardSelection: false
     signal navigateRequested(string direction)
     signal workspaceAccepted()
     signal dismissRequested()
 
-    function focusFirstItem() { appResults.currentIndex = 0; }
+    function resetDefaultResult() {
+        if (root.keyboardSelection) return;
+        appResults.currentIndex = appResults.count > 0 ? 0 : -1;
+        appResults.positionViewAtBeginning();
+    }
+    function focusFirstItem() {
+        root.keyboardSelection = false;
+        // ScriptModel moves the old current item while applying its diff.
+        Qt.callLater(root.resetDefaultResult);
+    }
     function focusSearchInput() { searchBar.forceFocus(); }
     function setSearchingText(text) {
         searchBar.searchInput.text = text;
@@ -27,7 +37,9 @@ ColumnLayout {
     }
     function chooseResult(delta) {
         if (!appResults.count) return;
-        appResults.currentIndex = (appResults.currentIndex + delta + appResults.count) % appResults.count;
+        root.keyboardSelection = true;
+        appResults.currentIndex = appResults.currentIndex < 0 ? (delta < 0 ? appResults.count - 1 : 0)
+            : (appResults.currentIndex + delta + appResults.count) % appResults.count;
         appResults.positionViewAtIndex(appResults.currentIndex, ListView.Contain);
     }
     function acceptSelection() {
@@ -68,8 +80,9 @@ ColumnLayout {
         model: ScriptModel {
             values: LauncherSearch.results.slice(0, 15)
             objectProp: "key"
+            onValuesChanged: Qt.callLater(root.resetDefaultResult)
         }
-        onCountChanged: currentIndex = 0
+        onCountChanged: Qt.callLater(root.resetDefaultResult)
         Connections {
             target: LauncherSearch
             function onQueryChanged() { root.focusFirstItem(); }

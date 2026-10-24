@@ -123,7 +123,7 @@ def inject_probe(tree, revision):
         }
         function exercise(name: string): void {
             if (scenario) scenario.destroy();
-            const component = Qt.createComponent(Qt.resolvedUrl("CiStatsSmoke.qml"));
+            const component = Qt.createComponent(Qt.resolvedUrl(name === "search" ? "CiSearchSmoke.qml" : "CiStatsSmoke.qml"));
             if (component.status !== Component.Ready) throw Error(component.errorString());
             scenario = component.createObject(ciProbe, { artifactPrefix: name + "-" });
         }
@@ -135,6 +135,7 @@ def inject_probe(tree, revision):
         raise CheckFailure('shell.qml has no root closing brace')
     path.write_text(text[:index] + hook + text[index:])
     shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/StatsSmoke.qml', tree / 'CiStatsSmoke.qml')
+    shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/SearchSmoke.qml', tree / 'CiSearchSmoke.qml')
 
 
 def wait_loaded(process, log, offset, deadline):
@@ -275,6 +276,7 @@ def inside(work):
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-reload.png')])
         capture_bar(current, artifacts)
+        exercise(current, log, baseline, 'search')
         exercise(current, log, baseline, 'normal')
         capture_bar(current, artifacts)
         shutil.copyfile(artifacts / 'bar-candidate.png', artifacts / 'bar-candidate-normal.png')
@@ -313,7 +315,7 @@ def inside(work):
         capture_bar(current, artifacts)
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-cold.png')])
-        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'baselineReloadDiagnostics': baseline_reload, 'checks': ['full-shell-baseline', 'baseline-notification-reload', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
+        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'baselineReloadDiagnostics': baseline_reload, 'checks': ['full-shell-baseline', 'baseline-notification-reload', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'search-query-selection', 'search-delayed-results', 'search-enter-target', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
         print('Full shell: baseline, hot reload, cold start and Wayland render passed', flush=True)
     except BaseException:
         try:
