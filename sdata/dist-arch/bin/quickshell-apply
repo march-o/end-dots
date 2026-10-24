@@ -112,7 +112,25 @@ def optional_control():
 
 
 def logs():
-    return run(['qs', '--log-times', '-c', 'ii', 'log', '--tail', '1200'], timeout=15)
+    return run(['qs', '--no-color', '--log-times', '-c', 'ii', 'log', '--tail', '1200'], timeout=15)
+
+
+def expected_bars(monitors, clients):
+    """Mirror the shell's per-output fullscreen suppression, never hide failures."""
+    visible, fullscreen = [], []
+    for monitor in monitors:
+        if not isinstance(monitor.get('id'), int) or not monitor.get('name'):
+            raise DeployFailure('Monitor identity is incomplete; cannot verify bar visibility')
+        workspaces = {workspace.get('id') for workspace in
+                      [monitor.get('activeWorkspace', {}), monitor.get('specialWorkspace', {})]
+                      if isinstance(workspace.get('id'), int) and workspace.get('id') != 0}
+        hidden = any(client.get('monitor') == monitor['id']
+                     and client.get('mapped') is not False and client.get('hidden') is not True
+                     and (client.get('pinned') or client.get('workspace', {}).get('id') in workspaces)
+                     and isinstance(client.get('fullscreen'), int) and client['fullscreen'] & 2
+                     for client in clients)
+        (fullscreen if hidden else visible).append(monitor['name'])
+    return sorted(visible), sorted(fullscreen)
 
 
 def snapshot(require_bars=True):
@@ -122,9 +140,11 @@ def snapshot(require_bars=True):
     if not monitors or not all(m.get('dpmsStatus') is True for m in monitors):
         raise DeployFailure('A display is asleep or its state is unknown; no deployment')
     outputs = bar_outputs(json.loads(run(['hyprctl', 'layers', '-j'])))
-    if require_bars and not outputs:
-        raise DeployFailure('No visible bar to verify; leave the live session unchanged')
-    return {'pid': process_id(), 'outputs': outputs, 'control': optional_control()}
+    expected, fullscreen = expected_bars(monitors, json.loads(run(['hyprctl', 'clients', '-j'])))
+    if require_bars and outputs != expected:
+        raise DeployFailure(f'Native bars do not match visible outputs (expected {expected}, found {outputs}); no deployment')
+    return {'pid': process_id(), 'outputs': outputs, 'fullscreen': fullscreen,
+            'screens': sorted(m['name'] for m in monitors), 'control': optional_control()}
 
 
 def write_state(ref, report=None):
@@ -247,6 +267,8 @@ def wait_release(before, started, baseline_diagnostics, timeout=70):
                 raise DeployFailure('Quickshell changed process unexpectedly during apply')
             if after['outputs'] != before['outputs']:
                 raise DeployFailure('A bar disappeared or moved to another output')
+            if after['fullscreen'] != before['fullscreen'] or sorted(health.get('screens', [])) != after['screens']:
+                raise DeployFailure('Output or fullscreen state changed during deployment')
             text = logs()
             last_loaded = text.rfind('Configuration Loaded')
             if last_loaded < 0 or text.rfind('Failed to load configuration') > last_loaded:
@@ -278,7 +300,7 @@ def adopt(ref):
     if any((LIVE / name).stat().st_mtime > cutoff for name in managed(ref)):
         raise DeployFailure('A live file changed after the successful load; cannot adopt stale validation')
     write_state(ref)
-    print('Recorded verified live release', ref[:12], 'on', ', '.join(before['outputs']))
+    print('Recorded verified live release', ref[:12], 'on', ', '.join(before['screens']))
 
 
 def apply(args):
@@ -347,7 +369,9 @@ def apply(args):
             raise DeployFailure(f'Apply failed ({error}); recovery needs attention ({recovery}). No running shell was killed') from recovery
         raise DeployFailure(str(error)) from error
     write_state(release, str(report_path))
-    print('Applied and verified', release[:12], 'on', ', '.join(before['outputs']))
+    print('Applied and verified', release[:12], 'on', ', '.join(before['screens']))
+    if before['fullscreen']:
+        print('Preserved fullscreen bar suppression on', ', '.join(before['fullscreen']))
 
 
 def main():

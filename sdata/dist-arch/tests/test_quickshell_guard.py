@@ -57,6 +57,33 @@ class CertificateTests(unittest.TestCase):
 
 
 class DesktopChecks(unittest.TestCase):
+    def test_fullscreen_suppression_matches_visible_workspace_and_monitor(self):
+        monitors = [{'id': 0, 'name': 'laptop', 'activeWorkspace': {'id': 3}},
+                    {'id': 1, 'name': 'external', 'activeWorkspace': {'id': 4}}]
+        client = {'monitor': 0, 'mapped': True, 'hidden': False, 'workspace': {'id': 3}, 'fullscreen': 2}
+        self.assertEqual(deploy.expected_bars(monitors, [client]), (['external'], ['laptop']))
+        for changes in [{'fullscreen': 1}, {'mapped': False}, {'hidden': True}, {'workspace': {'id': 9}}]:
+            with self.subTest(changes=changes):
+                self.assertEqual(deploy.expected_bars(monitors, [dict(client, **changes)]), (['external', 'laptop'], []))
+        pinned = dict(client, workspace={'id': 9}, pinned=True)
+        self.assertEqual(deploy.expected_bars(monitors, [pinned]), (['external'], ['laptop']))
+
+    def test_fullscreen_allows_hidden_bar_but_unexpected_absence_still_fails(self):
+        monitor = {'id': 0, 'name': 'laptop', 'dpmsStatus': True, 'activeWorkspace': {'id': 3}}
+        client = {'monitor': 0, 'workspace': {'id': 3}, 'fullscreen': 2}
+        def fixture(argv, **kwargs):
+            if 'isActive' in argv: return 'false'
+            if 'monitors' in argv: return json.dumps([monitor])
+            if 'clients' in argv: return json.dumps([client])
+            return '{}'
+        with patch.object(deploy, 'run', side_effect=fixture), \
+             patch.object(deploy, 'process_id', return_value=123), \
+             patch.object(deploy, 'optional_control', return_value=None):
+            self.assertEqual(deploy.snapshot()['fullscreen'], ['laptop'])
+            client['fullscreen'] = 0
+            with self.assertRaises(deploy.DeployFailure):
+                deploy.snapshot()
+
     def test_native_bar_presence_and_duplicates(self):
         bar = {'namespace': 'quickshell:bar', 'w': 1600, 'h': 40}
         self.assertEqual(deploy.bar_outputs({'screen': {'levels': {'2': [bar]}}}), ['screen'])

@@ -16,7 +16,8 @@ Wayland client headers/scanner, and initialized
 Git submodules. These are installed by Arch setup.
 
 For the initial release record, use `quickshell-apply adopt --ref <live-commit>`.
-Adoption requires an unlocked, awake session, one live shell, visible native bars,
+Adoption requires an unlocked, awake session, one live shell, native bars on outputs
+where no visible workspace contains an actual fullscreen client,
 and a successful load newer than all managed files. It stores only the Git
 reference and file hashes in `~/.local/state/quickshell-deploy/last-good.json`.
 Unrelated live customizations are preserved and included in preflight by hash.
@@ -64,7 +65,10 @@ File watching is paused while committed files are written in place. The initial
 bootstrap, before the deployment IPC exists, briefly stops the process with an
 independent resume watchdog. Normal deployments use the IPC watcher control.
 Neither path kills the running shell. A fresh generation, native bars and visible
-stats content are required before recording a release as good.
+stats content on each expected output are required before recording a release
+as good. Fullscreen outputs remain suppressed, verified against native monitor
+and client data; a missing bar on any other output still fails. Deployment does
+not exit fullscreen or interrupt Moonlight to reveal a bar.
 
 On failure the tool restores touched files from the previous Git commit and
 checks a fresh restored load. It creates no backups. A failed QML reload can keep
