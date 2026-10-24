@@ -191,6 +191,22 @@ def certificate(report, state):
     run(['qs', '--private-check-compat'])
 
 
+def unchanged_reload_diagnostics(report, base, release):
+    """Allow only exact warnings reproduced by a reload of an unchanged file."""
+    allowed = set()
+    for line in report.get('baselineReloadDiagnostics', []):
+        match = re.search(r'@([^\s\[]+\.qml)\[line\]', line)
+        if not line.startswith('WARN ') or not match:
+            continue
+        name = match.group(1)
+        if Path(name).is_absolute() or '..' in Path(name).parts:
+            continue
+        original = blob(base, name)
+        if original is not None and original == blob(release, name):
+            allowed.add(line)
+    return allowed
+
+
 def write_release(ref, names):
     for name in names:
         data = blob(ref, name)
@@ -336,7 +352,7 @@ def apply(args):
     before = snapshot()
     verify_state(state)
     started = time.time() * 1000
-    baseline_diagnostics = set(ci.diagnostic_lines(logs()))
+    baseline_diagnostics = set(ci.diagnostic_lines(logs())) | unchanged_reload_diagnostics(report, base, release)
     try:
         update(release, names, before)
         wait_release(before, started, baseline_diagnostics)

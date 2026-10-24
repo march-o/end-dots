@@ -249,6 +249,15 @@ def inside(work):
         baseline = diagnostic_lines(log.read_text(errors='replace'))
         capture_bar(current, artifacts)
         command(['grim', '-l', '0', str(artifacts / 'baseline.png')])
+        # Measure lifecycle diagnostics on the unchanged baseline, not only cold load.
+        command(['gdbus', 'call', '--session', '--dest', 'org.freedesktop.Notifications', '--object-path', '/org/freedesktop/Notifications', '--method', 'org.freedesktop.Notifications.Notify', 'ci-reload-fixture', '0', '', 'Private CI notification', 'Reload lifecycle fixture', '[]', '{}', '0'])
+        offset = log.stat().st_size
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'reload'])
+        wait_loaded(shell, log, offset, 45)
+        time.sleep(3)
+        baseline_reload = sorted(set(diagnostic_lines(log.read_bytes()[offset:].decode(errors='replace'))) - set(baseline))
+        baseline = sorted(set(baseline) | set(baseline_reload))
+        command(['gdbus', 'call', '--session', '--dest', 'org.freedesktop.Notifications', '--object-path', '/org/freedesktop/Notifications', '--method', 'org.freedesktop.Notifications.Notify', 'ci-reload-fixture', '0', '', 'Private CI notification', 'Reload lifecycle fixture', '[]', '{}', '0'])
         # No file watchers run during a multi-file update. Reload is explicit.
         sync(work / 'candidate', current)
         inject_probe(current, 'candidate')
@@ -304,7 +313,7 @@ def inside(work):
         capture_bar(current, artifacts)
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-cold.png')])
-        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'checks': ['full-shell-baseline', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
+        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'baselineReloadDiagnostics': baseline_reload, 'checks': ['full-shell-baseline', 'baseline-notification-reload', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
         print('Full shell: baseline, hot reload, cold start and Wayland render passed', flush=True)
     except BaseException:
         try:
@@ -334,7 +343,7 @@ def check(args):
     base = command(['git', '-C', str(ROOT), 'rev-parse', args.base or state.get('ref', 'HEAD')]).stdout.strip()
     invariants = state.get('invariants', {}) if state.get('ref') == base else {}
     raw_hash = fingerprint(source)
-    for binary in ['bwrap', 'sway', 'dbus-run-session', 'qs', 'grim', 'git', 'cc', 'wayland-scanner']:
+    for binary in ['bwrap', 'sway', 'dbus-run-session', 'qs', 'grim', 'git', 'cc', 'wayland-scanner', 'gdbus']:
         if not shutil.which(binary):
             raise CheckFailure(f'Missing dependency: {binary}')
     command(['qs', '--private-check-compat'])

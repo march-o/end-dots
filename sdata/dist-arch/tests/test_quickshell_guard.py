@@ -119,6 +119,18 @@ class DesktopChecks(unittest.TestCase):
 
 
 class RuntimeChecks(unittest.TestCase):
+    def test_baseline_reload_warning_requires_exact_unchanged_source(self):
+        warning = 'WARN scene: @services/Notifications.qml[line]: Unable to assign [undefined] to QString'
+        report = {'baselineReloadDiagnostics': [warning]}
+        with patch.object(deploy, 'blob', return_value=b'unchanged'):
+            self.assertEqual(deploy.unchanged_reload_diagnostics(report, 'old', 'new'), {warning})
+        with patch.object(deploy, 'blob', side_effect=[b'old', b'new']):
+            self.assertFalse(deploy.unchanged_reload_diagnostics(report, 'old', 'new'))
+        with patch.object(deploy, 'blob', return_value=None):
+            self.assertFalse(deploy.unchanged_reload_diagnostics(report, 'old', 'new'))
+        report['baselineReloadDiagnostics'] = [warning.replace('WARN', 'ERROR')]
+        self.assertFalse(deploy.unchanged_reload_diagnostics(report, 'old', 'new'))
+
     def test_diagnostic_normalization_preserves_real_errors(self):
         first = 'WARN qml: Object_QMLTYPE_123(0xab12) [12:4] No session for pid 10'
         second = 'WARN qml: Object_QMLTYPE_456(0xcd34) [90:4] No session for pid 20'

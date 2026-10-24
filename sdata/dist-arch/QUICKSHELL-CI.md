@@ -37,7 +37,7 @@ source fixtures are removed; logs, screenshots, and the result remain.
 
 Checks cover:
 
-- Complete baseline load, baseline → candidate hot reload, and independent cold start.
+- Complete baseline load, unchanged-baseline reload with a live notification, baseline → candidate hot reload, and independent cold start.
 - A fresh generation's IPC, native bar geometry, and nonempty rendered pixels.
 - The production deployment health endpoint and stats content on every test output.
 - Actual bar expansion/collapse, reversal and pointer travel without stealing focus.
@@ -51,7 +51,10 @@ The sandbox provides deterministic read-only `hyprctl` fixtures. It does not
 validate Hyprland-specific fullscreen behavior, compositor blur, real remote
 reachability, authentication, or every shell interaction. Its missing desktop
 services produce baseline diagnostics; those are saved explicitly, and any new
-warning/error fails the check. Inspect screenshots for appearance: geometry and
+warning/error fails the check. The unchanged-baseline reload records pre-existing
+notification teardown warnings too. Live apply accepts only exact reproduced
+warning messages whose QML source is byte-identical between releases; errors and
+changed components receive no exemption. Inspect screenshots for appearance: geometry and
 pixel checks cannot judge visual quality.
 
 ## Applying and recovering
