@@ -20,12 +20,16 @@ Item {
     BarGlassIsland {
         id: background
         tintColor: root.glassTint
+        // Use the aligned wallpaper crop even while compact. Compositor blur
+        // can pull the dark edge of an application into the bottom of a pill.
+        wallpaperAmount: root.glass ? 1 : 0
         parent: root
         x: root.glass ? (root.width - root.glassWidth) / 2 : (root.vertical ? 4 : 0)
         y: root.glass ? root.glassOffsetY : root.vertical ? 0 : 4
         width: root.glass ? root.glassWidth : root.width - (root.vertical ? 8 : 0)
         height: root.glass ? root.glassHeight : root.height - (root.vertical ? 0 : 8)
-        color: root.glass && Config.options.bar.showBackground ? background.tintColor : root.colBackground
+        // Keep a solid theme fallback until the wallpaper image is ready.
+        color: root.glass && Config.options.bar.showBackground ? Qt.alpha(background.tintColor, 1) : root.colBackground
         radius: root.glass ? Math.min(height / 2, BarGeometry.cornerRadius) : Appearance.rounding.small
         border.width: root.glass && Config.options.bar.showBackground ? background.edgeWidth : 0
     }

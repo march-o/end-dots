@@ -26,8 +26,8 @@ hl.window_rule({
     suppress_event = "activate activatefocus"
 })
 
--- Blur the nearly transparent glass bar, including its background surface.
-hl.layer_rule({ match = { namespace = "^quickshell:bar$" }, blur = true, ignore_alpha = 0.01 })
+-- The bar paints its own blurred wallpaper; application pixels must not bleed in.
+hl.layer_rule({ name = "bar-wallpaper-only", match = { namespace = "^quickshell:bar$" }, blur = false })
 
 -- GlassPanelWindow owns movement inside a fixed surface, keeping wallpaper
 -- sampling aligned throughout animations for every shared glass widget.

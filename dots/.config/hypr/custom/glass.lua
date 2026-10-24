@@ -1,5 +1,5 @@
--- Optional HyprGlass v0.9.1, built against Hyprland 0.56.2. A missing or
--- incompatible plugin leaves the bar's native blur rule in place.
+-- Optional app HyprGlass v0.9.1, built against Hyprland 0.56.2.
+-- The bar paints wallpaper-only glass itself, independent of this plugin.
 local plugin = HOME .. "/.local/share/hyprglass/hyprglass.so"
 if not hl.version():find("0.56.2", 1, true) then return end
 -- Declare it on every parse, even when loaded: Hyprland unloads config plugins
@@ -31,7 +31,9 @@ hg.config({
     light = { brightness = 1.0, contrast = 1.04, saturation = 1.08,
         vibrancy = 0.08, adaptive_dim = 0.0, adaptive_boost = 0.0 },
     layers = {
-        enabled = true,
+        -- The tall hover surface refracts application edges into compact pills.
+        -- Keep compositor layer glass off; Quickshell owns the wallpaper crop.
+        enabled = false,
         namespaces = "quickshell:bar",
         mask_mode = "alpha",
         manage_blur = true,

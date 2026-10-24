@@ -82,7 +82,6 @@ Item { // Bar content region
         glassHeight: height + statsWidget.expansionProgress * (statsWidget.expandedHeight - height)
         glassOffsetY: Config.options.bar.bottom ? height - glassHeight : 0
         glassTint: ColorUtils.mix(GlassColors.monitorSurface, BarGlassPalette.glassTint, statsWidget.expansionProgress)
-        glassFrame.wallpaperAmount: statsWidget.expansionProgress
         anchors.verticalCenter: parent.verticalCenter
         x: Math.max(8, Math.min(root.width - width - 8,
             (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width) / 2))
@@ -131,7 +130,6 @@ Item { // Bar content region
         glassWidth: width
         glassHeight: height + mediaWidget.expansionProgress * (438 - height)
         glassFrame.colorTarget: mediaWidget
-        glassFrame.wallpaperAmount: mediaWidget.expansionProgress
         visible: root.useShortenedForm < 2
         anchors.verticalCenter: parent.verticalCenter
         x: (middleCenterGroup.x + middleCenterGroup.width + barRightSideMouseArea.x - width) / 2
