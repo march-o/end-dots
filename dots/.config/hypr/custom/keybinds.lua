@@ -1,13 +1,16 @@
 hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), {description = "Edit user keybinds"} )
 
--- Toggle once on Space press; a bare modifier release must never reopen it.
--- Remove both upstream launcher and fallback bindings, retaining the separate
--- transparent workspaceNumber bindings used while Super is held.
+-- A bare Super tap toggles on release. Native release-bind shadowing prevents
+-- Super chords from opening the overview; keep workspaceNumber holds separate.
 hl.unbind("SUPER + SUPER_L")
 hl.unbind("SUPER + SUPER_R")
 hl.unbind("SUPER + Space")
-hl.bind("SUPER + Space", hl.dsp.global("quickshell:searchToggle"),
-    { description = "Shell: Toggle workspace overview" })
+for _, key in ipairs({ "SUPER_L", "SUPER_R" }) do
+    -- The global dispatcher inherits a release event here, while searchToggle
+    -- listens for presses. IPC toggles once without a QML modifier-release flag.
+    hl.bind("SUPER + " .. key, hl.dsp.exec_cmd("qs -c ii ipc call search toggle"),
+        { release = true, description = "Shell: Toggle workspace overview" })
+end
 
 if is_file_exists(HOME .. "/.config/hypr/.laptop-keyboard") then
     hl.bind("CTRL + SUPER + ALT + R", hl.dsp.exec_cmd("$HOME/.config/hypr/custom/scripts/reset-touchpad.sh"),
