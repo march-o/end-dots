@@ -142,7 +142,8 @@ def inject_probe(tree, revision):
         }
         function exercise(name: string): void {
             if (scenario) scenario.destroy();
-            const component = Qt.createComponent(Qt.resolvedUrl(name === "search" ? "CiSearchSmoke.qml" : "CiStatsSmoke.qml"));
+            const component = Qt.createComponent(Qt.resolvedUrl(name === "search" ? "CiSearchSmoke.qml"
+                : name === "workspaces" ? "CiWorkspaceSmoke.qml" : "CiStatsSmoke.qml"));
             if (component.status !== Component.Ready) throw Error(component.errorString());
             scenario = component.createObject(ciProbe, { artifactPrefix: name + "-" });
         }
@@ -155,6 +156,7 @@ def inject_probe(tree, revision):
     path.write_text(text[:index] + hook + text[index:])
     shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/StatsSmoke.qml', tree / 'CiStatsSmoke.qml')
     shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/SearchSmoke.qml', tree / 'CiSearchSmoke.qml')
+    shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/WorkspaceSmoke.qml', tree / 'CiWorkspaceSmoke.qml')
 
 
 def wait_loaded(process, log, offset, deadline):
@@ -311,6 +313,7 @@ def inside(work):
         command(['grim', '-l', '0', str(artifacts / 'candidate-reload.png')])
         capture_bar(current, artifacts)
         exercise(current, log, baseline, 'search')
+        exercise(current, log, baseline, 'workspaces')
         exercise(current, log, baseline, 'normal')
         capture_bar(current, artifacts)
         shutil.copyfile(artifacts / 'bar-candidate.png', artifacts / 'bar-candidate-normal.png')

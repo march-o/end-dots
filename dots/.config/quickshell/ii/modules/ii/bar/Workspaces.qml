@@ -12,6 +12,7 @@ import Quickshell.Hyprland
 
 ButtonMouseArea {
     id: root
+    objectName: "workspaceStrip"
     readonly property string screenName: root.QsWindow.window?.screen?.name ?? ""
     WorkspaceModel { id: wsModel; screenName: root.screenName }
     WallpaperIconColor { id: localColors; target: root }
@@ -52,16 +53,18 @@ ButtonMouseArea {
             model: wsModel.shownCount
             delegate: Item {
                 id: workspace
+                objectName: "workspaceCell"
                 required property int index
                 readonly property int wsId: wsModel.getWorkspaceIdAt(index)
                 readonly property bool active: wsId === wsModel.activeWorkspace
                 readonly property string monitorName: HyprlandData.workspaceById[wsId]?.monitor ?? ""
                 readonly property var assignedMonitor: HyprlandData.monitors.find(m => m.name === monitorName) ?? null
+                readonly property bool visibleOnMonitor: assignedMonitor?.activeWorkspace?.id === wsId
                 readonly property int displayIndex: HyprlandData.monitors.slice().sort((a, b) => a.id - b.id)
                     .findIndex(m => m.name === monitorName)
                 readonly property bool onOtherMonitor: HyprlandData.monitors.length > 1
                     && assignedMonitor !== null && monitorName !== root.referenceMonitorName
-                readonly property color backgroundTint: active || onOtherMonitor
+                readonly property color backgroundTint: active || visibleOnMonitor
                     ? BarGlassPalette.highlightTint(GlassColors.monitorColor(!onOtherMonitor), hovered ? 0.50 : 0.40)
                     : "transparent"
                 readonly property color effectiveTint: BarGlassPalette.overlayTint(backgroundTint)
@@ -88,7 +91,7 @@ ButtonMouseArea {
                     height: 25
                     radius: 7
                     color: workspace.backgroundTint
-                    visible: workspace.active || workspace.onOtherMonitor
+                    visible: workspace.active || workspace.visibleOnMonitor
                 }
 
                 AppIcon {
