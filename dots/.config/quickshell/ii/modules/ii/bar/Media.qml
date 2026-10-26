@@ -215,6 +215,7 @@ Item {
         anchors.rightMargin: 5
         spacing: 8
         StyledImage {
+            objectName: "mediaCover"
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
             Accessible.name: "Open Spotify workspace"
@@ -229,6 +230,9 @@ Item {
             }
             Layout.preferredWidth: 26
             Layout.preferredHeight: 26
+            // Image implicit size participates in RowLayout sizing. Keep the
+            // decode size independent of that feedback, especially at 1.5 DPR.
+            sourceSize: Qt.size(52, 52)
             source: root.activePlayer?.trackArtUrl ?? ""
             fillMode: Image.PreserveAspectCrop
         }
