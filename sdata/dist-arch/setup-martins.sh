@@ -243,6 +243,9 @@ configure_quickshell_shell() {
   jq -n --slurpfile existing "$input_file" \
     --argjson launch_on_startup "$launch_on_startup" \
     --argjson quickshell_font_scale "$DEVICE_QUICKSHELL_FONT_SCALE" \
+    --argjson night_light_temperature "$DEVICE_NIGHT_LIGHT_TEMPERATURE" \
+    --arg night_light_from "$DEVICE_NIGHT_LIGHT_FROM" \
+    --arg night_light_to "$DEVICE_NIGHT_LIGHT_TO" \
     '($existing[0] // {}) |
       .apps.changePassword = "kitty -1 --hold=yes zsh -ic '\''passwd'\''" |
       .apps.update = "kitty -1 --hold=yes zsh -ic '\''pkexec pacman -Syu'\''" |
@@ -258,6 +261,10 @@ configure_quickshell_shell() {
       .background.widgets.clock.style = "digital" |
       .background.widgets.clock.styleLocked = "digital" |
       .appearance.fontScale = $quickshell_font_scale |
+      .light.night.automatic = true |
+      .light.night.colorTemperature = $night_light_temperature |
+      .light.night.from = $night_light_from |
+      .light.night.to = $night_light_to |
       if $launch_on_startup then
         .lock.launchOnStartup = true
       else . end' \
