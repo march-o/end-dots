@@ -26,6 +26,37 @@ class LaptopMonitorTest(unittest.TestCase):
     def server(self, state):
         return io.BytesIO(f'<root><state>{state}</state></root>'.encode())
 
+    def test_native_resolution_preserves_logical_size_and_monitor_placement(self):
+        c = json.loads((SOURCE.parents[0].parent / 'config/laptop-monitor.json').read_text())
+        self.assertEqual(c['resolution']['width'] / c['scale'], 1920)
+        self.assertEqual(c['resolution']['height'] / c['scale'], 1200)
+        physical = {'name': 'DP-1', 'width': 2560, 'height': 1440, 'refreshRate': 165,
+                    'x': 0, 'y': 0, 'scale': 1}
+        with patch.object(self.helper, 'guard'), patch.object(self.helper, 'monitors', return_value=[physical]), \
+                patch.object(self.helper, 'active', return_value=False), \
+                patch.object(self.helper, 'command', return_value='{"int":0}'), \
+                patch.object(self.helper, 'lua_monitor') as apply:
+            self.helper.prepare(c)
+        self.assertEqual(apply.call_args_list[0].args[0]['position'], '0x0')
+        virtual = apply.call_args_list[1].args[0]
+        self.assertEqual(virtual['mode'], '2880x1800@60')
+        self.assertEqual(virtual['position'], '-1920x0')
+        self.assertEqual(virtual['scale'], 1.5)
+
+    def test_scale_validation_and_legacy_config(self):
+        c = {'position': 'left', 'resolution': {'width': 1920, 'height': 1200}}
+        for scale in [None, 1, 1.5, 0, -1, True, '1.5', float('nan'), float('inf'), 1.7]:
+            candidate = dict(c)
+            if scale is not None:
+                candidate['scale'] = scale
+            with self.subTest(scale=scale), \
+                    patch.object(self.helper.sys, 'argv', ['laptop-monitor', 'status', json.dumps(candidate)]):
+                if scale is None or type(scale) in (int, float) and scale in (1, 1.5):
+                    self.assertEqual(self.helper.config(), candidate)
+                else:
+                    with self.assertRaises(ValueError):
+                        self.helper.config()
+
     def test_output_without_session_is_disconnected(self):
         with patch.object(self.helper, 'active', return_value=True), \
                 patch.object(self.helper.urllib.request, 'urlopen', return_value=self.server('SUNSHINE_SERVER_FREE')), \

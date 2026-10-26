@@ -2,6 +2,7 @@
 """Toggle a Sunshine virtual display streamed fullscreen to the paired laptop."""
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import shlex
@@ -55,6 +56,11 @@ def config():
         value = c['resolution'][key]
         if not isinstance(value, int) or not 320 <= value <= 7680:
             raise ValueError('Invalid resolution')
+    scale = c.get('scale', 1)
+    if type(scale) not in (int, float) or not math.isfinite(scale) or not 0.5 <= scale <= 4:
+        raise ValueError('Invalid scale')
+    if any(not (c['resolution'][key] / scale).is_integer() for key in ('width', 'height')):
+        raise ValueError('Scale must produce whole logical pixels')
     return c
 
 
@@ -99,9 +105,10 @@ def prepare(c):
     rule = {'output': physical['name'], 'mode': f"{physical['width']}x{physical['height']}@{physical['refreshRate']}",
             'position': f"{physical['x']}x{physical['y']}", 'scale': physical['scale']}
     w, h = c['resolution']['width'], c['resolution']['height']
-    x = physical['x'] - w if c['position'] == 'left' else physical['x'] + round(physical['width'] / physical['scale'])
+    scale = c.get('scale', 1)
+    x = physical['x'] - round(w / scale) if c['position'] == 'left' else physical['x'] + round(physical['width'] / physical['scale'])
     virtual = {'output': c['output'], 'mode': f"{w}x{h}@{c['fps']}",
-               'position': f"{x}x{physical['y']}", 'scale': 1}
+               'position': f"{x}x{physical['y']}", 'scale': scale}
     # Generated palette files trigger compositor reparses. Persist the managed
     # rules for those parses rather than letting the headless output auto-place.
     option = json.loads(command(['hyprctl', 'getoption', 'misc:disable_autoreload', '-j']))

@@ -4,11 +4,12 @@
   "desktopIp": "192.168.8.33",
   "position": "left",
   "resolution": {
-    "width": 1920,
-    "height": 1200
+    "width": 2880,
+    "height": 1800
   },
+  "scale": 1.5,
   "fps": 60,
-  "bitrateKbps": 30000,
+  "bitrateKbps": 60000,
   "output": "sunshine",
   "app": "Desktop"
 }
