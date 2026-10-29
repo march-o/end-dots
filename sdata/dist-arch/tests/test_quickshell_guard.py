@@ -4,6 +4,7 @@ import hashlib
 from importlib.machinery import SourceFileLoader
 import importlib.util
 import json
+import os
 from pathlib import Path
 import signal
 import subprocess
@@ -19,6 +20,39 @@ spec = importlib.util.spec_from_loader(loader.name, loader)
 deploy = importlib.util.module_from_spec(spec)
 loader.exec_module(deploy)
 ci = deploy.ci
+
+
+class LogReading(unittest.TestCase):
+    def test_current_instance_text_log_is_tailed_without_binary_decoder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'quickshell/by-pid/123/log.log'
+            path.parent.mkdir(parents=True)
+            path.write_text(''.join(f'line {i}\n' for i in range(1300)))
+            with patch.dict(os.environ, {'XDG_RUNTIME_DIR': tmp}), \
+                 patch.object(deploy, 'process_id', return_value=123), \
+                 patch.object(deploy, 'run') as run:
+                text = deploy.logs()
+            self.assertEqual(text.splitlines()[0], 'line 100')
+            self.assertEqual(text.splitlines()[-1], 'line 1299')
+            run.assert_not_called()
+
+    def test_log_from_replaced_instance_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'quickshell/by-pid/123/log.log'
+            path.parent.mkdir(parents=True)
+            path.write_text('Configuration Loaded\n')
+            with patch.dict(os.environ, {'XDG_RUNTIME_DIR': tmp}), \
+                 patch.object(deploy, 'process_id', side_effect=[123, 456]), \
+                 self.assertRaises(deploy.DeployFailure):
+                deploy.logs()
+
+    def test_older_instance_without_text_log_uses_cli(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {'XDG_RUNTIME_DIR': tmp}), \
+             patch.object(deploy, 'process_id', return_value=123), \
+             patch.object(deploy, 'run', return_value='CLI log') as run:
+            self.assertEqual(deploy.logs(), 'CLI log')
+            self.assertIn('--log-times', run.call_args.args[0])
 
 
 class CertificateTests(unittest.TestCase):

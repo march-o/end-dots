@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Deploy only a validated, committed Arch Quickshell tree; recover from Git."""
 import argparse
+from collections import deque
 import fcntl
 import hashlib
 from importlib.machinery import SourceFileLoader
@@ -112,7 +113,19 @@ def optional_control():
 
 
 def logs():
-    return run(['qs', '--no-color', '--log-times', '-c', 'ii', 'log', '--tail', '1200'], timeout=15)
+    # Decoding a long-running instance's binary qslog through `qs log` can hang.
+    # Its text log contains the same timestamps/diagnostics without that decoder.
+    pid = process_id()
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
+    path = runtime / 'quickshell/by-pid' / str(pid) / 'log.log'
+    try:
+        with path.open(errors='replace') as handle:
+            text = ''.join(deque(handle, maxlen=1200))
+    except FileNotFoundError:
+        return run(['qs', '--no-color', '--log-times', '-c', 'ii', 'log', '--tail', '1200'], timeout=15)
+    if process_id() != pid:
+        raise DeployFailure('Quickshell instance changed while reading its log')
+    return text
 
 
 def expected_bars(monitors, clients):
