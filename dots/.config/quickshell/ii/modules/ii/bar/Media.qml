@@ -21,25 +21,37 @@ Item {
     property var roomPlayback: ({})
     property real roomUpdatedAt: 0
     property real positionClock: Date.now()
-    Timer { interval: 1000; running: root.expanded && !!root.roomPlayback.playing; repeat: true; onTriggered: root.positionClock = Date.now() }
+    Timer {
+        interval: 1000; running: root.expanded && roomPlayer.isPlaying; repeat: true
+        onTriggered: { root.positionClock = Date.now(); transport.player?.positionChanged() }
+    }
+    MediaTransportControl {
+        id: transport
+        nativePlayer: root.spotifyPlayer
+        room: root.roomPlayback
+        enabled: !root.requestedSource
+        onDispatched: { root.connectError = ""; nativeRefresh.restart() }
+    }
+    Timer { id: nativeRefresh; interval: 600; onTriggered: root.refreshDevices() }
     QtObject {
         id: roomPlayer
-        readonly property string trackTitle: root.roomPlayback.title ?? ""
-        readonly property string trackArtist: root.roomPlayback.artist ?? ""
-        readonly property string trackArtUrl: root.roomPlayback.art || (root.spotifyPlayer?.trackTitle === trackTitle ? (root.spotifyPlayer?.trackArtUrl ?? "") : "")
-        readonly property bool isPlaying: root.roomPlayback.playing ?? false
+        readonly property string trackTitle: transport.player?.trackTitle ?? root.roomPlayback.title ?? ""
+        readonly property string trackArtist: transport.player?.trackArtist ?? root.roomPlayback.artist ?? ""
+        readonly property string trackArtUrl: transport.player?.trackArtUrl || root.roomPlayback.art || (root.spotifyPlayer?.trackTitle === trackTitle ? (root.spotifyPlayer?.trackArtUrl ?? "") : "")
+        readonly property bool isPlaying: transport.player?.isPlaying ?? root.roomPlayback.playing ?? false
         readonly property bool canControl: !!root.roomPlayback.available
-        readonly property bool canGoNext: canControl && !!root.roomPlayback.can_next
-        readonly property bool canGoPrevious: canControl && !!root.roomPlayback.can_previous
-        readonly property bool canSeek: canControl && !!root.roomPlayback.can_seek && length > 0
+        readonly property bool canGoNext: transport.player?.canGoNext ?? (canControl && !!root.roomPlayback.can_next)
+        readonly property bool canGoPrevious: transport.player?.canGoPrevious ?? (canControl && !!root.roomPlayback.can_previous)
+        readonly property bool canSeek: transport.player ? transport.player.canSeek && transport.player.positionSupported : canControl && !!root.roomPlayback.can_seek && length > 0
         readonly property bool volumeSupported: canControl
         readonly property real volume: root.roomPlayback.volume ?? 0
         readonly property bool lengthSupported: length > 0
-        readonly property real length: root.roomPlayback.duration ?? 0
+        readonly property real length: transport.player?.length ?? root.roomPlayback.duration ?? 0
         readonly property bool positionSupported: true
-        readonly property real position: Math.min(length, (root.roomPlayback.position ?? 0) + (isPlaying ? Math.max(0, root.positionClock - root.roomUpdatedAt) / 1000 : 0))
+        readonly property real position: transport.player?.position ?? Math.min(length, (root.roomPlayback.position ?? 0) + (isPlaying ? Math.max(0, root.positionClock - root.roomUpdatedAt) / 1000 : 0))
     }
     function controlRoom(action, value) {
+        if (transport.dispatch(action, value)) return
         if (connect.running) {
             // Keep clicks made during a status poll; coalesce slider updates.
             let queue = root.pendingControls.slice()
@@ -55,7 +67,9 @@ Item {
         connect.running = true
     }
     function togglePlayback() {
-        if (roomPlayback.active) controlRoom(roomPlayback.playing ? "pause" : "play")
+        if (roomPlayback.active) {
+            if (!transport.toggle()) controlRoom(roomPlayer.isPlaying ? "pause" : "play")
+        }
         else activePlayer?.togglePlaying()
     }
     function nextTrack() { if (roomPlayback.active) controlRoom("next"); else activePlayer?.next() }
@@ -143,12 +157,16 @@ Item {
     Process {
         id: connect
         property int volumeSnapshot: -1
-        onStarted: volumeSnapshot = volumeControl.pendingValue >= 0 ? -1 : volumeControl.revision
+        property int transportSnapshot: -1
+        onStarted: {
+            volumeSnapshot = volumeControl.pendingValue >= 0 ? -1 : volumeControl.revision
+            transportSnapshot = transport.revision
+        }
         onRunningChanged: {
             if (!running) Qt.callLater(() => {
                 if (connect.running) return
                 if (root.pendingRoomPlay) { root.pendingRoomPlay = false; root.playInLivingRoom() }
-                else if (root.pendingControls.length) {
+                else while (root.pendingControls.length && !connect.running) {
                     const queue = root.pendingControls.slice()
                     const control = queue.shift()
                     root.pendingControls = queue
@@ -161,11 +179,15 @@ Item {
                 try {
                     const data = JSON.parse(text)
                     if (data.ok) {
+                        const room = data.room ?? {}
+                        if (!transport.acceptSnapshot(room, connect.transportSnapshot)) {
+                            nativeRefresh.restart()
+                            return
+                        }
                         root.connectDevices = data.devices; root.connectSource = data.source; root.connectError = ""
                         root.connectWarning = data.warning ?? ""
                         // A status request started before a volume write must not
                         // undo that write when its older snapshot arrives later.
-                        const room = data.room ?? {}
                         if (room.active && connect.volumeSnapshot !== volumeControl.revision)
                             room.volume = root.roomPlayback.volume ?? room.volume
                         root.roomPlayback = room
@@ -174,6 +196,7 @@ Item {
                     else root.connectError = data.error
                 } catch (e) { root.connectError = "Device connection unavailable" }
                 if (root.connectError && root.roomPlayback.active) {
+                    transport.invalidate()
                     root.roomPlayback = Object.assign({}, root.roomPlayback, { playing: false, available: false })
                     root.pendingControls = []
                 }

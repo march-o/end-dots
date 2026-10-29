@@ -274,7 +274,7 @@ def output():
         'devices':list(dict.fromkeys([room_name]+([a['source']] if a.get('source') else [])+a.get('source_list',[]))),
         'state':r['state'] if active else s['state'],
         'room':{'active':active,'connected':connected,'playing':r['state']=='playing','available':r['state'] not in ['unknown','unavailable'],
-            'title':ra.get('media_title',''),'artist':ra.get('media_artist',''),
+            'title':ra.get('media_title',''),'artist':ra.get('media_artist',''),'uri':uri,
             'art':cache.get('art',{}).get(uri,'') or ra.get('album_art',''),
             'can_next':'Next' in ra.get('transport_actions',[]),'can_previous':'Previous' in ra.get('transport_actions',[]),'can_seek':'SeekTime' in ra.get('transport_actions',[]),
             'volume':ra.get('volume_level',0),'duration':duration,'position':min(position,duration) if duration else position}}

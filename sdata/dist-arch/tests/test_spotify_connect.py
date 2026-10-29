@@ -71,6 +71,7 @@ class PlaybackPolicy(unittest.TestCase):
         output = self.ns['output']()
         self.assertEqual(output['source'], 'Living Room')
         self.assertEqual(output['room']['title'], 'Speaker song')
+        self.assertEqual(output['room']['uri'], 'spotify:track:ROOM')
         self.assertEqual(output['room']['art'], 'speaker-art')
         self.assertEqual(output['room']['position'], 20)
         self.assertTrue(output['room']['can_next'])

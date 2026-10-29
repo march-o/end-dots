@@ -167,6 +167,7 @@ configure_quickshell_shell() {
       modules/ii/bar/MediaProgress.qml \
       modules/ii/bar/MediaVolumeSlider.qml \
       modules/ii/bar/MediaVolumeControl.qml \
+      modules/ii/bar/MediaTransportControl.qml \
       modules/ii/overview/Overview.qml \
       modules/ii/overview/OverviewContent.qml \
       modules/ii/overview/OverviewMonitorTag.qml \
