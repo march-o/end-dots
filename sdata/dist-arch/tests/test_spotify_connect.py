@@ -10,7 +10,9 @@ import sys
 import tempfile
 import time
 import unittest
+import urllib.error
 import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -147,5 +149,78 @@ class FastVolume(unittest.TestCase):
             exec(module.VOLUME_REMOTE.replace('REQUEST', repr({'value': .4}), 1), {})
         self.assertFalse(json.loads(output.getvalue())['ok'])
         run.assert_not_called()
+
+class DeploymentConfiguration(unittest.TestCase):
+    def run_status(self, home, urlopen):
+        speaker = {'ip': '192.0.2.1', 'state': 'paused', 'attributes': {}}
+        reply = subprocess.CompletedProcess([], 0, json.dumps(speaker), '')
+        output = io.StringIO()
+        with patch.object(Path, 'home', return_value=home), \
+             patch.object(urllib.request, 'urlopen', side_effect=urlopen), \
+             patch.object(subprocess, 'run', return_value=reply), \
+             contextlib.redirect_stdout(output):
+            namespace = {}
+            try:
+                exec(module.REMOTE.replace('REQUEST', repr({'action': 'status'}), 1), namespace)
+            finally:
+                namespace['lock'].close()
+        return json.loads(output.getvalue())
+
+    def test_current_deployment_gets_ha_credential_from_piper_per_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            secrets = home / 'projects/home-assistant/deploy/secrets'
+            secrets.mkdir(parents=True)
+            (secrets / 'piper-legacy.env').write_text('PIPER_URL=http://host.docker.internal:4319\nPIPER_LEGACY_TOKEN="test-caller"\n')
+            requests = []
+            def urlopen(request, **kwargs):
+                requests.append(request)
+                if len(requests) == 1:
+                    self.assertEqual(request.full_url, 'http://127.0.0.1:4318/v1/call')
+                    self.assertEqual(json.loads(request.data), {'operation': 'secrets.get', 'args': {'name': 'homeassistant.token'}})
+                    self.assertEqual(request.get_header('Authorization'), 'Bearer test-caller')
+                    return io.BytesIO(b'{"result":{"value":"test-ha-token"}}')
+                self.assertEqual(request.get_header('Authorization'), 'Bearer test-ha-token')
+                return io.BytesIO(b'{"state":"paused","attributes":{"source":"PC","source_list":["PC"]}}')
+            data = self.run_status(home, urlopen)
+            self.assertTrue(data['ok'])
+            self.assertEqual(data['source'], 'PC')
+            self.assertEqual(len(requests), 2)
+            self.assertNotIn('test-ha-token', json.dumps(data))
+
+    def test_missing_deployment_returns_configuration_error_as_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = self.run_status(Path(tmp), Mock())
+        self.assertFalse(data['ok'])
+        self.assertIn('credential provider is not configured', data['error'])
+
+    def test_provider_outage_does_not_fall_back_to_a_deployment_ha_token(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            deploy = home / 'projects/home-assistant/deploy'
+            (deploy / 'secrets').mkdir(parents=True)
+            (deploy / 'secrets/piper-legacy.env').write_text('PIPER_LEGACY_TOKEN=test-caller\n')
+            (deploy / '.env').write_text('HA_TOKEN=retired-token\n')
+            urlopen = Mock(side_effect=urllib.error.URLError('offline'))
+            data = self.run_status(home, urlopen)
+        self.assertFalse(data['ok'])
+        self.assertIn('credential provider is unavailable', data['error'])
+        self.assertEqual(urlopen.call_count, 1)
+
+    def test_spotify_authorization_uses_current_ha_state_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            deploy = Path(tmp)
+            storage = deploy / 'state/homeassistant/.storage'
+            storage.mkdir(parents=True)
+            (storage / 'core.config_entries').write_text(json.dumps({'data': {'entries': [
+                {'domain': 'spotify', 'data': {'token': {'access_token': 'test-spotify', 'expires_at': time.time() + 3600}}}
+            ]}}))
+            ns = {'deploy': deploy, 'Path': Path, 'json': json, 'time': time, 'urllib': urllib}
+            tree = ast.parse(module.REMOTE)
+            tree.body = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name in {'DeviceError', 'spotify_get'}]
+            exec(compile(tree, '<deployment policy>', 'exec'), ns)
+            with patch.object(urllib.request, 'urlopen', return_value=io.BytesIO(b'{"device":{"name":"Living Room"}}')) as request:
+                self.assertEqual(ns['spotify_get']('me/player')['device']['name'], 'Living Room')
+            self.assertEqual(request.call_args.args[0].get_header('Authorization'), 'Bearer test-spotify')
 
 if __name__ == '__main__': unittest.main()

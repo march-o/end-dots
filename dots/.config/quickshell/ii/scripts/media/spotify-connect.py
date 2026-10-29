@@ -36,16 +36,42 @@ import json,time,urllib.request,urllib.parse,fcntl,subprocess,os
 from pathlib import Path
 from datetime import datetime,timezone
 params = REQUEST
-values = {}
-for line in Path('/home/martins/homelab/.env').read_text().splitlines():
-    if '=' in line and not line.lstrip().startswith('#'):
-        k,v = line.split('=',1)
-        values[k.strip()] = v.strip().strip(chr(34)).strip(chr(39))
+deploy=Path.home()/'projects/home-assistant/deploy'
+class DeviceError(Exception):pass
+def home_token():
+    # Use the deployment's reviewed legacy-consumer caller, just like Home's
+    # existing REST consumers. Resolve HA credentials per request, only on ash.
+    try:
+        values={}
+        for line in (deploy/'secrets/piper-legacy.env').read_text().splitlines():
+            if '=' in line and not line.lstrip().startswith('#'):
+                k,v=line.split('=',1)
+                values[k.strip()]=v.strip().strip(chr(34)).strip(chr(39))
+        caller=values['PIPER_LEGACY_TOKEN']
+        if not caller:raise ValueError('Missing caller')
+    except (OSError,KeyError,ValueError):
+        raise DeviceError('Home Assistant credential provider is not configured on ash. Check its deployment.')
+    # The deployment file's URL uses a container-only hostname. This helper
+    # runs on the host, where the same Piper service listens on loopback.
+    req=urllib.request.Request('http://127.0.0.1:4318/v1/call',
+        data=json.dumps({'operation':'secrets.get','args':{'name':'homeassistant.token'}}).encode(),
+        headers={'Authorization':'Bearer '+caller,'Content-Type':'application/json'})
+    try:
+        with urllib.request.urlopen(req,timeout=6) as response:token=json.load(response).get('result',{}).get('value')
+        if not isinstance(token,str) or not token:raise ValueError('Missing token')
+        return token
+    except Exception:
+        raise DeviceError('Home Assistant credential provider is unavailable on ash. Check Piper and its playback access.')
 def call(path,payload=None):
     req=urllib.request.Request('http://127.0.0.1:8123/api/'+path,
         data=None if payload is None else json.dumps(payload).encode(),
-        headers={'Authorization':'Bearer '+values['HA_TOKEN'],'Content-Type':'application/json'})
-    with urllib.request.urlopen(req,timeout=12) as response:return json.load(response)
+        headers={'Authorization':'Bearer '+home_token(),'Content-Type':'application/json'})
+    try:
+        with urllib.request.urlopen(req,timeout=12) as response:return json.load(response)
+    except urllib.error.HTTPError as error:
+        raise DeviceError('Home Assistant playback request failed (HTTP '+str(error.code)+'). Check its Spotify/Sonos integration and Piper access.')
+    except (urllib.error.URLError,TimeoutError):
+        raise DeviceError('Home Assistant is unavailable on ash. Check its deployment and retry.')
 entity='media_player.spotify_martinjs'
 room_entity='media_player.living_room'
 room_name='Living Room'
@@ -102,7 +128,6 @@ def uri_from(content):
 def remember(s):
     uri=uri_from(s['attributes'].get('media_content_id'))
     if uri:cache['last_uri']=uri
-class DeviceError(Exception):pass
 def wait_room():
     deadline=time.monotonic()+12
     while True:
@@ -113,8 +138,10 @@ def wait_room():
 def spotify_get(path):
     # Reuse HA's authorization on ash; no token or client secret crosses SSH.
     import base64
-    base=Path('/home/martins/homelab/infra/homeassistant/.storage')
-    entry=next(e for e in json.loads((base/'core.config_entries').read_text())['data']['entries'] if e['domain']=='spotify')
+    base=deploy/'state/homeassistant/.storage'
+    try:entry=next(e for e in json.loads((base/'core.config_entries').read_text())['data']['entries'] if e['domain']=='spotify')
+    except (OSError,ValueError,KeyError,StopIteration):
+        raise DeviceError('Home Assistant Spotify authorization is unavailable on ash. Check its integration and deployment.')
     token=entry['data']['token']
     if token.get('expires_at',0)<time.time()+30:
         app=next(a for a in json.loads((base/'application_credentials').read_text())['data']['items'] if a['domain']=='spotify' and a['id']==entry['data']['auth_implementation'])
