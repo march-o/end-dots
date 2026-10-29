@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import qs.modules.ii.bar
 
 Scope {
@@ -35,8 +36,105 @@ Scope {
         room: root.connected
         confirmationTimeout: 100
     }
+    property var volumeWrites: []
+    MediaVolumeControl {
+        id: volume
+        available: true
+        sourceKey: "test-speaker"
+        observedValue: .37
+        onWriteRequested: value => root.volumeWrites.push(value)
+    }
+    // This window exists only on CI's private compositor; it cannot take keyboard or pointer focus.
+    PanelWindow {
+        id: volumePreview
+        anchors { bottom: true; right: true }
+        implicitWidth: 240
+        implicitHeight: 280
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        mask: Region {}
+        color: "transparent"
+        Rectangle {
+            id: preview
+            anchors.fill: parent
+            color: BarGlassPalette.glassTint
+            radius: 16
+            MediaVolumeSlider {
+                id: slider
+                x: 24; y: 20; height: 220
+                vertical: true
+                available: true
+                value: volume.value
+                onMoved: value => volume.request(value)
+            }
+            MediaVolumeSlider { x: 76; y: 38; available: true; value: 0 }
+            MediaVolumeSlider { x: 76; y: 98; available: true; value: .5 }
+            MediaVolumeSlider { x: 76; y: 158; available: true; value: 1 }
+        }
+    }
+    function testVolume() {
+        const close = (a, b) => Math.abs(a - b) < .000001;
+        for (let i = 0; i <= 100; i++) {
+            const input = i / 100;
+            slider.update({ x: 18, y: 8 + (slider.height - 16) * (1 - input) });
+            require(close(volume.value, Math.round(i / 5) / 20), "Pointer did not snap to 5% at " + i);
+        }
+        slider.update({ x: 18, y: -100 });
+        require(volume.value === 1, "Pointer exceeded upper bound");
+        slider.step(1);
+        require(volume.value === 1, "Wheel exceeded upper bound");
+        slider.update({ x: 18, y: 1000 });
+        require(volume.value === 0, "Pointer exceeded lower bound");
+        slider.step(-1);
+        require(volume.value === 0, "Wheel exceeded lower bound");
+        for (let i = 1; i <= 20; i++) {
+            slider.step(1);
+            require(close(volume.value, i / 20), "Wheel up skipped/repeated a rib");
+        }
+        for (let i = 19; i >= 0; i--) {
+            slider.step(-1);
+            require(close(volume.value, i / 20), "Wheel down skipped/repeated a rib");
+        }
+        volume.reset();
+        require(close(volume.value, .37), "External volume feedback was quantized");
+        slider.step(1);
+        require(close(volume.value, .4), "Off-grid wheel up did not reach next rib");
+        volume.reset();
+        slider.step(-1);
+        require(close(volume.value, .35), "Off-grid wheel down did not reach next rib");
+        slider.step(0);
+        require(close(volume.value, .35), "Zero wheel delta changed volume");
+        slider.available = false;
+        slider.update({ x: 18, y: 8 }); slider.step(1);
+        require(close(volume.value, .35), "Unavailable control accepted input");
+        slider.available = true;
+        slider.vertical = false; slider.width = 144;
+        slider.update({ x: 8 + 128 * .61, y: 15 });
+        require(close(volume.value, .6), "Horizontal pointer did not snap");
+        slider.vertical = true; slider.width = 36;
+        volume.flush();
+        require(close(volumeWrites[0], .6), "Volume write lost target");
+        slider.step(1);
+        require(close(volume.value, .65), "In-flight write blocked immediate feedback");
+        volume.observedValue = .6;
+        volume.complete(true);
+        require(close(volume.value, .65), "Stale acknowledgment rewound feedback");
+        volume.flush();
+        require(close(volumeWrites[1], .65), "Latest target was not coalesced");
+        volume.observedValue = .65;
+        volume.complete(true);
+        require(volume.pendingValue === -1 && close(volume.value, .65), "Readback did not reconcile");
+        volume.observedValue = .43;
+        require(close(volume.value, .43), "External change was not synchronized");
+        slider.step(1); volume.flush(); volume.complete(false);
+        require(close(volume.value, .43), "Failed write did not restore observed volume");
+        slider.step(1); volume.sourceKey = "other-speaker";
+        require(volume.pendingValue === -1 && volume.queuedValue === -1, "Device change retained old intent");
+        volume.observedValue = .65;
+    }
     Component.onCompleted: {
         try {
+            testVolume();
             require(!transport.dispatch("next"), "Unconfirmed room used native playback")
             transport.acceptSnapshot(Object.assign({}, connected, { uri: "spotify:track:OTHER" }), 0)
             require(!transport.player, "Different Spotify track was paired")
@@ -75,7 +173,11 @@ Scope {
         interval: 200
         onTriggered: {
             if (transport.player) root.failure = "Stale cloud confirmation did not expire"
-            root.done = true
+            preview.grabToImage(result => {
+                if (!result.saveToFile("/work/artifacts/" + root.artifactPrefix + "media-volume-ribs.png"))
+                    root.failure = "Could not capture segmented volume preview";
+                root.done = true;
+            });
         }
     }
 }
