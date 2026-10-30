@@ -163,6 +163,7 @@ configure_quickshell_shell() {
       modules/ii/bar/ActiveWindow.qml \
       modules/ii/bar/LeftTimeWidget.qml \
       modules/ii/bar/Media.qml \
+      modules/ii/bar/MediaArtwork.qml \
       modules/ii/bar/MediaCard.qml \
       modules/ii/bar/MediaProgress.qml \
       modules/ii/bar/MediaVolumeSlider.qml \

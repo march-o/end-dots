@@ -237,7 +237,7 @@ Item {
         anchors.leftMargin: 5
         anchors.rightMargin: 5
         spacing: 8
-        StyledImage {
+        MediaArtwork {
             objectName: "mediaCover"
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
@@ -253,11 +253,15 @@ Item {
             }
             Layout.preferredWidth: 26
             Layout.preferredHeight: 26
+            Layout.minimumWidth: 26
+            Layout.maximumWidth: 26
+            Layout.minimumHeight: 26
+            Layout.maximumHeight: 26
             // Image implicit size participates in RowLayout sizing. Keep the
             // decode size independent of that feedback, especially at 1.5 DPR.
             sourceSize: Qt.size(52, 52)
             source: root.activePlayer?.trackArtUrl ?? ""
-            fillMode: Image.PreserveAspectCrop
+            fallbackColor: root.iconStates.off
         }
         StyledText {
             HoverHandler {

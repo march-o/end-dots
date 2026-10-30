@@ -132,10 +132,14 @@ def inject_probe(tree, revision):
             if (!items.length) throw Error("No production media cover found");
             for (const item of items) item.source = "file:///work/artwork.png";
         }
+        function clearArtwork(): void {
+            for (const item of covers()) item.source = "";
+        }
         function artworkHealth(): string {
             return JSON.stringify(covers().map(item => ({ width: item.width, height: item.height,
                 decodeWidth: item.sourceSize.width, decodeHeight: item.sourceSize.height,
-                ready: item.status === Image.Ready, dpr: item.QsWindow.window.devicePixelRatio })));
+                ready: item.status === Image.Ready, visible: item.visible, fallback: item.fallbackVisible,
+                dpr: item.QsWindow.window.devicePixelRatio })));
         }
         function health(): string {
             return JSON.stringify({ revision: REVISION, screens: Quickshell.screens.length, done: scenario?.done ?? false, failure: scenario?.failure ?? "", bars: bars(), barSaved: barSaved });
@@ -300,14 +304,19 @@ def inside(work):
         # Preserve the logical workspace while exercising real fractional DPR.
         # Font-scale-only tests do not exercise Image/RowLayout decode feedback.
         command(['swaymsg', 'output', 'HEADLESS-1', 'mode', '2400x1500', 'scale', '1.5'])
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'clearArtwork'])
+        time.sleep(.2)
+        covers = json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'artworkHealth']).stdout)
+        if not covers or any(not c['visible'] or not c['fallback'] or c['width'] < 25 or c['height'] < 25 for c in covers):
+            raise CheckFailure('Media cover slot/fallback disappeared without artwork: ' + repr(covers))
         command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'loadArtwork'])
         for _ in range(20):
             time.sleep(.2)
             covers = json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'artworkHealth']).stdout)
             if not covers or any(c['decodeWidth'] > 64 or c['decodeHeight'] > 64 or
-                                 c['width'] > 30 or c['height'] > 30 for c in covers):
+                                 c['width'] > 30 or c['height'] > 30 or c['width'] < 25 or c['height'] < 25 or not c['visible'] for c in covers):
                 raise CheckFailure('Media artwork decode size grows at fractional DPR: ' + repr(covers))
-        if any(not c['ready'] or c['dpr'] != 1.5 for c in covers):
+        if any(not c['ready'] or c['fallback'] or c['dpr'] != 1.5 for c in covers):
             raise CheckFailure('Fractional-DPR artwork did not load: ' + repr(covers))
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-fractional-artwork.png')])

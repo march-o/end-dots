@@ -149,8 +149,13 @@ Item {
                     Behavior on scale { NumberAnimation { duration: 80 } }
                     layer.enabled: true
                     layer.effect: OpacityMask { maskSource: Rectangle { width: artwork.width; height: artwork.height; radius: artwork.radius } }
-                    StyledImage { anchors.fill: parent; source: root.media.activePlayer?.trackArtUrl ?? ""; fillMode: Image.PreserveAspectCrop }
-                    MaterialSymbol { anchors.centerIn: parent; visible: !root.media.activePlayer?.trackArtUrl; text: "music_note"; iconSize: 60; color: root.statePalette.off }
+                    MediaArtwork {
+                        anchors.fill: parent
+                        source: root.media.activePlayer?.trackArtUrl ?? ""
+                        sourceSize: Qt.size(512, 512)
+                        fallbackSize: 60
+                        fallbackColor: root.statePalette.off
+                    }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
