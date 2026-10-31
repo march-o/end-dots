@@ -127,7 +127,7 @@ Item {
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 14
+                spacing: 16
                 Rectangle {
                     id: artwork
                     activeFocusOnTab: true
@@ -137,10 +137,10 @@ Item {
                     Keys.onReturnPressed: root.media.openSpotifyWorkspace()
                     Keys.onEnterPressed: root.media.openSpotifyWorkspace()
                     Keys.onSpacePressed: root.media.openSpotifyWorkspace()
-                    Layout.preferredWidth: 220.8
-                    Layout.maximumWidth: 220.8
-                    Layout.minimumWidth: 220.8
-                    Layout.preferredHeight: 220.8
+                    Layout.preferredWidth: 216
+                    Layout.maximumWidth: 216
+                    Layout.minimumWidth: 216
+                    Layout.preferredHeight: 216
                     radius: 16
                     color: "transparent"
                     scale: root.media.activePlayer?.isPlaying ? (root.localPlayback && root.levels.length > 3
@@ -162,22 +162,24 @@ Item {
                         onClicked: root.media.openSpotifyWorkspace()
                     }
                 }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignVCenter
-                    spacing: 3
+                Item {
+                    // One fixed column: rail, percentage and glyph share its axis.
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 216
+                    Layout.alignment: Qt.AlignTop
                     MediaVolumeSlider {
                         id: volumeSlider
-                        Layout.alignment: Qt.AlignHCenter
+                        anchors.top: parent.top
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        height: 176
                         vertical: true
                         available: root.media.canChangeVolume
                         value: root.media.volumeLevel
                         statePalette: root.statePalette
-                        Layout.preferredHeight: 180.8
                         onMoved: volume => root.media.setVolume(volume)
                     }
-                    StyledText { id: volumeText; Layout.alignment: Qt.AlignHCenter; text: root.media.canChangeVolume ? Math.round(root.media.volumeLevel * 100) + "%" : "—"; font.pixelSize: 10; color: root.textColor }
-                    MaterialSymbol { id: volumeGlyph; Layout.alignment: Qt.AlignHCenter; text: "volume_up"; iconSize: 18; color: root.statePalette.off }
+                    StyledText { id: volumeText; anchors.horizontalCenter: parent.horizontalCenter; anchors.alignWhenCentered: false; y: 180; height: 14; verticalAlignment: Text.AlignVCenter; text: root.media.canChangeVolume ? Math.round(root.media.volumeLevel * 100) + "%" : "—"; font.pixelSize: 10; color: root.textColor }
+                    MaterialSymbol { id: volumeGlyph; anchors.horizontalCenter: parent.horizontalCenter; anchors.alignWhenCentered: false; y: 198; height: 18; text: "volume_up"; iconSize: 18; color: root.statePalette.off }
                 }
             }
             StyledText { id: titleText; Layout.fillWidth: true; text: root.media.cleanedTitle; elide: Text.ElideRight; font.pixelSize: 17; font.weight: Font.DemiBold; color: root.textColor }

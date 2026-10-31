@@ -118,6 +118,48 @@ def inject_probe(tree, revision):
             }
         }
         function scale(value: real): void { Config.options.appearance.fontScale = value; }
+        function mediaContext(level: real, expanded: bool): string {
+            let media = null;
+            function walk(item) {
+                if (item.cleanedTitle !== undefined && item.roomPlayback !== undefined) media = item;
+                for (const child of item.children ?? []) walk(child);
+            }
+            for (const window of GlobalFocusGrab.persistent) walk(window.contentItem);
+            if (!media) throw Error("No production media widget");
+            // Deterministic data in the isolated bus/network namespace only. No real player writes.
+            media.roomPlayback = { active: true, available: true, playing: false,
+                title: "In Rainbows", artist: "Radiohead", art: "file:///work/artwork.png",
+                duration: 242, position: 121, volume: level, can_next: true, can_previous: true };
+            media.expanded = expanded;
+            return JSON.stringify({ title: media.cleanedTitle, volume: media.volumeLevel,
+                fontScale: Config.options.appearance.fontScale });
+        }
+        function mediaGeometry(): string {
+            const result = { sliders: [], labels: [] };
+            function bounds(item) {
+                const p = item.mapToItem(null, 0, 0);
+                return { x: p.x, y: p.y, width: item.width, height: item.height };
+            }
+            function walk(item, inMedia) {
+                inMedia = inMedia || item.cleanedTitle !== undefined;
+                if (item.segmentCount === 20 && item.boundedValue !== undefined) {
+                    const entry = { bounds: bounds(item), value: item.boundedValue, available: item.available,
+                        dpr: item.QsWindow.window.devicePixelRatio, pixelAligned: item.hairline !== undefined, marks: [] };
+                    function marks(node) {
+                        if (/^volume(Rib|Indicator)/.test(node.objectName))
+                            entry.marks.push({ name: node.objectName, bounds: bounds(node) });
+                        for (const child of node.children ?? []) marks(child);
+                    }
+                    marks(item);
+                    result.sliders.push(entry);
+                }
+                if (inMedia && (item.text === "volume_up" || /^[0-9]+%$/.test(item.text ?? "")))
+                    result.labels.push({ text: item.text, bounds: bounds(item) });
+                for (const child of item.children ?? []) walk(child, inMedia);
+            }
+            for (const window of GlobalFocusGrab.persistent) walk(window.contentItem);
+            return JSON.stringify(result);
+        }
         function covers(): var {
             const found = [];
             function walk(item) {
@@ -163,6 +205,58 @@ def inject_probe(tree, revision):
     shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/SearchSmoke.qml', tree / 'CiSearchSmoke.qml')
     shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/WorkspaceSmoke.qml', tree / 'CiWorkspaceSmoke.qml')
     shutil.copyfile('/source/sdata/dist-arch/tests/quickshell/MediaTransportSmoke.qml', tree / 'CiMediaTransportSmoke.qml')
+
+
+def capture_media_context(current, artifacts):
+    """Production bar + MediaCard, not a detached slider; never uses the owner's seat."""
+    states = (0, .05, .37, .5, .95, 1)
+    for label, width, height, dpr, font in (
+            ('desktop', 2560, 1440, 1, 1),
+            ('sunshine', 2880, 1800, 1.5, 1),
+            ('laptop-font', 2880, 1800, 1.5, 1.25)):
+        command(['swaymsg', 'output', 'HEADLESS-1', 'mode', f'{width}x{height}', 'scale', str(dpr)])
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', str(font)])
+        # Opening starts a read-only device refresh. Let it finish before the
+        # first state, then reassert the deterministic data after each settle.
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'mediaContext', '.5', 'true'])
+        time.sleep(1)
+        for level in states:
+            command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'mediaContext', str(level), 'true'])
+            time.sleep(.5)
+            command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'mediaContext', str(level), 'true'])
+            time.sleep(.1)
+            stem = f'media-context-{label}-{round(level * 100):03}'
+            command(['grim', '-l', '0', str(artifacts / f'{stem}.png')])
+            geometry = json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'mediaGeometry']).stdout)
+            (artifacts / f'{stem}.json').write_text(json.dumps(geometry, indent=2))
+            if len(geometry['sliders']) != 1 or not any(q['text'] == f'{round(level * 100)}%' for q in geometry['labels']):
+                raise CheckFailure(f'{stem}: production card did not display the requested percentage')
+            for slider in geometry['sliders']:
+                if not slider['available'] or abs(slider['value'] - level) > .000001:
+                    raise CheckFailure(f'{stem}: captured unavailable or stale volume state')
+                if not slider['pixelAligned']:
+                    continue  # Installed comparison may predate the pixel-aligned design.
+                dpr = slider['dpr']
+                centers = []
+                for mark in slider['marks']:
+                    b = mark['bounds']
+                    centers.append(b['x'] + b['width'] / 2)
+                    for edge in (b['x'], b['y'], b['x'] + b['width'], b['y'] + b['height']):
+                        if abs(edge * dpr - round(edge * dpr)) > .001:
+                            raise CheckFailure(f'{stem}: fuzzy device-pixel edge: {mark}')
+                    if mark['name'].startswith('volumeRib') and (b['width'] > 5 or abs(b['height'] * dpr - 1) > .001):
+                        raise CheckFailure(f'{stem}: rib is not short and hairline: {mark}')
+                if len(centers) != 22 or max(centers) - min(centers) > .001:
+                    raise CheckFailure(f'{stem}: marks do not share a rail axis')
+                for label_geometry in geometry['labels']:
+                    b = label_geometry['bounds']
+                    if abs((b['x'] + b['width'] / 2 - centers[0]) * dpr) > .501:
+                        raise CheckFailure(f'{stem}: percentage/speaker axis diverged: {label_geometry}')
+        command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'mediaContext', '.5', 'false'])
+        time.sleep(.5)
+        command(['grim', '-l', '0', str(artifacts / f'media-context-{label}-compact.png')])
+    command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1'])
+    command(['swaymsg', 'output', 'HEADLESS-1', 'scale', '1', 'mode', '1600x1000'])
 
 
 def wait_loaded(process, log, offset, deadline):
@@ -301,6 +395,7 @@ def inside(work):
         if json.loads(reply).get('revision') != 'candidate':
             raise CheckFailure('IPC still belongs to the old generation')
         production_health(current)
+        capture_media_context(current, artifacts)
         # Preserve the logical workspace while exercising real fractional DPR.
         # Font-scale-only tests do not exercise Image/RowLayout decode feedback.
         command(['swaymsg', 'output', 'HEADLESS-1', 'mode', '2400x1500', 'scale', '1.5'])

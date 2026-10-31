@@ -97,10 +97,18 @@ Scope {
                 const ribCenter = rib.mapToItem(slider, rib.width / 2, rib.height / 2);
                 require(close(vertical ? marker.y + marker.height / 2 : marker.x + marker.width / 2,
                     vertical ? ribCenter.y : ribCenter.x), "Marker missed rib " + i);
-                require(vertical ? rib.height === 1 : rib.width === 1, "Rib is not a hairline");
+                require(vertical ? close(rib.height, slider.hairline ?? 1) : close(rib.width, slider.hairline ?? 1), "Rib is not a hairline");
+                if (slider.hairline !== undefined) {
+                    require((vertical ? rib.width : rib.height) <= 5, "Ribs are not substantially shorter");
+                    require(close(vertical ? ribCenter.x : ribCenter.y, slider.crossCenter), "Rib missed rail axis");
+                    const origin = rib.mapToItem(null, 0, 0);
+                    for (const edge of [origin.x, origin.y, origin.x + rib.width, origin.y + rib.height])
+                        require(close(edge * slider.dpr, Math.round(edge * slider.dpr)), "Rib edge is between device pixels");
+                }
             }
             volume.reset();
-            const expected = 8 + (vertical ? slider.height - 16 : slider.width - 16) * (vertical ? .63 : .37);
+            const expected = slider.levelPosition ? slider.levelPosition(.37)
+                : 8 + (vertical ? slider.height - 16 : slider.width - 16) * (vertical ? .63 : .37);
             require(close(vertical ? marker.y + marker.height / 2 : marker.x + marker.width / 2, expected),
                 "External off-grid volume lost accurate position");
         }

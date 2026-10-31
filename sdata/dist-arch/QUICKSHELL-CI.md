@@ -44,6 +44,7 @@ Checks cover:
 - Same native window, fixed application reservation and stable surface size in both bar positions.
 - Local telemetry, Ash offline/data states, and remote sampler shutdown on close.
 - Normal and 1.25 font scale with populated bar captures, plus return to the baseline in the same process.
+- Complete production Spotify card/bar captures at 2560×1440/1× and 2880×1800/1.5× (plus 1.25 font scale), with 0/5/37/50/95/100% fixture volumes. The private session cannot change actual playback. JSON mark bounds check crisp device-pixel edges and the common rail/percentage/speaker axis; screenshots still require visual review.
 - Content-fitted stats panel height and compact offline layout without unused space.
 - Search selection after same-count result reordering, delayed/empty results, keyboard navigation, and the Enter activation target.
 - Telemetry accounting, deployment failure regressions, and setup shell syntax.
