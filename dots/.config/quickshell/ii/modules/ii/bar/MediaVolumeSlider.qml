@@ -30,38 +30,47 @@ Item {
     }
     Item {
         id: track
+        objectName: "volumeTrack"
         anchors.centerIn: parent
-        width: root.vertical ? 16 : root.width - 16
-        height: root.vertical ? root.height - 16 : 12
+        width: root.vertical ? 10 : root.width - 16
+        height: root.vertical ? root.height - 16 : 10
+        // One continuous hairline; ribs mark every selectable level, including both endpoints.
+        Rectangle {
+            anchors.centerIn: parent
+            width: root.vertical ? 1 : parent.width
+            height: root.vertical ? parent.height : 1
+            color: ColorUtils.applyAlpha(root.statePalette.off, 0.38)
+        }
+        Rectangle {
+            x: root.vertical ? (parent.width - width) / 2 : 0
+            y: root.vertical ? parent.height * (1 - root.boundedValue) : (parent.height - height) / 2
+            width: root.vertical ? 1 : parent.width * root.boundedValue
+            height: root.vertical ? parent.height * root.boundedValue : 1
+            color: indicator.color
+        }
         Repeater {
-            model: root.segmentCount
+            model: root.segmentCount + 1
             delegate: Rectangle {
                 required property int index
-                readonly property real pitch: (root.vertical ? track.height : track.width) / root.segmentCount
-                readonly property real fillAmount: Math.max(0, Math.min(1, root.boundedValue * root.segmentCount - index))
-                x: root.vertical ? 0 : index * pitch + 1
-                y: root.vertical ? track.height - (index + 1) * pitch + 1 : 0
-                width: root.vertical ? track.width : Math.max(1, pitch - 2)
-                height: root.vertical ? Math.max(1, pitch - 2) : track.height
-                radius: 1.5
-                color: ColorUtils.applyAlpha(root.statePalette.off, 0.22)
-                // Partial ribs retain accurate feedback for unsnapped external changes.
-                Rectangle {
-                    anchors.bottom: parent.bottom
-                    width: root.vertical ? parent.width : parent.width * parent.fillAmount
-                    height: root.vertical ? parent.height * parent.fillAmount : parent.height
-                    radius: parent.radius
-                    color: root.available ? (volumeMouse.containsMouse ? root.statePalette.onHover : root.statePalette.on) : root.statePalette.off
-                }
+                objectName: "volumeRib" + index
+                readonly property real level: index / root.segmentCount
+                x: root.vertical ? 0 : level * track.width - width / 2
+                y: root.vertical ? (1 - level) * track.height - height / 2 : 0
+                width: root.vertical ? track.width : 1
+                height: root.vertical ? 1 : track.height
+                radius: 0.5
+                color: ColorUtils.applyAlpha(root.statePalette.off, 0.5)
             }
         }
     }
     Rectangle {
+        id: indicator
+        objectName: "volumeIndicator"
         x: root.vertical ? (root.width - width) / 2 : 8 + (root.width - 16) * root.boundedValue - width / 2
         y: root.vertical ? 8 + (root.height - 16) * (1 - root.boundedValue) - height / 2 : (root.height - height) / 2
-        width: root.vertical ? (volumeMouse.pressed ? 22 : 18) : 3
-        height: root.vertical ? 3 : (volumeMouse.pressed ? 22 : 18)
-        radius: 1.5
+        width: root.vertical ? (volumeMouse.pressed ? 20 : 16) : 2
+        height: root.vertical ? 2 : (volumeMouse.pressed ? 20 : 16)
+        radius: 1
         color: root.available ? (volumeMouse.containsMouse ? root.statePalette.onHover : root.statePalette.on) : root.statePalette.off
     }
     MouseArea {

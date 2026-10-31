@@ -72,6 +72,41 @@ Scope {
             MediaVolumeSlider { x: 76; y: 158; available: true; value: 1 }
         }
     }
+    function namedChild(item, name) {
+        if (item.objectName === name) return item;
+        for (const child of item.children ?? []) {
+            const found = namedChild(child, name);
+            if (found) return found;
+        }
+        return null;
+    }
+    function testRibGeometry() {
+        const close = (a, b) => Math.abs(a - b) < .000001;
+        const marker = namedChild(slider, "volumeIndicator");
+        const track = namedChild(slider, "volumeTrack");
+        require(marker && track, "Missing rail or current-level marker");
+        for (const vertical of [true, false]) {
+            slider.vertical = vertical;
+            slider.width = vertical ? 36 : 144;
+            for (let i = 0; i <= 20; i++) {
+                const level = i / 20;
+                slider.update({ x: 8 + (slider.width - 16) * level,
+                    y: 8 + (slider.height - 16) * (1 - level) });
+                const rib = namedChild(track, "volumeRib" + i);
+                require(!!rib, "Missing endpoint/step rib " + i);
+                const ribCenter = rib.mapToItem(slider, rib.width / 2, rib.height / 2);
+                require(close(vertical ? marker.y + marker.height / 2 : marker.x + marker.width / 2,
+                    vertical ? ribCenter.y : ribCenter.x), "Marker missed rib " + i);
+                require(vertical ? rib.height === 1 : rib.width === 1, "Rib is not a hairline");
+            }
+            volume.reset();
+            const expected = 8 + (vertical ? slider.height - 16 : slider.width - 16) * (vertical ? .63 : .37);
+            require(close(vertical ? marker.y + marker.height / 2 : marker.x + marker.width / 2, expected),
+                "External off-grid volume lost accurate position");
+        }
+        slider.vertical = true;
+        slider.width = 36;
+    }
     function testVolume() {
         const close = (a, b) => Math.abs(a - b) < .000001;
         for (let i = 0; i <= 100; i++) {
@@ -134,6 +169,7 @@ Scope {
     }
     Component.onCompleted: {
         try {
+            testRibGeometry();
             testVolume();
             require(!transport.dispatch("next"), "Unconfirmed room used native playback")
             transport.acceptSnapshot(Object.assign({}, connected, { uri: "spotify:track:OTHER" }), 0)
@@ -175,7 +211,7 @@ Scope {
             if (transport.player) root.failure = "Stale cloud confirmation did not expire"
             preview.grabToImage(result => {
                 if (!result.saveToFile("/work/artifacts/" + root.artifactPrefix + "media-volume-ribs.png"))
-                    root.failure = "Could not capture segmented volume preview";
+                    root.failure = "Could not capture ribbed rail volume preview";
                 root.done = true;
             });
         }
