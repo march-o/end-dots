@@ -29,7 +29,7 @@ Item {
         id: transport
         nativePlayer: root.spotifyPlayer
         room: root.roomPlayback
-        enabled: !root.requestedSource
+        enabled: !root.requestedSource && !transportWrite.running && root.pendingControls.length === 0
         onDispatched: { root.connectError = ""; nativeRefresh.restart() }
     }
     Timer { id: nativeRefresh; interval: 600; onTriggered: root.refreshDevices() }
@@ -51,20 +51,46 @@ Item {
         readonly property real position: transport.player?.position ?? Math.min(length, (root.roomPlayback.position ?? 0) + (isPlaying ? Math.max(0, root.positionClock - root.roomUpdatedAt) / 1000 : 0))
     }
     function controlRoom(action, value) {
-        if (transport.dispatch(action, value)) return
-        if (connect.running) {
-            // Keep clicks made during a status poll; coalesce slider updates.
+        if (root.requestedSource) return
+        if (transport.dispatch(action, value)) { Qt.callLater(root.drainControls); return }
+        if (transportWrite.running) {
             let queue = root.pendingControls.slice()
-            if (action === "volume" || action === "seek") queue = queue.filter(c => c.action !== action)
+            if (action === "seek") queue = queue.filter(c => c.action !== action)
             queue.push({ action: action, value: value })
             root.pendingControls = queue
             return
         }
-        root.requestedSource = "Living Room"
+        // Transport has its own lane: a background status request must never
+        // delay a click or turn it into a device-selection error.
+        transport.revision++
         root.connectError = ""
-        connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "room-control", action]
-        if (value !== undefined) connect.command = [...connect.command, String(value)]
-        connect.running = true
+        transportWrite.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "room-control", action]
+        if (value !== undefined) transportWrite.command = [...transportWrite.command, String(value)]
+        transportWrite.running = true
+    }
+    function drainControls() {
+        if (transportWrite.running || !root.pendingControls.length) return
+        const queue = root.pendingControls.slice()
+        const control = queue.shift()
+        root.pendingControls = queue
+        root.controlRoom(control.action, control.value)
+    }
+    function completeTransport(exitCode, reply) {
+        const ok = exitCode === 0 && reply?.ok === true
+        root.connectError = ok ? "" : (reply?.error ?? "Playback command could not be confirmed")
+        nativeRefresh.restart()
+        root.drainControls()
+    }
+    Process {
+        id: transportWrite
+        property var reply: null
+        onStarted: reply = null
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { transportWrite.reply = JSON.parse(text) } catch (e) { transportWrite.reply = null }
+            }
+        }
+        onExited: (exitCode, exitStatus) => Qt.callLater(() => root.completeTransport(exitCode, transportWrite.reply))
     }
     function togglePlayback() {
         if (roomPlayback.active) {
@@ -132,15 +158,18 @@ Item {
     property string connectWarning: ""
     property string requestedSource: ""
     property bool pendingRoomPlay: false
+    property string pendingDeviceSource: ""
+    property bool pendingDevicesRefresh: false
     property var pendingControls: []
-    function refreshDevices() {
+    function refreshDevices(includeDevices = false) {
         if (!connect.running) {
             connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "status"]
+            if (includeDevices) connect.command = [...connect.command, "--devices"]
             connect.running = true
-        }
+        } else if (includeDevices) root.pendingDevicesRefresh = true
     }
     function selectDevice(source) {
-        if (connect.running) return
+        if (connect.running) { root.pendingDeviceSource = source; return }
         root.requestedSource = source
         root.connectError = ""
         connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "select", source]
@@ -153,7 +182,7 @@ Item {
         connect.command = ["python3", Quickshell.shellPath("scripts/media/spotify-connect.py"), "play-room"]
         connect.running = true
     }
-    readonly property bool connectBusy: connect.running
+    readonly property bool connectBusy: !!requestedSource || pendingRoomPlay || !!pendingDeviceSource
     Process {
         id: connect
         property int volumeSnapshot: -1
@@ -165,20 +194,20 @@ Item {
         onRunningChanged: {
             if (!running) Qt.callLater(() => {
                 if (connect.running) return
-                if (root.pendingRoomPlay) { root.pendingRoomPlay = false; root.playInLivingRoom() }
-                else while (root.pendingControls.length && !connect.running) {
-                    const queue = root.pendingControls.slice()
-                    const control = queue.shift()
-                    root.pendingControls = queue
-                    root.controlRoom(control.action, control.value)
-                }
+                if (root.pendingDeviceSource) {
+                    const source = root.pendingDeviceSource
+                    root.pendingDeviceSource = ""
+                    root.selectDevice(source)
+                } else if (root.pendingRoomPlay) { root.pendingRoomPlay = false; root.playInLivingRoom() }
+                else if (root.pendingDevicesRefresh) { root.pendingDevicesRefresh = false; root.refreshDevices(true) }
+
             })
         }
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     const data = JSON.parse(text)
-                    if (data.ok) {
+                    if (data.ok && data.room) {
                         const room = data.room ?? {}
                         if (!transport.acceptSnapshot(room, connect.transportSnapshot)) {
                             nativeRefresh.restart()
@@ -193,12 +222,13 @@ Item {
                         root.roomPlayback = room
                         root.roomUpdatedAt = Date.now(); root.positionClock = root.roomUpdatedAt
                     }
+                    else if (data.ok) { root.connectError = ""; root.requestedSource = ""; nativeRefresh.restart() }
                     else root.connectError = data.error
                 } catch (e) { root.connectError = "Device connection unavailable" }
                 if (root.connectError && root.roomPlayback.active) {
                     transport.invalidate()
-                    root.roomPlayback = Object.assign({}, root.roomPlayback, { playing: false, available: false })
-                    root.pendingControls = []
+                    // Preserve the last observation; a failed read does not mean paused.
+                    root.connectWarning = root.connectError
                 }
                 if (root.connectError && root.requestedSource) card.devicesOpen = true
                 if (root.connectError || root.connectSource === root.requestedSource) root.requestedSource = ""
@@ -303,6 +333,10 @@ Item {
             onClicked: root.nextTrack()
             GlassIcon { text: "skip_next"; iconSize: 21 }
         }
+    }
+    Connections {
+        target: card
+        function onDevicesOpenChanged() { if (card.devicesOpen) root.refreshDevices(true) }
     }
     MediaCard {
         id: card

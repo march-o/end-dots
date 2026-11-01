@@ -1,314 +1,182 @@
 #!/usr/bin/env python3
-"""Spotify Connect through the user's existing Home Assistant on ash.
-
-Credentials stay on ash. Only device names and playback state cross SSH.
-"""
+'''Fast speaker commands and read-only Connect state; credentials stay on Ash.'''
 import json
 import math
 import subprocess
 import sys
 
-# Volume has its own short request, independent of full playback/status polls.
-# It reads the cached address atomically and touches no Spotify credentials.
-VOLUME_REMOTE = r"""
-import json,subprocess
-from pathlib import Path
-params = REQUEST
-try:
-    cache=json.loads((Path.home()/'.cache/quickshell/spotify-connect.json').read_text())
-    ip=cache.get('speaker_ip')
-    if not ip:raise RuntimeError('No known speaker address')
-    probe = r'''import json,sys,soco
-soco.config.REQUEST_TIMEOUT=2
-speaker=soco.SoCo(sys.argv[1])
-speaker.volume=round(float(sys.argv[2])*100)
-print(json.dumps({'ok':True,'volume':speaker.volume/100}))
-'''
-    result=subprocess.run(['docker','exec','-i','homeassistant','python3','-',ip,str(params['value'])],input=probe,text=True,capture_output=True,timeout=6)
-    if result.returncode:raise RuntimeError('Speaker volume request failed')
-    print(json.dumps(json.loads(result.stdout)))
-except Exception:
-    print(json.dumps({'ok':False,'error':'Could not change Living Room volume. Check the speaker and retry.'}))
-"""
-
+VOLUME_REMOTE = "\nimport json,subprocess\nfrom pathlib import Path\nparams = REQUEST\ntry:\n    cache=json.loads((Path.home()/'.cache/quickshell/spotify-connect.json').read_text())\n    ip=cache.get('speaker_ip')\n    if not ip:raise RuntimeError('No known speaker address')\n    probe = r'''import json,sys,soco\nsoco.config.REQUEST_TIMEOUT=2\nspeaker=soco.SoCo(sys.argv[1])\nspeaker.volume=round(float(sys.argv[2])*100)\nprint(json.dumps({'ok':True,'volume':speaker.volume/100}))\n'''\n    result=subprocess.run(['docker','exec','-i','homeassistant','python3','-',ip,str(params['value'])],input=probe,text=True,capture_output=True,timeout=6)\n    if result.returncode:raise RuntimeError('Speaker volume request failed')\n    print(json.dumps(json.loads(result.stdout)))\nexcept Exception:\n    print(json.dumps({'ok':False,'error':'Could not change Living Room volume. Check the speaker and retry.'}))\n\n"
 REMOTE = r"""
-import json,time,urllib.request,urllib.parse,fcntl,subprocess,os
+import json,time,urllib.request,urllib.error,urllib.parse,fcntl,subprocess,os
 from pathlib import Path
-from datetime import datetime,timezone
-params = REQUEST
+params=REQUEST
 deploy=Path.home()/'projects/home-assistant/deploy'
 class DeviceError(Exception):pass
+music=json.loads((deploy/'source/projects/home/mcp/home.json').read_text())['music']
+room_entity=music['player'];room_name=music['device']
+cache_path=Path.home()/'.cache/quickshell/spotify-connect.json'
+cache_path.parent.mkdir(parents=True,exist_ok=True)
+def read_cache():
+    try:return json.loads(cache_path.read_text())
+    except (OSError,ValueError):return {}
+cache=read_cache()
+def save(patch):
+    # Serialize only a short atomic cache merge, never network or Docker work.
+    with cache_path.with_suffix('.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        latest=read_cache();latest.update(patch)
+        temp=cache_path.with_suffix('.tmp');temp.write_text(json.dumps(latest));temp.replace(cache_path)
+    cache.update(patch)
+_token=None
 def home_token():
-    # Use the deployment's reviewed legacy-consumer caller, just like Home's
-    # existing REST consumers. Resolve HA credentials per request, only on ash.
+    global _token
+    if _token:return _token
     try:
         values={}
         for line in (deploy/'secrets/piper-legacy.env').read_text().splitlines():
             if '=' in line and not line.lstrip().startswith('#'):
-                k,v=line.split('=',1)
-                values[k.strip()]=v.strip().strip(chr(34)).strip(chr(39))
+                key,value=line.split('=',1);values[key.strip()]=value.strip().strip(chr(34)).strip(chr(39))
         caller=values['PIPER_LEGACY_TOKEN']
-        if not caller:raise ValueError('Missing caller')
-    except (OSError,KeyError,ValueError):
-        raise DeviceError('Home Assistant credential provider is not configured on ash. Check its deployment.')
-    # The deployment file's URL uses a container-only hostname. This helper
-    # runs on the host, where the same Piper service listens on loopback.
-    req=urllib.request.Request('http://127.0.0.1:4318/v1/call',
-        data=json.dumps({'operation':'secrets.get','args':{'name':'homeassistant.token'}}).encode(),
-        headers={'Authorization':'Bearer '+caller,'Content-Type':'application/json'})
-    try:
-        with urllib.request.urlopen(req,timeout=6) as response:token=json.load(response).get('result',{}).get('value')
-        if not isinstance(token,str) or not token:raise ValueError('Missing token')
-        return token
-    except Exception:
-        raise DeviceError('Home Assistant credential provider is unavailable on ash. Check Piper and its playback access.')
-def call(path,payload=None):
+        req=urllib.request.Request('http://127.0.0.1:4318/v1/call',
+            data=json.dumps({'operation':'secrets.get','args':{'name':'homeassistant.token'}}).encode(),
+            headers={'Authorization':'Bearer '+caller,'Content-Type':'application/json'})
+        with urllib.request.urlopen(req,timeout=3) as response:_token=json.load(response).get('result',{}).get('value')
+        if not isinstance(_token,str) or not _token:raise ValueError('Missing token')
+        return _token
+    except Exception:raise DeviceError('Home playback access is unavailable on Ash.')
+def call(path,payload=None,timeout=5):
     req=urllib.request.Request('http://127.0.0.1:8123/api/'+path,
         data=None if payload is None else json.dumps(payload).encode(),
         headers={'Authorization':'Bearer '+home_token(),'Content-Type':'application/json'})
     try:
-        with urllib.request.urlopen(req,timeout=12) as response:return json.load(response)
+        with urllib.request.urlopen(req,timeout=timeout) as response:return json.load(response)
     except urllib.error.HTTPError as error:
-        raise DeviceError('Home Assistant playback request failed (HTTP '+str(error.code)+'). Check its Spotify/Sonos integration and Piper access.')
-    except (urllib.error.URLError,TimeoutError):
-        raise DeviceError('Home Assistant is unavailable on ash. Check its deployment and retry.')
-entity='media_player.spotify_martinjs'
-room_entity='media_player.living_room'
-room_name='Living Room'
-cache_path=Path.home()/'.cache/quickshell/spotify-connect.json'
-cache_path.parent.mkdir(parents=True,exist_ok=True)
-lock=cache_path.with_suffix('.lock').open('a')
-fcntl.flock(lock,fcntl.LOCK_EX)
-try:cache=json.loads(cache_path.read_text())
-except (OSError,ValueError):cache={}
-def save():
-    temp=cache_path.with_suffix('.tmp')
-    temp.write_text(json.dumps(cache));temp.replace(cache_path)
-def state():return call('states/'+entity)
-def room():
-    # HA's Sonos metadata can lag behind acknowledged transport commands.
-    # Read the device itself; never present cached HA metadata as live playback.
-    probe = r'''import json,sys,soco
-from datetime import datetime,timezone
-ip=sys.argv[1]
-speaker=soco.SoCo(ip) if ip else next((s for s in soco.discover(timeout=2) or [] if s.player_name=='Living Room'),None)
-if speaker is None:raise RuntimeError('Speaker unavailable')
-address=speaker.ip_address
-volume=speaker.volume/100
-speaker=speaker.group.coordinator
-transport=speaker.get_current_transport_info()['current_transport_state']
-t=speaker.get_current_track_info()
-def seconds(value):
-    try:
-        parts=[int(p) for p in value.split(':')]
-        return sum(v*60**i for i,v in enumerate(reversed(parts)))
-    except (ValueError,AttributeError):return 0
-print(json.dumps({'ip':address,'state':{'PLAYING':'playing','PAUSED_PLAYBACK':'paused','STOPPED':'idle','TRANSITIONING':'buffering'}.get(transport,'idle'),
-'attributes':{'media_title':t.get('title',''),'media_artist':t.get('artist',''),'media_content_id':t.get('uri',''),
-'media_duration':seconds(t.get('duration')),'media_position':seconds(t.get('position')),
-'media_position_updated_at':datetime.now(timezone.utc).isoformat(),'volume_level':volume,
-'transport_actions':speaker.available_actions,
-'source':'Spotify Connect' if t.get('uri','').startswith('x-sonos-vli:') else '', 'album_art':t.get('album_art','')}}))
-'''
-    try:
-        result=subprocess.run(['docker','exec','-i','homeassistant','python3','-',cache.get('speaker_ip','')],input=probe,text=True,capture_output=True,timeout=8)
-        if result.returncode:raise RuntimeError('Speaker probe failed')
-        actual=json.loads(result.stdout);cache['speaker_ip']=actual.pop('ip')
-        return actual
-    except Exception:
-        cache.pop('speaker_ip',None)
-        raise DeviceError('Cannot read Living Room playback. Check its power and network, then retry.')
-def service(name,target=room_entity,**data):
-    return call('services/media_player/'+name,dict(entity_id=target,**data))
-def uri_from(content):
-    content=urllib.parse.unquote(content or '')
-    import re
-    match=re.search(r'spotify:(track|album|playlist):[A-Za-z0-9]+',content)
-    return match.group(0) if match else ''
-def remember(s):
-    uri=uri_from(s['attributes'].get('media_content_id'))
-    if uri:cache['last_uri']=uri
-def wait_room():
-    deadline=time.monotonic()+12
-    while True:
-        r=room()
-        if r['state']=='playing':return r
-        if time.monotonic()>=deadline:raise DeviceError('Living Room did not start playing. Check the speaker and retry.')
-        time.sleep(.5)
-def spotify_get(path):
-    # Reuse HA's authorization on ash; no token or client secret crosses SSH.
-    import base64
-    base=deploy/'state/homeassistant/.storage'
-    try:entry=next(e for e in json.loads((base/'core.config_entries').read_text())['data']['entries'] if e['domain']=='spotify')
-    except (OSError,ValueError,KeyError,StopIteration):
-        raise DeviceError('Home Assistant Spotify authorization is unavailable on ash. Check its integration and deployment.')
-    token=entry['data']['token']
-    if token.get('expires_at',0)<time.time()+30:
-        app=next(a for a in json.loads((base/'application_credentials').read_text())['data']['items'] if a['domain']=='spotify' and a['id']==entry['data']['auth_implementation'])
-        req=urllib.request.Request('https://accounts.spotify.com/api/token',data=urllib.parse.urlencode({'grant_type':'refresh_token','refresh_token':token['refresh_token']}).encode(),headers={'Authorization':'Basic '+base64.b64encode((app['client_id']+':'+app['client_secret']).encode()).decode(),'Content-Type':'application/x-www-form-urlencoded'})
-        with urllib.request.urlopen(req,timeout=6) as response:token=json.load(response)
-    req=urllib.request.Request('https://api.spotify.com/v1/'+path,headers={'Authorization':'Bearer '+token['access_token']})
-    with urllib.request.urlopen(req,timeout=6) as response:
-        body=response.read()
-        return json.loads(body) if body else None
-def remember_art(track):
-    if not track:return
-    images=(track.get('album') or {}).get('images',[])
-    if images and urllib.parse.urlparse(images[0]['url']).hostname=='i.scdn.co':
-        cache.setdefault('art',{})[track['uri']]=images[0]['url']
-        cache['art']=dict(list(cache['art'].items())[-60:])
-def is_room_playback(playback):
-    return bool(playback and playback.get('device',{}).get('name')==room_name)
-def desktop_token():
-    path=Path.home()/'.local/state/quickshell/spotify-desktop-auth.json'
-    if not path.exists():raise DeviceError('Living Room needs one-time Spotify Connect authorization. Complete the sign-in, then retry.')
-    token=json.loads(path.read_text())
-    if token.get('expires_at',0)<time.time()+60:
-        body=urllib.parse.urlencode({'grant_type':'refresh_token','client_id':'65b708073fc0480ea92a077233ca87bd','refresh_token':token['refresh_token']}).encode()
-        req=urllib.request.Request('https://accounts.spotify.com/api/token',data=body,headers={'Content-Type':'application/x-www-form-urlencoded'})
-        try:
-            with urllib.request.urlopen(req,timeout=8) as response:fresh=json.load(response)
-        except Exception:raise DeviceError('Spotify Connect authorization expired. Complete the sign-in again.')
-        fresh.setdefault('refresh_token',token['refresh_token']);fresh['expires_at']=time.time()+fresh['expires_in']
-        temp=path.with_suffix('.tmp')
-        fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
-        with os.fdopen(fd,'w') as file:json.dump(fresh,file)
-        temp.chmod(0o600);temp.replace(path);token=fresh
-    return token['access_token']
-def activate_connect():
-    token=desktop_token()
-    ip=cache.get('speaker_ip')
-    if not ip:room();ip=cache['speaker_ip']
-    url='http://'+ip+':1400/spotifyzc'
-    with urllib.request.urlopen(url+'?action=getInfo',timeout=4) as response:info=json.load(response)
-    if info.get('remoteName')!=room_name or info.get('tokenType')!='authorization_code':
-        raise DeviceError('Living Room does not expose the expected Spotify Connect endpoint.')
-    # This documented OAuth token exchange activates Sonos Connect itself.
-    # It does not replace the Sonos local queue or extract app/browser secrets.
-    fields={'grant_type':'urn:ietf:params:oauth:grant-type:token-exchange','subject_token':token,
-        'subject_token_type':'urn:ietf:params:oauth:token-type:access_token','requested_token_type':'urn:spotify:params:oauth:authorization_code',
-        'client_id':'65b708073fc0480ea92a077233ca87bd','audience':info['clientID'],
-        'resource':'urn:spotify:resources:connect','scope':'streaming'}
-    req=urllib.request.Request('https://accounts.spotify.com/api/token',data=urllib.parse.urlencode(fields).encode(),headers={'Content-Type':'application/x-www-form-urlencoded'})
-    with urllib.request.urlopen(req,timeout=8) as response:activation=json.load(response)
-    user=spotify_get('me')['id']
-    fields={'action':'addUser','version':info.get('version','2.9.0'),'tokenType':'authorization_code',
-        'clientKey':'','loginId':user,'userName':user,'blob':activation['access_token'],
-        'deviceName':'Quickshell','deviceId':__import__('hashlib').sha1(('quickshell-'+user).encode()).hexdigest()}
-    req=urllib.request.Request(url,data=urllib.parse.urlencode(fields).encode(),headers={'Content-Type':'application/x-www-form-urlencoded'})
-    with urllib.request.urlopen(req,timeout=8) as response:reply=json.load(response)
-    if reply.get('status')!=101:raise DeviceError('Living Room refused Spotify Connect activation. Retry authorization.')
-    cache['connect_device_id']=info['deviceID']
+        raise DeviceError('Home playback request failed (HTTP '+str(error.code)+').')
+    except (urllib.error.URLError,TimeoutError):raise DeviceError('Home playback request timed out; it was not retried.')
+def control(action,value=None):
+    # Transport commands never wait for metadata, discovery, a cloud read,
+    # or the status cache lock. No skip/seek/recovery is retried automatically.
+    if action=='play':return play_room(resume=True)
+    names={'pause':'media_pause','next':'media_next_track','previous':'media_previous_track','seek':'media_seek'}
+    data={'entity_id':room_entity}
+    if action=='seek':data['seek_position']=max(0,float(value))
+    call('services/media_player/'+names[action],data)
+    return {'ok':True,'accepted':True}
 def play_room(resume=False):
-    r=room()
-    # Existing true Connect sessions can resume without a new authorization.
-    # Never silently fall back to a local Sonos queue: Spotify cannot see it.
-    playback=spotify_get('me/player')
-    if r['attributes'].get('source')!='Spotify Connect' or not is_room_playback(playback):activate_connect()
-    service('media_play')
-    r=wait_room()
-    deadline=time.monotonic()+12
-    while True:
-        playback=spotify_get('me/player')
-        if is_room_playback(playback) and playback.get('is_playing'):
-            remember_art(playback.get('item'));cache['room_mode']=True;remember(r);save();return
-        if time.monotonic()>=deadline:raise DeviceError('The speaker started, but Spotify did not confirm the Connect session. No local-queue fallback was used.')
-        time.sleep(.5)
+    operation='resume' if resume else 'transfer'
+    response=call('services/home_music/'+operation+'?return_response',{'player':room_entity},timeout=30).get('service_response',{})
+    if response.get('verified') is not True:raise DeviceError(response.get('reason') or 'Playback is not confirmed; no retry was sent.')
+    save({'room_mode':True})
+    return {'ok':True,'accepted':True,'verified':True}
 def select(source):
     if source==room_name:return play_room()
-    call('services/media_player/select_source',{'entity_id':entity,'source':source})
-    cache['room_mode']=False;save()
-    call('services/homeassistant/update_entity',{'entity_id':entity})
-def room_control():
-    action=params['control']
-    if action=='play':return play_room(resume=True)
-    names={'pause':'media_pause','next':'media_next_track','previous':'media_previous_track','volume':'volume_set','seek':'media_seek'}
-    extra={}
-    if action=='volume':extra['volume_level']=max(0,min(1,float(params['value'])))
-    if action=='seek':extra['seek_position']=max(0,float(params['value']))
-    r=room()
-    # Advancing an orphaned Sonos queue keeps Spotify blind to playback.
-    # Reconnect before transport actions; pause must still stop that queue.
-    if action in ['next','previous','seek']:
-        if r['attributes'].get('source')!='Spotify Connect' or not is_room_playback(spotify_get('me/player')):
-            play_room(resume=True)
-            r=room()
-    was_playing=r['state']=='playing'
-    service(names[action],**extra)
-    if was_playing and action in ['next','previous','seek']:wait_room()
-    else:time.sleep(.5)
-def output():
-    s=state();remember(s);a=s['attributes']
-    active=bool(cache.get('room_mode'))
-    try:r=room()
-    except DeviceError:
-        if active:raise
-        r={'state':'unavailable','attributes':{}}
-    ra=r['attributes']
-    connected=False if ra.get('source')!='Spotify Connect' else None
-    if active and ra.get('source')=='Spotify Connect':
-        try:
-            playback=spotify_get('me/player')
-            connected=is_room_playback(playback)
-            if connected and playback.get('item'):
-                track=playback['item'];remember_art(track)
-                ra.update(media_title=track['name'],media_artist=', '.join(a['name'] for a in track.get('artists',[])),
-                    media_content_id=track['uri'],media_duration=track['duration_ms']/1000,
-                    media_position=(playback.get('progress_ms') or 0)/1000,
-                    media_position_updated_at=datetime.now(timezone.utc).isoformat())
-        except Exception:pass # Direct speaker state still works during an API outage.
-    if active:remember(r)
-    position=ra.get('media_position',0) or 0
-    if r['state']=='playing' and ra.get('media_position_updated_at'):
-        try:position+=max(0,(datetime.now(timezone.utc)-datetime.fromisoformat(ra['media_position_updated_at'])).total_seconds())
-        except (ValueError,TypeError):pass
-    duration=ra.get('media_duration',0) or 0
-    uri=uri_from(ra.get('media_content_id'))
-    if active and uri and not cache.get('art',{}).get(uri) and cache.get('art_checked')!=uri:
-        cache['art_checked']=uri
-        try:remember_art(spotify_get('tracks/'+uri.split(':')[-1]))
-        except Exception:pass
-    save()
-    return {'ok':True,'source':(room_name if connected is not False else '') if active else (a.get('source') or ''),
-        'warning':'Living Room is outside Spotify Connect. Select it to reconnect.' if active and connected is False else '',
-        'devices':list(dict.fromkeys([room_name]+([a['source']] if a.get('source') else [])+a.get('source_list',[]))),
-        'state':r['state'] if active else s['state'],
-        'room':{'active':active,'connected':connected,'playing':r['state']=='playing','available':r['state'] not in ['unknown','unavailable'],
-            'title':ra.get('media_title',''),'artist':ra.get('media_artist',''),'uri':uri,
-            'art':cache.get('art',{}).get(uri,'') or ra.get('album_art',''),
-            'can_next':'Next' in ra.get('transport_actions',[]),'can_previous':'Previous' in ra.get('transport_actions',[]),'can_seek':'SeekTime' in ra.get('transport_actions',[]),
-            'volume':ra.get('volume_level',0),'duration':duration,'position':min(position,duration) if duration else position}}
+    # Other available Spotify devices use the same modern SpotifyPlus owner.
+    # There is no widget-specific OAuth refresh or private token cache.
+    call('services/spotifyplus/player_transfer_playback',{
+        'entity_id':music['account_entity'],'device_id':source,'play':True},timeout=30)
+    save({'room_mode':False})
+    return {'ok':True,'accepted':True}
+def room():
+    probe=r'''import json,sys,soco,xml.etree.ElementTree as ET,urllib.parse
+soco.config.REQUEST_TIMEOUT=2
+s=soco.SoCo(sys.argv[1]) if sys.argv[1] else next((p for p in soco.discover(timeout=2) or [] if p.player_name==sys.argv[2]),None)
+if s is None:raise RuntimeError('Speaker unavailable')
+ip=s.ip_address;volume=s.volume/100;s=s.group.coordinator
+transport=s.get_current_transport_info()['current_transport_state'];t=s.get_current_track_info()
+def seconds(value):
+    try:return sum(int(v)*60**i for i,v in enumerate(reversed(value.split(':'))))
+    except (ValueError,AttributeError):return 0
+uri=''
 try:
-    if params['action']=='select':select(params['source'])
-    elif params['action']=='play-room':play_room()
-    elif params['action']=='room-control':room_control()
-    print(json.dumps(output()))
+ for node in ET.fromstring(t.get('metadata','')).iter():
+  value=urllib.parse.unquote(node.text or '')
+  if node.tag.rsplit('}',1)[-1]=='res' and value.startswith('x-sonos-spotify:'):
+   uri=value.removeprefix('x-sonos-spotify:').split('?',1)[0];break
+except ET.ParseError:pass
+print(json.dumps({'ip':ip,'state':{'PLAYING':'playing','PAUSED_PLAYBACK':'paused','STOPPED':'idle','TRANSITIONING':'buffering'}.get(transport,'idle'),
+ 'title':t.get('title',''),'artist':t.get('artist',''),'uri':uri,'duration':seconds(t.get('duration')),
+ 'position':seconds(t.get('position')),'volume':volume,'actions':s.available_actions,
+ 'source':'Spotify Connect' if t.get('uri','').startswith('x-sonos-vli:') and ',spotify:' in t.get('uri','') else '',
+ 'art':t.get('album_art','')}))
+'''
+    result=subprocess.run(['docker','exec','-i','homeassistant','python3','-',cache.get('speaker_ip',''),room_name],input=probe,text=True,capture_output=True,timeout=8)
+    if result.returncode:
+        save({'speaker_ip':''})
+        raise DeviceError('Cannot read Living Room playback. Check the speaker connection.')
+    actual=json.loads(result.stdout);save({'speaker_ip':actual.pop('ip')});return actual
+
+def devices(force=False):
+    names=cache.get('devices',[room_name])
+    if force or time.time()-cache.get('devices_at',0)>60:
+        try:
+            result=call('services/spotifyplus/get_player_devices?return_response',{'entity_id':music['account_entity']}).get('service_response',{}).get('result',[])
+            names=list(dict.fromkeys([room_name]+[d['name'] for d in result if d.get('name') and d['name']!=music.get('preparation_device')]))
+            save({'devices':names,'devices_at':time.time()})
+        except DeviceError:pass
+    return names
+
+def output():
+    # Speaker reads and canonical cloud confirmation are read-only. A cloud
+    # outage is unknown confirmation, never evidence that playback stopped.
+    r=room();warning='';connected=None;sp={}
+    try:
+        response=call('services/home_music/status?return_response',{}).get('service_response',{})
+        if response.get('playback'):
+            playback=response['playback'];sp=playback['spotify'];native=playback['sonos']
+            connected=bool(sp.get('device')==room_name and native.get('source')=='Spotify Connect'
+                and sp.get('track_uri') and sp.get('track_uri')==native.get('track_uri'))
+        else:warning=response.get('reason') or 'Spotify confirmation is unavailable.'
+    except DeviceError as error:warning=str(error)
+    source=sp.get('device') or ''
+    active=connected is True or (bool(cache.get('room_mode')) and bool(r.get('uri')) and (not source or source==room_name))
+    if connected is True:save({'room_mode':True})
+    elif source and source!=room_name:save({'room_mode':False})
+    if connected is False and active:warning='Living Room is outside Spotify Connect. Select it to reconnect.'
+    position=(sp.get('progress_ms') or 0)/1000 if connected is True else r.get('position',0)
+    result={'active':active,'connected':connected,'available':r['state'] not in ['unknown','unavailable'],
+        'playing':r['state']=='playing','title':sp.get('title') if connected is True else r['title'],
+        'artist':r['artist'],'uri':sp.get('track_uri') if connected is True else r['uri'],
+        'art':r['art'],'volume':r['volume'],'duration':r['duration'],
+        'position':min(position,r['duration']) if r['duration'] else position,
+        'can_next':'Next' in r['actions'],'can_previous':'Previous' in r['actions'],'can_seek':'SeekTime' in r['actions']}
+    return {'ok':True,'source':source,'devices':devices(params.get('devices',False)),'warning':warning,'room':result,'state':r['state']}
+
+try:
+    action=params['action']
+    if action=='status':result=output()
+    elif action=='room-control':result=control(params['control'],params.get('value'))
+    elif action=='play-room':result=play_room()
+    else:result=select(params['source'])
+    print(json.dumps(result))
 except DeviceError as error:print(json.dumps({'ok':False,'error':str(error)}))
-except Exception:print(json.dumps({'ok':False,'error':'Home Assistant could not complete speaker playback. Check its Spotify/Sonos connection and retry.'}))
+except Exception:print(json.dumps({'ok':False,'error':'Home could not complete this request. No automatic retry was sent.'}))
 """
 
 def main():
     action=sys.argv[1] if len(sys.argv)>1 else 'status'
     if action not in ['status','select','play-room','room-control','room-volume']:raise ValueError('Invalid action')
     request={'action':action}
-    if action=='room-volume':
-        value=float(sys.argv[2])
-        if not math.isfinite(value):raise ValueError('Invalid volume')
-        request['value']=max(0,min(1,value))
+    if action=='status':request['devices']='--devices' in sys.argv[2:]
     if action=='select':
         request['source']=sys.argv[2]
         if not request['source'] or len(request['source'])>200:raise ValueError('Invalid device')
     if action=='room-control':
         request['control']=sys.argv[2]
-        if request['control'] not in ['play','pause','next','previous','volume','seek']:raise ValueError('Invalid control')
-        if request['control'] in ['volume','seek']:request['value']=float(sys.argv[3])
+        if request['control'] not in ['play','pause','next','previous','seek']:raise ValueError('Invalid control')
+        if request['control']=='seek':
+            value=float(sys.argv[3])
+            if not math.isfinite(value):raise ValueError('Invalid seek position')
+            request['value']=max(0,value)
+    if action=='room-volume':
+        value=float(sys.argv[2])
+        if not math.isfinite(value):raise ValueError('Invalid volume')
+        request['value']=max(0,min(1,value))
     code=(VOLUME_REMOTE if action=='room-volume' else REMOTE).replace('REQUEST',repr(request),1)
-    timeout=10 if action=='room-volume' else (20 if action=='status' else 90)
+    timeout=10 if action=='room-volume' else (18 if action=='status' else (35 if action in ['play-room','select'] or request.get('control')=='play' else 10))
     result=subprocess.run(['ssh','-o','BatchMode=yes','-o','ConnectTimeout=3','ash','python3','-'],input=code,text=True,capture_output=True,timeout=timeout)
-    if result.returncode:raise RuntimeError('Spotify connection unavailable')
-    data=json.loads(result.stdout)
-    print(json.dumps(data))
+    if result.returncode:raise RuntimeError('Home connection unavailable')
+    print(json.dumps(json.loads(result.stdout)))
 
 if __name__=='__main__':
     try:main()
-    except Exception:print(json.dumps({'ok':False,'error':'Could not reach Spotify on ash. Retry when connected.'}))
+    except Exception:print(json.dumps({'ok':False,'error':'Could not reach Home on Ash. This command was not retried.'}))
