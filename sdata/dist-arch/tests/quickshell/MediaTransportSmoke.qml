@@ -80,7 +80,7 @@ Scope {
         }
         return null;
     }
-    function testRibGeometry() {
+    function testSliderGeometry() {
         const close = (a, b) => Math.abs(a - b) < .000001;
         const marker = namedChild(slider, "volumeIndicator");
         const track = namedChild(slider, "volumeTrack");
@@ -92,6 +92,8 @@ Scope {
                 const level = i / 20;
                 slider.update({ x: 8 + (slider.width - 16) * level,
                     y: 8 + (slider.height - 16) * (1 - level) });
+                if (slider.hairline !== undefined) {
+                    // The recorded baseline still has ribs; validate it independently.
                 const rib = namedChild(track, "volumeRib" + i);
                 require(!!rib, "Missing endpoint/step rib " + i);
                 const ribCenter = rib.mapToItem(slider, rib.width / 2, rib.height / 2);
@@ -104,6 +106,17 @@ Scope {
                     const origin = rib.mapToItem(null, 0, 0);
                     for (const edge of [origin.x, origin.y, origin.x + rib.width, origin.y + rib.height])
                         require(close(edge * slider.dpr, Math.round(edge * slider.dpr)), "Rib edge is between device pixels");
+                }
+                } else {
+                    require(!namedChild(track, "volumeRib" + i), "Historical slider contains ribs");
+                    require(close(vertical ? track.width : track.height, 5) && close(track.radius, 2.5),
+                        "Historical rounded 5px rail changed");
+                    require(close(vertical ? marker.width : marker.height, 18)
+                        && close(vertical ? marker.height : marker.width, 3) && close(marker.radius, 1.5),
+                        "Historical current-level marker changed");
+                    const expected = 8 + (vertical ? slider.height - 16 : slider.width - 16) * (vertical ? 1 - level : level);
+                    require(close(vertical ? marker.y + marker.height / 2 : marker.x + marker.width / 2, expected),
+                        "Marker does not reflect requested step");
                 }
             }
             volume.reset();
@@ -132,19 +145,19 @@ Scope {
         require(volume.value === 0, "Wheel exceeded lower bound");
         for (let i = 1; i <= 20; i++) {
             slider.step(1);
-            require(close(volume.value, i / 20), "Wheel up skipped/repeated a rib");
+            require(close(volume.value, i / 20), "Wheel up skipped/repeated a step");
         }
         for (let i = 19; i >= 0; i--) {
             slider.step(-1);
-            require(close(volume.value, i / 20), "Wheel down skipped/repeated a rib");
+            require(close(volume.value, i / 20), "Wheel down skipped/repeated a step");
         }
         volume.reset();
         require(close(volume.value, .37), "External volume feedback was quantized");
         slider.step(1);
-        require(close(volume.value, .4), "Off-grid wheel up did not reach next rib");
+        require(close(volume.value, .4), "Off-grid wheel up did not reach next step");
         volume.reset();
         slider.step(-1);
-        require(close(volume.value, .35), "Off-grid wheel down did not reach next rib");
+        require(close(volume.value, .35), "Off-grid wheel down did not reach next step");
         slider.step(0);
         require(close(volume.value, .35), "Zero wheel delta changed volume");
         slider.available = false;
@@ -177,7 +190,7 @@ Scope {
     }
     Component.onCompleted: {
         try {
-            testRibGeometry();
+            testSliderGeometry();
             testVolume();
             require(!transport.dispatch("next"), "Unconfirmed room used native playback")
             transport.acceptSnapshot(Object.assign({}, connected, { uri: "spotify:track:OTHER" }), 0)
@@ -218,8 +231,8 @@ Scope {
         onTriggered: {
             if (transport.player) root.failure = "Stale cloud confirmation did not expire"
             preview.grabToImage(result => {
-                if (!result.saveToFile("/work/artifacts/" + root.artifactPrefix + "media-volume-ribs.png"))
-                    root.failure = "Could not capture ribbed rail volume preview";
+                if (!result.saveToFile("/work/artifacts/" + root.artifactPrefix + "media-volume-slider.png"))
+                    root.failure = "Could not capture volume slider preview";
                 root.done = true;
             });
         }

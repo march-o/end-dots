@@ -8,12 +8,10 @@ Develop directly in `/home/martins/.config/dotfiles` using `workflow.start_in_pr
 
 ## Spotify widget
 
-Hover the song title to expand the media card. Its volume control uses a thin
-straight rail with short, device-pixel-aligned cross-ribs and a current-level
-marker. The rail, percentage and speaker glyph share a centered column beside
-the artwork. Click or drag to snap
-in 5% steps; scrolling moves to the next step. External volume changes remain
-accurate, including levels between ribs. Playback controls are unchanged.
+Hover the song title to expand the media card. Its volume control uses a
+rounded rail with a wide current-level marker, restoring the pre-ribs design.
+Click or drag to snap in 5% steps; scrolling moves to the next step. External
+volume changes remain accurate, including levels between steps. Playback controls are unchanged.
 
 For Quickshell changes, run `sdata/dist-arch/bin/quickshell-ci`, inspect its
 captures, and commit the tested source. After independent review, apply with
