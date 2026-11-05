@@ -43,6 +43,28 @@ cp -n .env.example .env
 The command requires `.env` with a valid `LAPTOP` setting. An explicit
 environment value takes precedence, but `.env` must still exist.
 
+## Codex remote control
+
+`setup-martins.sh` enables the managed Codex daemon's persistent remote-control
+preference and installs a user service to start it at boot. User lingering keeps
+it available after logout while the machine is awake and online. Codex must be
+installed at `~/.local/bin/codex` and signed in with ChatGPT.
+
+Apply only this configuration, without running the full desktop setup:
+
+```sh
+bash sdata/dist-arch/install-codex-remote-control.sh
+systemctl --user status codex-remote-control.service
+```
+
+The service uses `codex remote-control start --json`; a bare
+`codex remote-control --json` runs a separate foreground server. Remote-control
+preferences live in Codex's managed daemon settings, not the retired
+`features.remote_control` config flag. Pair a new controlling device with
+`codex remote-control pair` when needed. Stopping the startup service leaves
+active chats running; use `codex app-server daemon disable-remote-control` to
+turn off remote access.
+
 ## Workspace alignment
 
 Super+Space closes gaps between occupied numbered workspaces across all monitors:

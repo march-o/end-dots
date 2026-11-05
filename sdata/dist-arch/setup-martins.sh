@@ -295,6 +295,7 @@ configure_codex() {
   else
     install -m600 "$repo_root/sdata/dist-arch/config/codex.toml" "$config"
   fi
+  bash "$repo_root/sdata/dist-arch/install-codex-remote-control.sh"
 }
 
 install_zram() {
