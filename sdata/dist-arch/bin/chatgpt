@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# The desktop app, terminal clients, and phone must use the same thread owner.
+# The app's opt-in daemon flag falls back to a private server when it supplies
+# plugin overrides, so select its supported WebSocket transport explicitly.
+"$HOME/.local/bin/codex" app-server daemon start >/dev/null
+export CODEX_APP_SERVER_WS_URL="ws+unix://localhost${CODEX_HOME:-$HOME/.codex}/app-server-control/app-server-control.sock:/rpc"
+unset CODEX_APP_SERVER_FORCE_CLI
+exec /usr/bin/chatgpt "$@"

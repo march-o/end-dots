@@ -50,6 +50,13 @@ preference and installs a user service to start it at boot. User lingering keeps
 it available after logout while the machine is awake and online. Codex must be
 installed at `~/.local/bin/codex` and signed in with ChatGPT.
 
+The installed `~/.local/bin/chatgpt` launcher connects the desktop app to that
+same daemon over its private Unix WebSocket. The application-menu launcher uses
+this wrapper too, preserving the laptop's scale setting. Restart an already
+running desktop app once after applying this configuration. A separate desktop
+app server can claim the remote relay while terminal tasks remain locked in the
+daemon, making the phone report that another Codex session is using the task.
+
 Apply only this configuration, without running the full desktop setup:
 
 ```sh

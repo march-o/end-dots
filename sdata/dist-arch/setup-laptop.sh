@@ -39,6 +39,7 @@ chatgpt_launcher="${XDG_DATA_HOME:-$HOME/.local/share}/applications/chatgpt.desk
 install -Dm644 "$repo_root/sdata/dist-arch/config/chatgpt.desktop.in" \
   "$chatgpt_launcher"
 sed -i "s/@LAPTOP_UI_SCALE@/$laptop_ui_scale/" "$chatgpt_launcher"
+sed -i "s|@CHATGPT_LAUNCHER@|$HOME/.local/bin/chatgpt|" "$chatgpt_launcher"
 
 # Read by custom/general.lua so the Latvian Right Alt layer survives logins.
 install -Dm644 "$repo_root/sdata/dist-arch/config/laptop-keyboard" \
