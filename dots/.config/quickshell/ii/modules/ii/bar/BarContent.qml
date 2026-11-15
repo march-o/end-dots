@@ -19,6 +19,7 @@ Item { // Bar content region
                                       ? 1 : 0
 
     property alias clockIsland: barLeftSideMouseArea
+    property alias lightingIsland: lightingGroup
     property alias systemIsland: leftCenterGroup.glassFrame
     readonly property bool statsPresented: statsWidget.presented
     readonly property bool statsKeyboardMode: statsWidget.keyboardMode && statsWidget.expanded
@@ -84,7 +85,8 @@ Item { // Bar content region
         glassTint: ColorUtils.mix(GlassColors.monitorSurface, BarGlassPalette.glassTint, statsWidget.expansionProgress)
         anchors.verticalCenter: parent.verticalCenter
         x: Math.max(8, Math.min(root.width - width - 8,
-            (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width) / 2))
+            (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width
+                - (lightingGroup.width + BarGeometry.spacing * 2) * (1 - statsWidget.expansionProgress)) / 2))
 
         Item {
             implicitWidth: statsWidget.compactWidth * (1 - statsWidget.expansionProgress)
@@ -99,6 +101,18 @@ Item { // Bar content region
             alwaysShowAllResources: root.useShortenedForm === 2
             onExpandedChanged: if (expanded) mediaWidget.closeCard()
         }
+    }
+
+    BarGroup {
+        id: lightingGroup
+        glass: true
+        padding: BarGeometry.groupPadding
+        anchors.verticalCenter: parent.verticalCenter
+        x: leftCenterGroup.x + leftCenterGroup.width + BarGeometry.spacing * 2
+        opacity: 1 - statsWidget.expansionProgress
+        visible: opacity > 0
+        enabled: !statsWidget.presented
+        LightingPresets { Layout.alignment: Qt.AlignVCenter }
     }
 
     BarGroup {

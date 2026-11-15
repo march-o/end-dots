@@ -65,6 +65,7 @@ Scope {
                     id: barInputMask
                     Region { item: barContent.clockIsland }
                     Region { item: barContent.systemIsland }
+                    Region { item: barContent.lightingIsland.visible ? barContent.lightingIsland : null }
                     Region { item: barContent.mediaIsland.visible ? barContent.mediaIsland : null }
                     Region { item: barContent.workspaceIsland }
                     Region { item: barContent.statusIsland }

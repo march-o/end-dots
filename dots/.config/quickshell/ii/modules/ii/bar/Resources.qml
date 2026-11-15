@@ -14,7 +14,7 @@ MouseArea {
     property bool keyboardMode: false
     property real expansionProgress: expanded ? 1 : 0
     readonly property bool presented: morphEnabled && (expanded || expansionProgress > 0)
-    readonly property real compactWidth: 284 * Math.max(1, Config.options.appearance.fontScale)
+    readonly property real compactWidth: 148 * Math.max(1, Config.options.appearance.fontScale)
     readonly property real expandedWidth: Math.min(610 * Math.max(1, Config.options.appearance.fontScale),
         (root.QsWindow.window?.screen?.width ?? 800) - 16)
     readonly property real maximumExpandedHeight: Math.max(Appearance.sizes.baseBarHeight,
@@ -139,10 +139,10 @@ MouseArea {
                     }
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: modelData.mirrored ? 8 : 14
-                        anchors.rightMargin: modelData.mirrored ? 14 : 8
+                        anchors.leftMargin: modelData.mirrored ? 5 : 6
+                        anchors.rightMargin: modelData.mirrored ? 6 : 5
                         layoutDirection: modelData.mirrored ? Qt.RightToLeft : Qt.LeftToRight
-                        spacing: 7
+                        spacing: 4
                         MaterialSymbol { text: modelData.icon; iconSize: 20; color: GlassColors.foreground }
                         StyledText {
                             text: SystemStats.percent(modelData.value)

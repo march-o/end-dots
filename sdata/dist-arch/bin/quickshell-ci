@@ -197,6 +197,41 @@ def inject_probe(tree, revision):
         function reload(): void { Quickshell.reload(false); }
     }
 '''.replace('REVISION', json.dumps(revision))
+    if revision == 'candidate':
+        hook += """
+    property QtObject ciLightingController: QtObject {
+        property var presets: ["__off__", "unwind", "chill", "building", "cooking", "morning"]
+        property bool busy: false
+        property string lastError: ""
+        property string lastRequested: ""
+        property var calls: []
+        function select(name) { calls = calls.concat([name]); }
+        function refresh() {}
+    }
+    property IpcHandler ciLightingProbe: IpcHandler {
+        target: "lightingCi"
+        function setup(): void {
+            function walk(item) {
+                if (item.objectName === "homeLighting") item.controller = ciLightingController;
+                for (const child of item.children ?? []) walk(child);
+            }
+            for (const window of GlobalFocusGrab.persistent) walk(window.contentItem);
+        }
+        function state(): string {
+            const buttons = [];
+            function walk(item) {
+                if (item.objectName.startsWith("lightingPreset-")) {
+                    const p = item.mapToItem(null, 0, 0);
+                    buttons.push({ name: item.objectName, x: p.x, y: p.y, width: item.width,
+                        height: item.height, hovered: item.hovered, color: String(item.iconColor) });
+                }
+                for (const child of item.children ?? []) walk(child);
+            }
+            for (const window of GlobalFocusGrab.persistent) walk(window.contentItem);
+            return JSON.stringify({buttons: buttons, calls: ciLightingController.calls});
+        }
+    }
+"""
     index = text.rfind('}')
     if index < 0:
         raise CheckFailure('shell.qml has no root closing brace')
@@ -323,6 +358,35 @@ def exercise(current, log, baseline, profile):
     if extra:
         raise CheckFailure('New diagnostics exercising stats:\n' + '\n'.join(extra))
 
+
+def exercise_lighting(current, artifacts):
+    """Production bar and actual input on the private compositor, never host input."""
+    command(['qs', '-p', str(current), 'ipc', 'call', 'lightingCi', 'setup'])
+    time.sleep(.5)
+    def state():
+        return json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'lightingCi', 'state']).stdout)
+    data = state()
+    buttons = data['buttons']
+    if len(buttons) != 6:
+        raise CheckFailure('Not all lighting presets rendered: ' + repr(data))
+    command(['grim', '-l', '0', str(artifacts / 'lighting-idle.png')])
+    for button in buttons:
+        if button['width'] < 30 or button['height'] < 30:
+            raise CheckFailure('Lighting target too small: ' + repr(button))
+        command(['swaymsg', 'seat', 'seat0', 'cursor', 'set', str(int(button['x'] + button['width']/2)), str(int(button['y'] + button['height']/2))])
+        time.sleep(.25)
+        hovered = next(b for b in state()['buttons'] if b['name'] == button['name'])
+        if not hovered['hovered'] or hovered['color'] == button['color']:
+            raise CheckFailure('Lighting icon did not light up on hover: ' + repr(hovered))
+        command(['swaymsg', 'seat', 'seat0', 'cursor', 'press', 'button1'])
+        command(['swaymsg', 'seat', 'seat0', 'cursor', 'release', 'button1'])
+        time.sleep(.1)
+    if state()['calls'] != [b['name'].removeprefix('lightingPreset-') for b in buttons]:
+        raise CheckFailure('Lighting clicks did not dispatch each discovered preset once: ' + repr(state()))
+    command(['grim', '-l', '0', str(artifacts / 'lighting-hover.png')])
+    command(['swaymsg', 'seat', 'seat0', 'cursor', 'set', '800', '900'])
+    time.sleep(.5)
+
 def inside(work):
     """This runs only inside bubblewrap, with no host display or host bus."""
     work = Path(work)
@@ -395,6 +459,7 @@ def inside(work):
         if json.loads(reply).get('revision') != 'candidate':
             raise CheckFailure('IPC still belongs to the old generation')
         production_health(current)
+        exercise_lighting(current, artifacts)
         capture_media_context(current, artifacts)
         # Preserve the logical workspace while exercising real fractional DPR.
         # Font-scale-only tests do not exercise Image/RowLayout decode feedback.

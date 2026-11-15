@@ -186,6 +186,9 @@ configure_quickshell_shell() {
       modules/ii/bar/Resource.qml \
       scripts/system-stats.py \
       services/SystemStats.qml \
+      services/HomeLighting.qml \
+      modules/ii/bar/LightingPresets.qml \
+      scripts/home-lighting.py \
       modules/ii/bar/SystemStatsContent.qml \
       modules/ii/bar/ResourcesPopup.qml \
       modules/ii/bar/Resources.qml \
