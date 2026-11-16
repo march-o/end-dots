@@ -105,7 +105,12 @@ ButtonMouseArea {
                     // Theme icons are tiny; resolve them on the GUI thread.
                     asynchronous: false
                     cache: false
-                    source: workspace.biggestWindow ? Quickshell.iconPath(AppSearch.guessIcon(workspace.biggestWindow.class)) : ""
+                    // FreeCAD can be installed after the shell starts. Its reverse-domain
+                    // icon stays absent in Qt's process-wide theme cache across reloads.
+                    source: !workspace.biggestWindow ? ""
+                        : workspace.biggestWindow.class.toLowerCase() === "org.freecad.freecad"
+                            ? "file:///usr/share/icons/hicolor/scalable/apps/org.freecad.FreeCAD.svg"
+                            : Quickshell.iconPath(AppSearch.guessIcon(workspace.biggestWindow.class))
                     visible: workspace.showingApp && !Config.options.bar.workspaces.monochromeIcons
                 }
                 Colorizer {
