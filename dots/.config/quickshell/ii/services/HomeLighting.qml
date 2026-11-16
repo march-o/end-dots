@@ -7,13 +7,14 @@ Singleton {
     id: root
     property var presets: []
     property string lastError: ""
-    property string lastRequested: ""
+    property string selectedPreset: ""
+    property string pendingPreset: ""
     readonly property bool busy: command.running
     function refresh() { if (!discovery.running && !busy) discovery.running = true; }
     function select(preset) {
         if (busy || !presets.includes(preset)) return;
         lastError = "";
-        lastRequested = "";
+        pendingPreset = preset;
         command.exec(["python3", Quickshell.shellPath("scripts/home-lighting.py"), "select", preset]);
     }
     Process {
@@ -27,7 +28,7 @@ Singleton {
                     if (!data.ok || !Array.isArray(data.presets)) throw Error();
                     root.presets = ["__off__"].concat(data.presets);
                     if (!command.running) root.lastError = "";
-                } catch (e) { root.lastError = "Cannot discover Home lighting presets. Click to refresh."; }
+                } catch (e) { root.lastError = "Home lighting unavailable. Click to reconnect."; }
             }
         }
     }
@@ -39,9 +40,9 @@ Singleton {
                     const data = JSON.parse(text);
                     if (!data.ok) throw Error(data.error);
                     // Acknowledged dispatch is not an observed active scene.
-                    root.lastRequested = "Command accepted; physical state not verified";
+                    root.selectedPreset = root.pendingPreset;
                 } catch (e) {
-                    root.lastError = "Lighting command unconfirmed. No automatic retry.";
+                    root.lastError = "Could not confirm the lighting change.";
                     Quickshell.execDetached(["notify-send", "Home lighting", root.lastError]);
                 }
             }

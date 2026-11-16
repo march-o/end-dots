@@ -20,6 +20,11 @@ Item { // Bar content region
 
     property alias clockIsland: barLeftSideMouseArea
     property alias lightingIsland: lightingGroup
+    property alias lightingPopup: lightingWidget.panelItem
+    readonly property bool lightingPresented: lightingWidget.presented
+    readonly property real leftGap: Math.max(BarGeometry.spacing * 2,
+        (middleCenterGroup.x - barLeftSideMouseArea.x - barLeftSideMouseArea.width
+            - statsWidget.compactWidth - lightingGroup.width) / 3)
     property alias systemIsland: leftCenterGroup.glassFrame
     readonly property bool statsPresented: statsWidget.presented
     readonly property bool statsKeyboardMode: statsWidget.keyboardMode && statsWidget.expanded
@@ -85,8 +90,9 @@ Item { // Bar content region
         glassTint: ColorUtils.mix(GlassColors.monitorSurface, BarGlassPalette.glassTint, statsWidget.expansionProgress)
         anchors.verticalCenter: parent.verticalCenter
         x: Math.max(8, Math.min(root.width - width - 8,
-            (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width
-                - (lightingGroup.width + BarGeometry.spacing * 2) * (1 - statsWidget.expansionProgress)) / 2))
+            (barLeftSideMouseArea.x + barLeftSideMouseArea.width + root.leftGap) * (1 - statsWidget.expansionProgress)
+                + (barLeftSideMouseArea.x + barLeftSideMouseArea.width + middleCenterGroup.x - width)
+                    / 2 * statsWidget.expansionProgress))
 
         Item {
             implicitWidth: statsWidget.compactWidth * (1 - statsWidget.expansionProgress)
@@ -99,20 +105,25 @@ Item { // Bar content region
             anchors.fill: parent
             morphEnabled: true
             alwaysShowAllResources: root.useShortenedForm === 2
-            onExpandedChanged: if (expanded) mediaWidget.closeCard()
+            onExpandedChanged: if (expanded) { mediaWidget.closeCard(); lightingWidget.dismiss(); }
         }
     }
 
     BarGroup {
         id: lightingGroup
         glass: true
-        padding: BarGeometry.groupPadding
+        padding: 0
+        z: lightingWidget.presented ? 4 : 0
         anchors.verticalCenter: parent.verticalCenter
-        x: leftCenterGroup.x + leftCenterGroup.width + BarGeometry.spacing * 2
+        x: barLeftSideMouseArea.x + barLeftSideMouseArea.width + statsWidget.compactWidth + root.leftGap * 2
         opacity: 1 - statsWidget.expansionProgress
         visible: opacity > 0
         enabled: !statsWidget.presented
-        LightingPresets { Layout.alignment: Qt.AlignVCenter }
+        LightingPresets {
+            id: lightingWidget
+            Layout.alignment: Qt.AlignVCenter
+            onExpandedChanged: if (expanded) { statsWidget.dismiss(); mediaWidget.closeCard(); }
+        }
     }
 
     BarGroup {

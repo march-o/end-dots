@@ -14,6 +14,7 @@ Scope {
     property var savedMonitors: []
     property var savedWorkspaces: ({})
     property string savedFocus: ""
+    property var savedWindows: []
     function walk(item, name, result) {
         if (item.objectName === name) result.push(item);
         for (const child of item.children ?? []) walk(child, name, result);
@@ -35,6 +36,7 @@ Scope {
         for (let id = 1; id <= 11; id++)
             workspaces[id] = { id: id, monitor: id === 5 && paired ? remote.name : local.name };
         HyprlandData.workspaceById = workspaces;
+        HyprlandData.windowList = [{ class: "org.freecad.FreeCAD", workspace: { id: 11 }, size: [1000, 800] }];
     }
     function verify(paired, label) {
         const cells = [];
@@ -43,6 +45,11 @@ Scope {
         const filled = cells.filter(cell => cell.backgroundTint.a > 0).map(cell => cell.wsId).sort((a,b) => a-b);
         root.require(JSON.stringify(filled) === JSON.stringify(paired ? [5,11] : [11]),
             label + " filled inactive workspaces: " + JSON.stringify(filled));
+        const freecad = cells.find(cell => cell.wsId === 11);
+        const icons = [];
+        walk(freecad, "workspaceAppIcon", icons);
+        root.require(freecad.showingApp && icons.length === 1, "FreeCAD window missing from workspace");
+        if (root.step > 0) root.require(icons[0].status === Image.Ready, "FreeCAD artwork did not load: " + JSON.stringify({ source: String(icons[0].source), status: icons[0].status, window: freecad.biggestWindow, wsId: freecad.wsId, width: icons[0].width, monochrome: Config.options.bar.workspaces.monochromeIcons }));
         root.strip.grabToImage(result => result.saveToFile("/work/artifacts/workspaces-" + label + ".png"));
     }
     Timer {
@@ -55,6 +62,7 @@ Scope {
                 root.savedMonitors = HyprlandData.monitors;
                 root.savedWorkspaces = HyprlandData.workspaceById;
                 root.savedFocus = HyprlandData.focusedMonitorName;
+                root.savedWindows = HyprlandData.windowList;
                 const strips = [];
                 for (const window of GlobalFocusGrab.persistent) root.walk(window.contentItem, "workspaceStrip", strips);
                 root.require(strips.length > 0, "No production workspace strip");
@@ -70,6 +78,7 @@ Scope {
         }
     }
     Component.onDestruction: {
+        HyprlandData.windowList = root.savedWindows;
         HyprlandData.monitors = root.savedMonitors;
         HyprlandData.workspaceById = root.savedWorkspaces;
         HyprlandData.focusedMonitorName = root.savedFocus;

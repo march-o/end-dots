@@ -51,7 +51,7 @@ Scope {
                     }
                 }
                 property bool superShow: false
-                property bool mustShow: hoverRegion.containsMouse || superShow || barContent.statsPresented
+                property bool mustShow: hoverRegion.containsMouse || superShow || barContent.statsPresented || barContent.lightingPresented
                 exclusionMode: ExclusionMode.Ignore
                 exclusiveZone: (Config?.options.bar.autoHide.enable && (!mustShow || !Config?.options.bar.autoHide.pushWindows)) ? 0 :
                     Appearance.sizes.baseBarHeight + (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0)
@@ -66,6 +66,7 @@ Scope {
                     Region { item: barContent.clockIsland }
                     Region { item: barContent.systemIsland }
                     Region { item: barContent.lightingIsland.visible ? barContent.lightingIsland : null }
+                    Region { item: barContent.lightingPopup.visible ? barContent.lightingPopup : null }
                     Region { item: barContent.mediaIsland.visible ? barContent.mediaIsland : null }
                     Region { item: barContent.workspaceIsland }
                     Region { item: barContent.statusIsland }

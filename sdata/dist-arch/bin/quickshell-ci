@@ -203,13 +203,15 @@ def inject_probe(tree, revision):
         property var presets: ["__off__", "unwind", "chill", "building", "cooking", "morning"]
         property bool busy: false
         property string lastError: ""
-        property string lastRequested: ""
+        property string selectedPreset: "chill"
+        property string pendingPreset: ""
         property var calls: []
-        function select(name) { calls = calls.concat([name]); }
+        function select(name) { calls = calls.concat([name]); selectedPreset = name; }
         function refresh() {}
     }
     property IpcHandler ciLightingProbe: IpcHandler {
         target: "lightingCi"
+        function position(bottom: bool): void { Config.options.bar.bottom = bottom; }
         function setup(): void {
             function walk(item) {
                 if (item.objectName === "homeLighting") item.controller = ciLightingController;
@@ -219,16 +221,35 @@ def inject_probe(tree, revision):
         }
         function state(): string {
             const buttons = [];
+            let lighting = null;
+            let gaps = [];
+            function point(item) {
+                const p = item.mapToItem(null, 0, 0);
+                const window = item.QsWindow.window;
+                return { x: p.x, y: p.y + (Config.options.bar.bottom ? window.screen.height - window.height : 0) };
+            }
             function walk(item) {
+                if (item.clockIsland && item.systemIsland && item.lightingIsland && item.workspaceIsland) {
+                    const islands = [item.clockIsland, item.systemIsland, item.lightingIsland, item.workspaceIsland];
+                    gaps = islands.slice(1).map((next, i) => point(next).x - point(islands[i]).x - islands[i].width);
+                }
+                if (item.objectName === "homeLighting") {
+                    const p = point(item);
+                    lighting = { x: p.x, y: p.y, width: item.width, height: item.height,
+                        expanded: item.expanded, progress: item.expansionProgress, status: item.statusText,
+                        sameWindow: item.panelItem.QsWindow.window === item.QsWindow.window,
+                        focusGrabs: GlobalFocusGrab.dismissable.length,
+                        nativeHeight: item.QsWindow.window.height, zone: item.QsWindow.window.exclusiveZone };
+                }
                 if (item.objectName.startsWith("lightingPreset-")) {
-                    const p = item.mapToItem(null, 0, 0);
+                    const p = point(item);
                     buttons.push({ name: item.objectName, x: p.x, y: p.y, width: item.width,
-                        height: item.height, hovered: item.hovered, color: String(item.iconColor) });
+                        height: item.height, hovered: item.hovered, enabled: item.enabled, toggled: item.toggled, color: String(item.iconColor) });
                 }
                 for (const child of item.children ?? []) walk(child);
             }
             for (const window of GlobalFocusGrab.persistent) walk(window.contentItem);
-            return JSON.stringify({buttons: buttons, calls: ciLightingController.calls});
+            return JSON.stringify({lighting: lighting, gaps: gaps, buttons: buttons, calls: ciLightingController.calls});
         }
     }
 """
@@ -359,33 +380,62 @@ def exercise(current, log, baseline, profile):
         raise CheckFailure('New diagnostics exercising stats:\n' + '\n'.join(extra))
 
 
-def exercise_lighting(current, artifacts):
+def exercise_lighting(current, artifacts, label='normal'):
     """Production bar and actual input on the private compositor, never host input."""
     command(['qs', '-p', str(current), 'ipc', 'call', 'lightingCi', 'setup'])
+    command(['swaymsg', 'seat', 'seat0', 'cursor', 'set', '800', '900'])
     time.sleep(.5)
     def state():
         return json.loads(command(['qs', '-p', str(current), 'ipc', 'call', 'lightingCi', 'state']).stdout)
+    start_calls = len(state()['calls'])
+    def move(x, y):
+        command(['swaymsg', 'seat', 'seat0', 'cursor', 'set', str(round(x)), str(round(y))])
     data = state()
+    face = data['lighting']
+    if len(data['gaps']) != 3 or max(data['gaps']) - min(data['gaps']) > 1:
+        raise CheckFailure('Resource and Home islands are not evenly spaced: ' + repr(data['gaps']))
+    if face['expanded'] or face['width'] > 150 or any(b['enabled'] for b in data['buttons']):
+        raise CheckFailure('Lighting presets must be hidden behind a compact status: ' + repr(data))
+    command(['grim', '-l', '0', str(artifacts / f'lighting-{label}-idle.png')])
+    move(face['x'] + face['width']/2, face['y'] + face['height']/2)
+    time.sleep(.7)
+    data = state()
+    if not data['lighting']['expanded'] or data['lighting']['progress'] < .99:
+        raise CheckFailure('Lighting did not expand on real hover: ' + repr(data))
+    expanded = data['lighting']
+    if not expanded['sameWindow'] or any(expanded[k] != face[k] for k in ('focusGrabs', 'nativeHeight', 'zone')):
+        raise CheckFailure('Passive lighting hover changed native ownership, focus, or reservation')
     buttons = data['buttons']
-    if len(buttons) != 6:
-        raise CheckFailure('Not all lighting presets rendered: ' + repr(data))
-    command(['grim', '-l', '0', str(artifacts / 'lighting-idle.png')])
+    if len(buttons) != 6 or sum(b['toggled'] for b in buttons) != 1:
+        raise CheckFailure('Lighting pill must show six choices and one selection: ' + repr(data))
+    command(['grim', '-l', '0', str(artifacts / f'lighting-{label}-hover.png')])
     for button in buttons:
         if button['width'] < 30 or button['height'] < 30:
             raise CheckFailure('Lighting target too small: ' + repr(button))
-        command(['swaymsg', 'seat', 'seat0', 'cursor', 'set', str(int(button['x'] + button['width']/2)), str(int(button['y'] + button['height']/2))])
-        time.sleep(.25)
+        move(button['x'] + button['width']/2, button['y'] + button['height']/2)
+        time.sleep(.2)
         hovered = next(b for b in state()['buttons'] if b['name'] == button['name'])
-        if not hovered['hovered'] or hovered['color'] == button['color']:
-            raise CheckFailure('Lighting icon did not light up on hover: ' + repr(hovered))
+        if not hovered['hovered']:
+            raise CheckFailure('Cannot travel into lighting selector: ' + repr(hovered))
         command(['swaymsg', 'seat', 'seat0', 'cursor', 'press', 'button1'])
         command(['swaymsg', 'seat', 'seat0', 'cursor', 'release', 'button1'])
         time.sleep(.1)
-    if state()['calls'] != [b['name'].removeprefix('lightingPreset-') for b in buttons]:
+        selected = [b['name'] for b in state()['buttons'] if b['toggled']]
+        if selected != [button['name']]:
+            raise CheckFailure('Lighting selection is not exclusive: ' + repr(state()))
+    if state()['calls'][start_calls:] != [b['name'].removeprefix('lightingPreset-') for b in buttons]:
         raise CheckFailure('Lighting clicks did not dispatch each discovered preset once: ' + repr(state()))
-    command(['grim', '-l', '0', str(artifacts / 'lighting-hover.png')])
-    command(['swaymsg', 'seat', 'seat0', 'cursor', 'set', '800', '900'])
-    time.sleep(.5)
+    move(800, 900)
+    time.sleep(.8)
+    if state()['lighting']['progress'] > 0 or any(b['enabled'] for b in state()['buttons']):
+        raise CheckFailure('Lighting selector retained hidden input after exit')
+    face = state()['lighting']
+    move(face['x'] + face['width']/2, face['y'] + face['height']/2)
+    time.sleep(.7)
+    if not state()['lighting']['expanded']:
+        raise CheckFailure('Lighting selector did not reopen')
+    move(800, 900)
+    time.sleep(.8)
 
 def inside(work):
     """This runs only inside bubblewrap, with no host display or host bus."""
@@ -460,6 +510,11 @@ def inside(work):
             raise CheckFailure('IPC still belongs to the old generation')
         production_health(current)
         exercise_lighting(current, artifacts)
+        command(['qs', '-p', str(current), 'ipc', 'call', 'lightingCi', 'position', 'true'])
+        time.sleep(.5)
+        exercise_lighting(current, artifacts, 'bottom')
+        command(['qs', '-p', str(current), 'ipc', 'call', 'lightingCi', 'position', 'false'])
+        time.sleep(.5)
         capture_media_context(current, artifacts)
         # Preserve the logical workspace while exercising real fractional DPR.
         # Font-scale-only tests do not exercise Image/RowLayout decode feedback.
@@ -491,10 +546,14 @@ def inside(work):
         shutil.copyfile(artifacts / 'bar-candidate.png', artifacts / 'bar-candidate-normal.png')
         command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1.25'])
         time.sleep(1)
+        exercise_lighting(current, artifacts, 'scaled')
         exercise(current, log, baseline, 'scaled')
         capture_bar(current, artifacts)
         shutil.copyfile(artifacts / 'bar-candidate.png', artifacts / 'bar-candidate-scaled.png')
         command(['qs', '-p', str(current), 'ipc', 'call', 'localCi', 'scale', '1'])
+        extra = set(diagnostic_lines(log.read_bytes()[offset:].decode(errors='replace'))) - set(baseline)
+        if extra:
+            raise CheckFailure('New diagnostics after widget interaction:\n' + '\n'.join(sorted(extra)))
         # Prove that this candidate can return to the known-good source in-process.
         sync(work / 'baseline', current)
         inject_probe(current, 'rollback')
@@ -524,7 +583,7 @@ def inside(work):
         capture_bar(current, artifacts)
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-cold.png')])
-        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'baselineReloadDiagnostics': baseline_reload, 'checks': ['full-shell-baseline', 'baseline-notification-reload', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'stats-hover-reopen', 'search-query-selection', 'search-delayed-results', 'search-enter-target', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
+        (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'baselineReloadDiagnostics': baseline_reload, 'checks': ['full-shell-baseline', 'baseline-notification-reload', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'lighting-hover-selection-reopen', 'lighting-bottom-and-font-scale', 'equal-left-island-gaps', 'freecad-workspace-artwork', 'stats-hover-reopen', 'search-query-selection', 'search-delayed-results', 'search-enter-target', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
         print('Full shell: baseline, hot reload, cold start and Wayland render passed', flush=True)
     except BaseException:
         try:

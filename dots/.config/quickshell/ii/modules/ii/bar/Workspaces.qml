@@ -94,12 +94,18 @@ ButtonMouseArea {
                     visible: workspace.active || workspace.visibleOnMonitor
                 }
 
-                AppIcon {
+                Image {
                     id: appIcon
+                    objectName: "workspaceAppIcon"
                     anchors.centerIn: parent
-                    implicitSize: NumberUtils.roundToEven(root.workspaceIconSize)
-                    source: Quickshell.iconPath(AppSearch.guessIcon(workspace.biggestWindow?.class), "image-missing")
-                    animated: false
+                    width: NumberUtils.roundToEven(root.workspaceIconSize)
+                    height: width
+                    sourceSize: Qt.size(64, 64)
+                    fillMode: Image.PreserveAspectFit
+                    // Theme icons are tiny; resolve them on the GUI thread.
+                    asynchronous: false
+                    cache: false
+                    source: workspace.biggestWindow ? Quickshell.iconPath(AppSearch.guessIcon(workspace.biggestWindow.class)) : ""
                     visible: workspace.showingApp && !Config.options.bar.workspaces.monochromeIcons
                 }
                 Colorizer {

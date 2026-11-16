@@ -2,6 +2,7 @@ import QtQuick
 
 CircleUtilButton {
     id: root
+    property color selectionTint: "transparent"
     property var statePalette: BarGlassPalette.islandButtonColors(BarGlassPalette.glassTint)
     property color iconColor: toggled
         ? (hovered ? statePalette.onHover : statePalette.on)
@@ -21,8 +22,8 @@ CircleUtilButton {
     implicitHeight: BarGeometry.buttonSize
     colBackground: "transparent"
     colBackgroundHover: "transparent"
-    colBackgroundToggled: "transparent"
-    colBackgroundToggledHover: "transparent"
+    colBackgroundToggled: selectionTint
+    colBackgroundToggledHover: selectionTint
     rippleEnabled: false
     Behavior on iconColor { ColorAnimation { duration: 120 } }
 }
