@@ -45,6 +45,7 @@ install_user_config() {
   install -Dm755 "$repo_root/sdata/dist-arch/bin/ash-desktop-state" "$HOME/.local/bin/ash-desktop-state"
   ln -sfn "$repo_root/sdata/dist-arch/bin/quickshell-ci" "$HOME/.local/bin/quickshell-ci"
   ln -sfn "$repo_root/sdata/dist-arch/bin/quickshell-apply" "$HOME/.local/bin/quickshell-apply"
+  install -Dm755 "$repo_root/sdata/dist-arch/bin/quickshell-supervise" "$HOME/.local/bin/quickshell-supervise"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/execs.lua" "$HOME/.config/hypr/custom/execs.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/general.lua" "$HOME/.config/hypr/custom/general.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/custom/keybinds.lua" "$HOME/.config/hypr/custom/keybinds.lua"
@@ -53,6 +54,7 @@ install_user_config() {
   install -Dm644 "$repo_root/dots/.config/hypr/custom/glass.lua" "$HOME/.config/hypr/custom/glass.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/hyprland/variables.lua" "$HOME/.config/hypr/hyprland/variables.lua"
   install -Dm644 "$repo_root/dots/.config/hypr/hyprland/env.lua" "$HOME/.config/hypr/hyprland/env.lua"
+  install -Dm644 "$repo_root/dots/.config/hypr/hyprland/execs.lua" "$HOME/.config/hypr/hyprland/execs.lua"
   if [[ "${LAPTOP:-0}" == "0" ]]; then
     install -Dm644 "$repo_root/sdata/dist-arch/config/hypridle-pc.conf" "$HOME/.config/hypr/hypridle.conf"
   else

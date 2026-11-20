@@ -118,6 +118,10 @@ def inject_probe(tree, revision):
             }
         }
         function scale(value: real): void { Config.options.appearance.fontScale = value; }
+        function passwordlessLock(): void {
+            Config.options.lock.useHyprlock = false;
+            Config.options.lock.security.passwordless = true;
+        }
         function mediaContext(level: real, expanded: bool): string {
             let media = null;
             function walk(item) {
@@ -444,11 +448,15 @@ def inside(work):
     artifacts.mkdir(exist_ok=True)
     runtime = Path('/tmp/qci')
     runtime.mkdir(mode=0o700)
+    lock_state = runtime / 'hypr/quickshell-ci/quickshell-lock-state'
+    lock_state.parent.mkdir(parents=True)
+    lock_state.write_text('pending')
     os.environ.update(XDG_RUNTIME_DIR=str(runtime), WLR_BACKENDS='headless',
                       WLR_HEADLESS_OUTPUTS='1', WLR_LIBINPUT_NO_DEVICES='1',
                       WLR_RENDERER='gles2', WLR_RENDERER_ALLOW_SOFTWARE='1',
                       QS_NO_RELOAD_POPUP='1', QT_QPA_PLATFORM='wayland',
-                      XDG_CURRENT_DESKTOP='Hyprland', XDG_SESSION_TYPE='wayland')
+                      XDG_CURRENT_DESKTOP='Hyprland', XDG_SESSION_TYPE='wayland',
+                      HYPRLAND_INSTANCE_SIGNATURE='quickshell-ci')
     (work / 'sway.conf').write_text('output * mode 1600x1000\nxwayland disable\nswaybg_command -\n')
     sway_log = (artifacts / 'compositor.log').open('w')
     compositor = subprocess.Popen(['sway', '--unsupported-gpu', '-c', str(work / 'sway.conf')], stdout=sway_log, stderr=subprocess.STDOUT)
@@ -583,6 +591,13 @@ def inside(work):
         capture_bar(current, artifacts)
         production_health(current)
         command(['grim', '-l', '0', str(artifacts / 'candidate-cold.png')])
+        ipc = ['qs', '-p', str(current), 'ipc', 'call']
+        command(ipc + ['localCi', 'passwordlessLock'])
+        for action, expected in [('activate', 'locked'), ('activate', 'locked'), ('deactivate', 'unlocked')]:
+            command(ipc + ['lock', action])
+            active = command(ipc + ['lock', 'isActive']).stdout.strip()
+            if lock_state.read_text() != expected or active != str(expected == 'locked').lower():
+                raise CheckFailure(f'Lock state did not match the recovery marker after {action}')
         (artifacts / 'checks.json').write_text(json.dumps({'passed': True, 'baselineDiagnostics': baseline, 'baselineReloadDiagnostics': baseline_reload, 'checks': ['full-shell-baseline', 'baseline-notification-reload', 'full-shell-hot-reload', 'full-shell-cold-start', 'fresh-generation-IPC', 'production-health-IPC', 'Wayland-render', 'lighting-hover-selection-reopen', 'lighting-bottom-and-font-scale', 'equal-left-island-gaps', 'freecad-workspace-artwork', 'stats-hover-reopen', 'search-query-selection', 'search-delayed-results', 'search-enter-target', 'same-surface-stats-morph', 'fixed-exclusive-zone', 'input-mask-travel', 'animation-reversal', 'bottom-bar-morph', 'Ash-offline-and-data', 'passive-focus', 'remote-sampler-stop', 'font-scale-1.25', 'native-bar-geometry-and-pixels', 'in-process-rollback']}, indent=2))
         print('Full shell: baseline, hot reload, cold start and Wayland render passed', flush=True)
     except BaseException:

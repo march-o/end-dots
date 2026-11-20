@@ -15,10 +15,47 @@ Scope {
     required property Component lockSurface
     property alias context: lockContext
     property bool screenOffRequested: false
+    readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR")
+    readonly property string compositor: Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")
+    property bool recoveryEnabled: false
+    property bool lockStateSaved: false
+
+    FileView {
+        id: recoveryState
+        path: root.runtimeDir && root.compositor ? root.runtimeDir + "/hypr/" + root.compositor + "/quickshell-lock-state" : ""
+        blockLoading: true
+        blockWrites: true
+        printErrors: false
+        onSaved: root.lockStateSaved = true
+    }
+
+    Component.onCompleted: {
+        const state = recoveryState.path ? recoveryState.text() : "";
+        root.recoveryEnabled = !!state;
+        if (state === "pending")
+            recoveryState.setText("unlocked");
+    }
+
+    function requestLock(): bool {
+        if (root.recoveryEnabled) {
+            root.lockStateSaved = recoveryState.text() === "locked";
+            if (!root.lockStateSaved)
+                recoveryState.setText("locked");
+            if (!root.lockStateSaved) {
+                // Fall back to the independent locker if recovery cannot track this lock.
+                Quickshell.execDetached(["hyprlock"]);
+                return false;
+            }
+        }
+        GlobalStates.screenLocked = true;
+        return true;
+    }
 
     function finishUnlock() {
         if (!GlobalStates.screenLocked) return;
         GlobalStates.screenLocked = false;
+        if (root.recoveryEnabled)
+            recoveryState.setText("unlocked");
         // Run once per successful unlock, after releasing the lock surfaces.
         Quickshell.execDetached([FileUtils.trimFileProtocol(`${Directories.home}/.local/bin/wallpaper-next`), "--random"]);
     }
@@ -36,8 +73,8 @@ Scope {
 
     function lockAndTurnOffScreen() {
         // Use this shell's lock page, then the same DPMS action as its screen-off button.
+        if (!root.requestLock()) return;
         root.screenOffRequested = true;
-        GlobalStates.screenLocked = true;
         root.turnOffScreenWhenReady();
     }
 
@@ -173,7 +210,7 @@ Scope {
             Quickshell.execDetached(["bash", "-c", "pidof hyprlock || hyprlock"]);
             return;
         }
-        GlobalStates.screenLocked = true;
+        root.requestLock();
     }
 
     IpcHandler {

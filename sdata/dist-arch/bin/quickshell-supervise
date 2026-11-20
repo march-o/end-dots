@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Run from Hyprland so the shell inherits the local desktop session.
+set -uo pipefail
+umask 077
+
+config=${1:-ii}
+session_dir=${XDG_RUNTIME_DIR:?}/hypr/${HYPRLAND_INSTANCE_SIGNATURE:?}
+[[ -S "$session_dir/.socket.sock" ]] || exit 1
+exec 9>"$session_dir/quickshell-supervise.lock"
+flock -n 9 || exit 0
+
+lock_state="$session_dir/quickshell-lock-state"
+[[ -e "$lock_state" ]] || printf pending > "$lock_state" || exit 1
+
+deploy_dir="$HOME/.local/state/quickshell-deploy"
+mkdir -p "$deploy_dir" || exit 1
+exec 8>>"$deploy_dir/apply.lock"
+
+log() {
+    logger -t quickshell-supervise -- "$*"
+}
+
+safe_to_start() {
+    local state
+    state=$(cat "$lock_state") || return 1
+    [[ "$state" == unlocked || ( "$state" == pending && "$initial_login" == true ) ]] || return 1
+
+    [[ -n "${XDG_SESSION_ID:-}" ]] || return 1
+    [[ $(loginctl show-session "$XDG_SESSION_ID" -p Active -p LockedHint --value) == $'yes\nno' ]] || return 1
+    ! pgrep -x hyprlock >/dev/null || return 1
+    timeout 3 hyprctl -j monitors | jq -e 'length > 0 and all(.[]; .dpmsStatus == true)' >/dev/null
+}
+
+initial_login=false
+[[ "${2:-}" != --session-start ]] || initial_login=true
+observed_pid=
+reported_wait=false
+failures=0
+
+while [[ -S "$session_dir/.socket.sock" ]]; do
+    if ! instances=$(timeout 4 qs list -c "$config" --json); then
+        sleep 5
+        continue
+    fi
+    # Quickshell 0.3.2 emits a text message even in JSON mode for an empty list.
+    case "$instances" in
+        "No running instances."|"No running instances for "*)
+            instances='[]'
+            ;;
+    esac
+    if ! count=$(jq -er 'if type == "array" then length else error("invalid instance list") end' <<<"$instances"); then
+        sleep 5
+        continue
+    fi
+    if (( count > 0 )); then
+        observed_pid=$(jq -r '.[0].pid' <<<"$instances")
+        initial_login=false
+        sleep 5
+        continue
+    fi
+    if [[ -n "$observed_pid" ]]; then
+        log "Existing Quickshell PID $observed_pid exited before it could be supervised as a child"
+        observed_pid=
+    fi
+
+    if ! flock -n 8; then
+        sleep 5
+        continue
+    fi
+    if ! safe_to_start; then
+        flock -u 8
+        if [[ "$reported_wait" == false ]]; then
+            log "Waiting for a confirmed unlocked, awake session before starting Quickshell"
+            reported_wait=true
+        fi
+        sleep 5
+        continue
+    fi
+
+    reported_wait=false
+    started=$SECONDS
+    qs -c "$config" --no-duplicate 8>&- 9>&- &
+    shell_pid=$!
+    flock -u 8
+    log "Started Quickshell PID $shell_pid"
+    wait "$shell_pid"
+    status=$?
+    log "Quickshell PID $shell_pid exited with status $status after $((SECONDS - started))s"
+    if (( SECONDS - started >= 60 )); then
+        failures=0
+    fi
+    (( failures += 1 ))
+    if (( failures >= 3 )); then
+        log "Quickshell exited three times in quick succession; delaying recovery for 60s"
+        sleep 60
+        failures=0
+    else
+        sleep 3
+    fi
+done
